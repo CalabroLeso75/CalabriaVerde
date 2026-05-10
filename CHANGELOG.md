@@ -12,11 +12,33 @@ Formato: [Semantic Versioning](https://semver.org/lang/it/) — `MAJOR.MINOR.PAT
 ## [Unreleased]
 
 ### In sviluppo
-- Importazione anagrafica dipendenti dal DB legacy
-- Collegamento frontend ↔ backend API reale
-- Alembic prima migration (schema DB)
+- Esecuzione migration Alembic su DB locale (`alembic upgrade head`)
+- Esecuzione script importazione anagrafica (`import_employees.py`)
+- Pagina HR evoluta con tutti i campi del nuovo schema employee
+- Fascicolo dipendente (pagina dettaglio)
 
 ---
+
+## [0.4.0] — 2026-05-10
+
+### Aggiunto
+- **Repository Git**: inizializzato con `.gitignore`, `.gitattributes`, `.env.example`
+- **Commit Agent** (`commit_agent.ps1`): versioning semantico automatico (feat→MINOR, fix→PATCH, BREAKING→MAJOR), aggiornamento CHANGELOG automatico, creazione tag Git
+- **CHANGELOG.md**: storico versioni dalla v0.1.0, formato Keep a Changelog + Semver
+- **Schema Employee unificato**: modello SQLAlchemy aggiornato con schema completo
+  - Interno + Esterno in un'unica tabella (discriminator `tipo`)
+  - Flag operativi AIB completi: `is_dos`, `is_aib_qualificato`, `is_emergency_coordinator`, `is_operations_room_manager/operator`, `is_mechanical_operator`, `is_aib_pc_operator`, `is_pc_operator`, `is_driver`
+  - JSON per `patenti`, `abilitazioni`, `documenti_scadenza`
+  - `stato_quiescenza` per gestione pensionamento (da legacy Laravel)
+  - Relazioni: Organization, User, EmployeeQualification, EmployeeDocument, EmployeeOperationalRole
+- **Migration Alembic 001**: crea tutte le tabelle core + seed 12 ruoli di sistema
+- **Script import_employees.py**: importazione anagrafica dal DB legacy
+  - Supporta DB produzione e locale
+  - Mapping completo status/genere/quiescenza/tipo contratto
+  - Normalizzazione CF e telefoni
+  - Modalità dry-run per test senza scrittura
+  - Report finale dettagliato con statistiche
+
 
 ## [0.3.0] — 2026-05-10
 

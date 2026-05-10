@@ -1,0 +1,74 @@
+# ============================================
+# .gitignore — Gestionale Calabria Verde
+# ============================================
+
+# ---- SICUREZZA: Variabili d'ambiente e chiavi ----
+.env
+.env.*
+!.env.example
+storage/vps_keys/
+*.pem
+*.key
+*.p12
+*.crt
+credentials.json
+token.json
+
+# ---- Node.js / Next.js ----
+node_modules/
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+.npm
+.eslintcache
+.turbo/
+
+# ---- Python / FastAPI / Alembic ----
+backend/venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+htmlcov/
+.coverage
+*.egg-info/
+.eggs/
+
+# ---- Database locali ----
+*.sqlite
+*.sqlite3
+*.db
+
+# ---- Log ----
+*.log
+logs/
+npm-debug.log*
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# ---- IDE ----
+.vscode/settings.json
+.idea/
+*.suo
+*.user
+
+# ---- Upload e media utente ----
+storage/uploads/
+storage/photos/
+public/uploads/
+
+# ---- File temporanei e cache ----
+.tmp/
+tmp/
+.cache/
+.parcel-cache/

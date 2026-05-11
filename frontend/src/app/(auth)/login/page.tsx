@@ -2,11 +2,14 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { api, ApiError } from '@/lib/api';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +28,7 @@ export default function LoginPage() {
 
       localStorage.setItem('access_token', response.access_token);
       localStorage.setItem('refresh_token', response.refresh_token);
-      window.location.href = '/dashboard';
+      router.push('/dashboard');
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -175,13 +178,13 @@ export default function LoginPage() {
                 autoComplete="current-password"
               />
               <div className="flex justify-end">
-                <a
+                <Link
                   href="/auth/reset-password"
                   className="text-sm font-medium transition-colors"
                   style={{ color: 'var(--cv-primary)' }}
                 >
                   Password dimenticata?
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -200,13 +203,13 @@ export default function LoginPage() {
           <div className="text-center">
             <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
               Non hai ancora un account?{' '}
-              <a
+              <Link
                 href="/register"
                 className="font-semibold transition-colors"
                 style={{ color: 'var(--cv-primary)' }}
               >
                 Richiedi accesso
-              </a>
+              </Link>
             </p>
           </div>
 

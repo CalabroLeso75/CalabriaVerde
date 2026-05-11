@@ -7,6 +7,8 @@ Mantenere il progetto ordinato, portabile e sicuro.
 ## Regole principali
 
 - I file temporanei devono stare in `.tmp/`.
+- I file temporanei legati alla conclusione del progetto, ai deploy provvisori, ai pacchetti, ai log di verifica e agli script usa-e-getta devono stare in `.tmp/project_completion/`.
+- I file temporanei relativi agli ambienti `collaudo`, `test` e `produzione` devono usare sottocartelle dedicate dentro `.tmp/project_completion/` quando sono più di uno o quando servono per distinguere gli ambienti.
 - Gli script deterministici devono stare in `execution/`.
 - Le direttive devono stare in `directives/`.
 - Le credenziali devono stare in `.env` o in file specifici esclusi da Git.

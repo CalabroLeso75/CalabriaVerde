@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Titillium_Web, Lora, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "/test";
+
 const titillium = Titillium_Web({
   subsets: ["latin"],
   weight: ["300", "400", "600", "700"],
@@ -38,8 +40,8 @@ export default function RootLayout({
     <html lang="it" className={`${titillium.variable} ${lora.variable} ${robotoMono.variable}`}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/assets/logo-calabriaverde.png" />
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" href={`${basePath}/assets/logo-calabriaverde.png`} />
+        <link rel="manifest" href={`${basePath}/manifest.json`} />
         <meta name="theme-color" content="#1A5C3A" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -52,7 +54,7 @@ export default function RootLayout({
             __html: `
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
+                  navigator.serviceWorker.register('${basePath}/sw.js')
                     .then(reg => console.log('[SW] Registrato:', reg.scope))
                     .catch(err => console.warn('[SW] Errore:', err));
                 });

@@ -2,13 +2,21 @@
 Calabria Verde - Gestionale Aziendale
 Backend API (FastAPI)
 """
+import sys
 import os
+import asyncio
 from contextlib import asynccontextmanager
+
+# Fix encoding Windows
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.models import organization, user, employee  # noqa: F401
 from app.api.auth.router import router as auth_router
 from app.api.users.router import router as users_router
 from app.api.hr.router import router as hr_router
@@ -18,11 +26,11 @@ from app.api.hr.router import router as hr_router
 async def lifespan(app: FastAPI):
     """Startup e shutdown dell'applicazione."""
     # Startup
-    print(f"🟢 Gestionale Calabria Verde v{settings.APP_VERSION} avviato")
-    print(f"📊 Database: {settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}")
+    print(f"[OK] Gestionale Calabria Verde v{settings.APP_VERSION} avviato")
+    print(f"[DB] {settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}")
     yield
     # Shutdown
-    print("🔴 Gestionale Calabria Verde arrestato")
+    print("[STOP] Gestionale Calabria Verde arrestato")
 
 
 app = FastAPI(

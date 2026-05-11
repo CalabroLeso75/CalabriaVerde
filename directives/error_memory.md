@@ -26,3 +26,23 @@ Prima di cercare soluzioni esterne, consultare questo file.
 ## Errori registrati
 
 Nessun errore registrato.
+
+
+## 2026-05-10 18:09:39 - Aggiornamento error
+
+**Contesto:** ripresa Fase 0 backend/frontend. **Errore:** DEBUG=release non parseabile come booleano da Pydantic; mapper SQLAlchemy fragili per ordine import; Alembic non trovava il package app; next build falliva senza rete per next/font Google. **Causa individuata:** valori env storici, relazioni string-based senza registrazione completa modelli, PYTHONPATH non inizializzato in migrations/env.py, rete sandbox bloccata. **Correzione applicata:** validator DEBUG, import/relazioni robuste con backref, path backend aggiunto in migrations/env.py, build rieseguita con accesso rete autorizzato. **Prevenzione futura:** verificare import main + configure_mappers, alembic upgrade head --sql e build frontend dopo modifiche strutturali.
+
+
+## 2026-05-10 19:22:58 - Aggiornamento error
+
+**Contesto:** pubblicazione smart-cv.it/Prod. **Errore:** 404 online dopo primo upload. **Causa individuata:** i file erano stati caricati in /Gestionale/Prod, ma il sito Laravel/hosting serve probabilmente da /Gestionale/public. **Correzione applicata:** creata/verificata /Gestionale/public/Prod e ricaricata la build statica. **Prevenzione futura:** prima del deploy su hosting verificare sempre document root effettiva e presenza di public/ nei progetti Laravel o hosting PHP.
+
+
+## 2026-05-10 21:28:33 - Aggiornamento error
+
+**Contesto:** preparazione deploy provvisorio. **Errore/rischio:** API utenti/pending prive di controllo ruolo effettivo; frontend statico aveva path/API potenzialmente non coerenti con /Prod; env backend fragile e .env.example non allineato ai nomi reali; presenza locale di file sensibili/artefatti ignorati. **Correzione applicata:** aggiunto require_admin_user sulle route utenti; API fallback non punta piu' a localhost; basePath parametrico; env_file backend robusto con extra ignore; .env.example riallineato; verificato che file sensibili/artefatti risultano ignorati e non tracciati. **Prevenzione futura:** prima del backend pubblico verificare ruoli, segreti reali, CORS, DB e secret scan; non committare .env/chiavi/out/node_modules/venv.
+
+
+## 2026-05-11 08:48:51 - Aggiornamento error
+
+**Contesto:** analisi collaudo backend/frontend con agente dedicato. **Errore/rischio:** collaudo tecnico parziale non ancora promuovibile a TEST stabile. **Elementi bloccanti:** RBAC HR troppo permissivo, admin pending ancora mock, fascicolo dipendente linkato ma route assente nell'export statico, build dipendente da Google Fonts/rete, dati professionali registrazione non persistiti, route sidebar/admin mancanti, backend pubblico non ancora validato end-to-end. **Correzione prevista:** chiudere checklist collaudo prima della promozione stabile a TEST/produzione. **Prevenzione futura:** ogni promozione ambiente richiede checklist e aggiornamento registri.

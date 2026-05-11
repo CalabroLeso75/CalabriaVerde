@@ -2,7 +2,7 @@
  * API client per comunicare con il backend FastAPI.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 interface ApiOptions {
   method?: string;

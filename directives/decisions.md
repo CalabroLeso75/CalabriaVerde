@@ -98,3 +98,18 @@ Prima di proporre cambi architetturali, consultare questo registro.
 - Non usare Tailwind classi hardcoded: preferire variabili CSS custom (`--cv-*`)  
 **File coinvolti:** `brand-guidelines.md`, `frontend/src/app/globals.css`, tutti i componenti UI  
 **Stato:** attiva
+
+
+## 2026-05-10 21:28:33 - Aggiornamento decision
+
+**DEC-007 - Sequenza deploy provvisorio** **Data:** 2026-05-10. **Decisione:** validare prima backend e MySQL locale end-to-end, poi deploy FastAPI su VPS; evitare esposizione pubblica del backend finche' non sono chiusi auth, CORS, segreti e admin bootstrap. **Motivo:** il frontend statico e' gia' online, ma il backend deve essere verificato con dati reali e controlli autorizzativi prima della pubblicazione. **Impatto:** prossimo lavoro su login locale, superadmin, pending utenti, HR API e runbook VPS. **File coinvolti:** backend/, frontend/, directives/. **Stato:** attiva.
+
+
+## 2026-05-11 08:48:51 - Aggiornamento decision
+
+**DEC-008 - Tre ambienti operativi** **Data:** 2026-05-11. **Decisione:** adottare tre ambienti: Collaudo locale, Test su hosting in /Gestionale/public/test, Produzione su hosting in /Gestionale/public/produzione. **Motivo:** separare sviluppo, verifica pubblica e rilascio finale. **Impatto:** ogni modifica nasce in collaudo, passa a test dopo verifica locale e arriva in produzione solo dopo approvazione; i file temporanei ambiente restano in .tmp/project_completion/. **File coinvolti:** directives/deployment_environments.md, directives/project_state.md, frontend configurazione basePath. **Stato:** attiva.
+
+
+## 2026-05-11 08:58:01 - Aggiornamento decision
+
+**DEC-009 - Rami repository per ambienti** **Data:** 2026-05-11. **Decisione:** usare i rami Git locali collaudo e produzione come repository logici iniziali degli ambienti; il ramo main resta lo stato corrente storico finche' non sara' definito un remoto separato. **Motivo:** tracciare separatamente lavoro locale e rilasci approvati senza promuovere modifiche non verificate. **Impatto:** ogni modifica nasce in collaudo, viene pubblicata in test dopo build/verifica e confluisce in produzione solo dopo approvazione. **Stato:** attiva.

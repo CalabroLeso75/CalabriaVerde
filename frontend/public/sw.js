@@ -4,14 +4,15 @@
  */
 
 const CACHE_NAME = 'cv-gestionale-v1';
-const API_BASE = '/api';
+const BASE_PATH = '/test';
+const API_BASE = `${BASE_PATH}/api`;
 
 // Asset da pre-cachare (App Shell)
 const STATIC_ASSETS = [
-  '/',
-  '/dashboard',
-  '/manifest.json',
-  '/assets/logo-calabriaverde.png',
+  `${BASE_PATH}/`,
+  `${BASE_PATH}/dashboard/`,
+  `${BASE_PATH}/manifest.json`,
+  `${BASE_PATH}/assets/logo-calabriaverde.png`,
 ];
 
 // ============================================
@@ -122,7 +123,7 @@ async function cacheFirstWithNetworkFallback(request) {
     return networkResponse;
   } catch {
     // Fallback alla pagina offline se esiste in cache
-    const offlinePage = await caches.match('/offline');
+    const offlinePage = await caches.match(`${BASE_PATH}/offline`);
     return offlinePage || new Response('Offline', { status: 503 });
   }
 }
@@ -151,8 +152,8 @@ self.addEventListener('push', (event) => {
   const data = event.data.json();
   const options = {
     body: data.body || '',
-    icon: '/assets/logo-calabriaverde.png',
-    badge: '/assets/logo-calabriaverde.png',
+    icon: `${BASE_PATH}/assets/logo-calabriaverde.png`,
+    badge: `${BASE_PATH}/assets/logo-calabriaverde.png`,
     tag: data.tag || 'cv-notification',
     data: data.url || '/dashboard',
     actions: data.actions || [],
@@ -166,6 +167,6 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data || '/dashboard';
+  const url = event.notification.data || `${BASE_PATH}/dashboard/`;
   event.waitUntil(clients.openWindow(url));
 });

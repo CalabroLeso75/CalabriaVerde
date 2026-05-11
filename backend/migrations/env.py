@@ -2,10 +2,14 @@
 Alembic Environment Configuration — Calabria Verde Gestionale
 """
 import os
+import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from sqlalchemy import engine_from_config, pool
 from alembic import context
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 # Import tutti i modelli per la rilevazione automatica
 from app.core.database import Base

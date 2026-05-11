@@ -15,10 +15,12 @@ from sqlalchemy import (
     Column, Integer, String, Boolean, Date, Text, Enum,
     ForeignKey, JSON, DateTime, UniqueConstraint, Index
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+from app.models.organization import Organization  # noqa: F401
+from app.models.user import User  # noqa: F401
 
 
 # ============================================
@@ -154,8 +156,8 @@ class Employee(Base):
     # ============================================
     # RELAZIONI
     # ============================================
-    organization = relationship("Organization", back_populates="employees")
-    user = relationship("User", back_populates="employee", foreign_keys=[user_id])
+    organization = relationship("Organization", backref="employees")
+    user = relationship("User", backref=backref("employee", uselist=False), foreign_keys=[user_id])
     qualifiche = relationship(
         "EmployeeQualification",
         back_populates="employee",

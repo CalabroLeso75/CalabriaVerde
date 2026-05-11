@@ -15,13 +15,35 @@ from app.schemas.auth import UserResponse, ApproveUserRequest, RejectUserRequest
 router = APIRouter()
 
 
+ADMIN_ROLE_CODES = {"superadmin", "admin", "addetto_hr"}
+
+
+def require_admin_user(current_user: User) -> None:
+    """Blocca le route amministrative agli utenti non autorizzati."""
+    if current_user.is_superadmin:
+        return
+
+    active_codes = {
+        user_role.role.code
+        for user_role in current_user.roles
+        if user_role.is_active and user_role.role
+    }
+    if active_codes.intersection(ADMIN_ROLE_CODES):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Permessi insufficienti per gestire gli utenti",
+    )
+
+
 @router.get("/pending", response_model=list[UserResponse])
 async def get_pending_users(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Lista utenti in attesa di approvazione."""
-    # Solo admin/responsabili possono vedere i pending
+    require_admin_user(current_user)
     users = db.query(User).filter(User.status == "pending").order_by(User.created_at.desc()).all()
     return users
 
@@ -37,6 +59,7 @@ async def approve_user(
     Approva un utente in pending e gli assegna un ruolo.
     Solo admin e responsabili possono approvare.
     """
+    require_admin_user(current_user)
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utente non trovato")
@@ -76,6 +99,7 @@ async def reject_user(
     db: Session = Depends(get_db),
 ):
     """Rifiuta la registrazione di un utente."""
+    require_admin_user(current_user)
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utente non trovato")
@@ -100,6 +124,7 @@ async def list_users(
     db: Session = Depends(get_db),
 ):
     """Lista utenti con filtri e paginazione."""
+    require_admin_user(current_user)
     query = db.query(User)
 
     if status:

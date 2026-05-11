@@ -94,13 +94,21 @@ Da compilare e aggiornare.
 
 ## Stato di avanzamento
 
-Da compilare e aggiornare.
+La Fase 0 tecnica è in corso. Sono state predisposte le fondamenta del gestionale con frontend Next.js, backend FastAPI, autenticazione JWT, schema dati SQLAlchemy/Alembic e prime interfacce operative.
+
+Il modulo Risorse Umane dispone ora di lista dipendenti e fascicolo personale collegati alle API backend reali, con paginazione, filtri, KPI, dettaglio anagrafico, contrattuale e operativo.
+
+È stata pubblicata una prima versione statica consultabile in ambiente Test su `smart-cv.it/test`, utile per verifiche visuali e condivisione interna preliminare. È stata inoltre predisposta una cartella separata per l'ambiente Produzione su `smart-cv.it/produzione`, da aggiornare solo dopo esito positivo delle verifiche in collaudo e test. Il backend applicativo resta da esporre tramite VPS dopo validazione locale.
 
 ---
 
 ## Criticità note
 
-Da compilare e aggiornare.
+- La verifica completa richiede un database MySQL locale inizializzato con Alembic.
+- La build frontend scarica font istituzionali tramite Google Fonts, quindi necessita di rete durante la compilazione.
+- Lo script di creazione superadmin richiede password fornita tramite variabile d'ambiente, per evitare credenziali hardcoded.
+- Il backend non deve essere esposto pubblicamente prima di completare controlli autorizzativi, CORS, segreti e test end-to-end.
+- La promozione in Produzione deve restare bloccata finché non sono chiusi RBAC HR, pending utenti reale, route mancanti e collegamento API pubblico.
 
 ---
 
@@ -112,7 +120,12 @@ Da compilare e aggiornare.
 
 ## Prossimi passi
 
-Da compilare e aggiornare.
+- Inizializzare il database MySQL locale con la migration aggiornata.
+- Creare il superadmin e testare il flusso login.
+- Collegare gestione pending utenti e approvazione ruoli alle API reali.
+- Proseguire con test end-to-end del modulo Risorse Umane.
+- Predisporre deploy FastAPI su VPS con reverse proxy HTTPS e variabili ambiente protette.
+- Mantenere aggiornati i rami/repository `collaudo` e `produzione` a ogni modifica approvata.
 
 ---
 

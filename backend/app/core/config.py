@@ -3,8 +3,13 @@ Configurazione centralizzata dell'applicazione.
 Carica le variabili dal file .env nella root del progetto.
 """
 import os
+from pathlib import Path
 from typing import List
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
+
+ROOT_DIR = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
@@ -56,6 +61,20 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM_EMAIL: str = ""
 
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def parse_debug_mode(cls, value):
+        """Accetta valori storici dell'env come release/debug."""
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"release", "prod", "production"}:
+                return False
+            if normalized in {"debug", "dev", "development"}:
+                return True
+        return value
+
     @property
     def DATABASE_URL(self) -> str:
         """URL di connessione al database locale."""
@@ -67,9 +86,10 @@ class Settings(BaseSettings):
         return f"mysql+pymysql://{self.PROD_DB_USER}:{self.PROD_DB_PASSWORD}@{self.PROD_DB_HOST}:{self.PROD_DB_PORT}/{self.PROD_DB_NAME}?charset=utf8mb4"
 
     class Config:
-        env_file = "../../.env"
+        env_file = ROOT_DIR / ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
+        extra = "ignore"
 
 
 settings = Settings()

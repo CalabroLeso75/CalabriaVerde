@@ -27,6 +27,11 @@ function getPageMeta(pathname: string) {
   // Match esatto
   if (routeTitles[pathname]) return routeTitles[pathname];
 
+  // Fascicolo dipendente: /hr/[id numerico]
+  if (/^\/hr\/\d+$/.test(pathname)) {
+    return { title: 'Fascicolo Dipendente', subtitle: 'Dati anagrafici, contrattuali e operativi' };
+  }
+
   // Match parziale per route dinamiche (es. /hr/123 → /hr)
   const segments = pathname.split('/').filter(Boolean);
   for (let i = segments.length; i > 0; i--) {

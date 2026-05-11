@@ -9,6 +9,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from app.core.database import Base
+from app.models.organization import Organization  # noqa: F401
 
 
 class User(Base):
@@ -47,7 +48,12 @@ class User(Base):
     is_superadmin = Column(Boolean, default=False)
 
     # Relazioni
-    roles = relationship("UserRole", back_populates="user", lazy="selectin")
+    roles = relationship(
+        "UserRole",
+        back_populates="user",
+        primaryjoin="User.id == foreign(UserRole.user_id)",
+        lazy="selectin",
+    )
     approver = relationship("User", remote_side=[id], foreign_keys=[approved_by])
 
     def __repr__(self):

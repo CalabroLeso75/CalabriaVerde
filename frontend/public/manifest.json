@@ -12,7 +12,7 @@
   "categories": ["productivity", "business"],
   "icons": [
     {
-      "src": "/assets/logo-calabriaverde.png",
+      "src": "/test/assets/logo-calabriaverde.png",
       "sizes": "any",
       "type": "image/png",
       "purpose": "any maskable"
@@ -24,21 +24,21 @@
       "short_name": "Dashboard",
       "description": "Panoramica operativa",
       "url": "/dashboard",
-      "icons": [{ "src": "/assets/logo-calabriaverde.png", "sizes": "any" }]
+      "icons": [{ "src": "/test/assets/logo-calabriaverde.png", "sizes": "any" }]
     },
     {
       "name": "Antincendio AIB",
       "short_name": "AIB",
       "description": "Gestione eventi antincendio",
       "url": "/aib",
-      "icons": [{ "src": "/assets/logo-calabriaverde.png", "sizes": "any" }]
+      "icons": [{ "src": "/test/assets/logo-calabriaverde.png", "sizes": "any" }]
     },
     {
       "name": "Risorse Umane",
       "short_name": "HR",
       "description": "Gestione personale",
       "url": "/hr",
-      "icons": [{ "src": "/assets/logo-calabriaverde.png", "sizes": "any" }]
+      "icons": [{ "src": "/test/assets/logo-calabriaverde.png", "sizes": "any" }]
     }
   ],
   "related_applications": [],

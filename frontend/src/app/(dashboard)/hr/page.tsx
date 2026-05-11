@@ -1,176 +1,322 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Card, CardHeader } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { api } from '@/lib/api';
 
-// Tipi per il dipendente
+// ============================================
+// TIPI
+// ============================================
 interface Employee {
   id: number;
   codice_fiscale: string;
   nome: string;
   cognome: string;
+  genere?: string;
+  data_nascita?: string;
+  luogo_nascita?: string;
+  provincia_nascita?: string;
   email_istituzionale?: string;
+  email_personale?: string;
   telefono_lavoro?: string;
+  telefono_personale?: string;
+  tipo: 'interno' | 'esterno';
   tipo_contratto?: string;
-  stato: string;
+  numero_matricola?: string;
   mansione?: string;
-  data_assunzione?: string;
+  stato: string;
+  is_aib_qualificato: boolean;
+  is_dos: boolean;
+  is_driver: boolean;
   organization_id?: number;
 }
 
-const statoColors: Record<string, { bg: string; text: string; label: string }> = {
-  in_servizio:  { bg: '#00804015', text: '#008040', label: 'In servizio' },
-  malattia:     { bg: '#CC840015', text: '#CC8400', label: 'Malattia' },
-  aspettativa:  { bg: '#5B8FCC15', text: '#5B8FCC', label: 'Aspettativa' },
-  distaccato:   { bg: '#33996615', text: '#339966', label: 'Distaccato' },
-  infortunio:   { bg: '#CC334415', text: '#CC3344', label: 'Infortunio' },
-  maternita:    { bg: '#A8870A15', text: '#A8870A', label: 'Maternità' },
-  sospeso:      { bg: '#40404015', text: '#404040', label: 'Sospeso' },
-  cessato:      { bg: '#40404015', text: '#A3A3A3', label: 'Cessato' },
+interface EmployeeList {
+  items: Employee[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+}
+
+interface HrStats {
+  totale: number;
+  interni: number;
+  esterni: number;
+  in_servizio: number;
+  cessati: number;
+  aib_qualificati: number;
+  dos: number;
+}
+
+// ============================================
+// HELPERS
+// ============================================
+const STATO_BADGE: Record<string, { variant: 'success'|'warning'|'danger'|'neutral'|'info'; label: string }> = {
+  in_servizio:  { variant: 'success', label: 'In servizio' },
+  malattia:     { variant: 'warning', label: 'Malattia' },
+  infortunio:   { variant: 'warning', label: 'Infortunio' },
+  aspettativa:  { variant: 'info',    label: 'Aspettativa' },
+  maternita:    { variant: 'info',    label: 'Maternità' },
+  distaccato:   { variant: 'neutral', label: 'Distaccato' },
+  sospeso:      { variant: 'warning', label: 'Sospeso' },
+  cessato:      { variant: 'danger',  label: 'Cessato' },
+  pensionato:   { variant: 'neutral', label: 'Pensionato' },
 };
 
-// Dati demo per sviluppo (verranno sostituiti con chiamate API reali)
-const DEMO_EMPLOYEES: Employee[] = [
-  { id: 1, codice_fiscale: 'CSNRFL75A12F537W', nome: 'Raffaele', cognome: 'Cusano', email_istituzionale: 'raffaele.cusano@calabriaverde.eu', telefono_lavoro: '0965 123456', tipo_contratto: 'indeterminato', stato: 'in_servizio', mansione: 'Direttore Generale', data_assunzione: '2010-03-15' },
-  { id: 2, codice_fiscale: 'FRRMNC82B45F537K', nome: 'Monica', cognome: 'Ferraro', email_istituzionale: 'monica.ferraro@calabriaverde.eu', telefono_lavoro: '0965 123457', tipo_contratto: 'indeterminato', stato: 'in_servizio', mansione: 'Responsabile HR', data_assunzione: '2012-06-01' },
-  { id: 3, codice_fiscale: 'CTLLNZ90C15F537M', nome: 'Lorenzo', cognome: 'Cataldo', email_istituzionale: 'lorenzo.cataldo@calabriaverde.eu', telefono_lavoro: '0965 123458', tipo_contratto: 'determinato', stato: 'in_servizio', mansione: 'DOS - Distaccamento Cosenza', data_assunzione: '2020-04-01' },
-  { id: 4, codice_fiscale: 'MLRGRG88D22F537R', nome: 'Giorgio', cognome: 'Malara', email_istituzionale: 'giorgio.malara@calabriaverde.eu', tipo_contratto: 'stagionale', stato: 'in_servizio', mansione: 'Operatore AIB Squadra 3', data_assunzione: '2024-05-01' },
-  { id: 5, codice_fiscale: 'GRCPTR85E10F537Z', nome: 'Pietro', cognome: 'Greco', email_istituzionale: 'pietro.greco@calabriaverde.eu', tipo_contratto: 'indeterminato', stato: 'malattia', mansione: 'Autista - Parco Macchine', data_assunzione: '2015-09-10' },
-];
+const TIPO_CONTRATTO_LABEL: Record<string, string> = {
+  indeterminato: 'Indeterminato',
+  determinato:   'Determinato',
+  stagionale:    'Stagionale',
+  somministrazione: 'Somministrazione',
+  collaborazione: 'Collaborazione',
+  volontario:    'Volontario',
+};
 
-export default function HREmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>(DEMO_EMPLOYEES);
+function getInitials(nome: string, cognome: string): string {
+  return `${cognome[0] || ''}${nome[0] || ''}`.toUpperCase();
+}
+
+function avatarColor(id: number): string {
+  const colors = [
+    '#33996622', '#5B8FCC22', '#CC840022', '#9B59B622',
+    '#16A08522', '#E67E2222', '#2980B922', '#C0392B22',
+  ];
+  return colors[id % colors.length];
+}
+
+// ============================================
+// COMPONENTE KPI CARD
+// ============================================
+function KpiCard({ label, value, sub, accent }: { label: string; value: number | string; sub?: string; accent?: string }) {
+  return (
+    <Card padding="sm">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--cv-neutral-500)' }}>
+            {label}
+          </p>
+          <p className="text-3xl font-bold mt-1" style={{ color: accent || 'var(--cv-primary)' }}>
+            {typeof value === 'number' ? value.toLocaleString('it-IT') : value}
+          </p>
+          {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--cv-neutral-500)' }}>{sub}</p>}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ============================================
+// PAGINA HR PRINCIPALE
+// ============================================
+export default function HRPage() {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [stats, setStats] = useState<HrStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [error, setError] = useState('');
+
   const [search, setSearch] = useState('');
-  const [statoFilter, setStatoFilter] = useState('');
-  const [loading] = useState(false);
+  const [filterStato, setFilterStato] = useState('');
+  const [filterTipo, setFilterTipo] = useState('');
+  const [filterContratto, setFilterContratto] = useState('');
 
-  // Filtro client-side (demo) — in produzione sarà server-side
-  const filtered = employees.filter((emp) => {
-    const searchMatch =
-      !search ||
-      `${emp.nome} ${emp.cognome} ${emp.codice_fiscale} ${emp.email_istituzionale || ''}`
-        .toLowerCase()
-        .includes(search.toLowerCase());
-    const statoMatch = !statoFilter || emp.stato === statoFilter;
-    return searchMatch && statoMatch;
-  });
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const PAGE_SIZE = 25;
 
-  const stats = {
-    total: employees.length,
-    in_servizio: employees.filter((e) => e.stato === 'in_servizio').length,
-    malattia: employees.filter((e) => e.stato === 'malattia').length,
-    altri: employees.filter((e) => !['in_servizio', 'malattia'].includes(e.stato)).length,
+  // ---- Carica statistiche ----
+  useEffect(() => {
+    api.get<HrStats>('/hr/employees/stats')
+      .then(setStats)
+      .catch(() => setStats(null))
+      .finally(() => setStatsLoading(false));
+  }, []);
+
+  // ---- Carica lista dipendenti ----
+  const fetchEmployees = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      if (filterStato) params.set('stato', filterStato);
+      if (filterTipo) params.set('tipo', filterTipo);
+      if (filterContratto) params.set('tipo_contratto', filterContratto);
+      params.set('page', String(page));
+      params.set('page_size', String(PAGE_SIZE));
+
+      const data = await api.get<EmployeeList>(`/hr/employees?${params}`);
+      setEmployees(data.items);
+      setTotal(data.total);
+      setTotalPages(data.pages);
+    } catch {
+      setError('Errore nel caricamento dei dipendenti. Verifica che il backend sia attivo.');
+    } finally {
+      setLoading(false);
+    }
+  }, [search, filterStato, filterTipo, filterContratto, page]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      fetchEmployees();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchEmployees]);
+
+  // Debounce ricerca
+  const [searchInput, setSearchInput] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setPage(1);
+      setSearch(searchInput);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const updateFilter = (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
+    setPage(1);
+    setter(value);
   };
 
   return (
     <div className="space-y-6">
-      {/* Header pagina */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold" style={{ color: 'var(--cv-neutral-900)' }}>
-            Risorse Umane
+            Anagrafica Dipendenti
           </h2>
           <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-            Anagrafica evoluta dei dipendenti
+            {total > 0 ? `${total.toLocaleString('it-IT')} dipendenti nel sistema` : 'Caricamento...'}
           </p>
         </div>
-        <Link href="/hr/new">
-          <Button
-            icon={
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-            }
-          >
-            Nuovo Dipendente
-          </Button>
-        </Link>
+        <Button>
+          + Nuovo dipendente
+        </Button>
       </div>
 
-      {/* KPI bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: 'Totale', value: stats.total, color: 'var(--cv-primary)' },
-          { label: 'In servizio', value: stats.in_servizio, color: 'var(--cv-success)' },
-          { label: 'Malattia/Infort.', value: stats.malattia, color: 'var(--cv-warning)' },
-          { label: 'Altri stati', value: stats.altri, color: 'var(--cv-neutral-600)' },
-        ].map((kpi) => (
-          <div
-            key={kpi.label}
-            className="p-4 rounded-lg border bg-white flex items-center gap-3"
-            style={{ borderColor: 'var(--cv-neutral-300)' }}
-          >
-            <div
-              className="text-2xl font-bold"
-              style={{ color: kpi.color }}
-            >
-              {kpi.value}
-            </div>
-            <div className="text-sm font-medium" style={{ color: 'var(--cv-neutral-600)' }}>
-              {kpi.label}
-            </div>
-          </div>
-        ))}
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="col-span-2 sm:col-span-1">
+          <KpiCard label="Totale" value={statsLoading ? '...' : (stats?.totale ?? 0)} />
+        </div>
+        <KpiCard label="Interni" value={statsLoading ? '...' : (stats?.interni ?? 0)} accent="var(--cv-primary)" />
+        <KpiCard label="Esterni" value={statsLoading ? '...' : (stats?.esterni ?? 0)} accent="var(--cv-info)" />
+        <KpiCard label="In servizio" value={statsLoading ? '...' : (stats?.in_servizio ?? 0)} accent="var(--cv-success)" />
+        <KpiCard label="Cessati" value={statsLoading ? '...' : (stats?.cessati ?? 0)} accent="var(--cv-danger)" />
+        <KpiCard label="AIB qual." value={statsLoading ? '...' : (stats?.aib_qualificati ?? 0)} accent="#CC8400" />
+        <KpiCard label="DOS" value={statsLoading ? '...' : (stats?.dos ?? 0)} accent="#9B59B6" />
       </div>
 
-      {/* Filtri e ricerca */}
+      {/* Filtri */}
       <Card padding="sm">
-        <div className="flex flex-col sm:flex-row gap-3 items-end">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <Input
               id="hr-search"
-              label="Cerca dipendente"
-              placeholder="Nome, cognome, codice fiscale, email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              label=""
+              placeholder="Cerca per nome, cognome, CF, email, matricola..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
-          <div className="w-full sm:w-48">
-            <label className="text-sm font-semibold block mb-1" style={{ color: 'var(--cv-neutral-800)' }}>
-              Stato
-            </label>
-            <select
-              id="hr-stato-filter"
-              value={statoFilter}
-              onChange={(e) => setStatoFilter(e.target.value)}
-              className="w-full px-3 py-2 rounded-md border text-sm"
-              style={{
-                borderColor: 'var(--cv-neutral-300)',
-                color: 'var(--cv-neutral-800)',
-              }}
-            >
-              <option value="">Tutti gli stati</option>
-              {Object.entries(statoColors).map(([key, val]) => (
-                <option key={key} value={key}>{val.label}</option>
-              ))}
-            </select>
-          </div>
-          {(search || statoFilter) && (
+          <Select
+            id="hr-filter-stato"
+            label=""
+            value={filterStato}
+            onChange={(e) => updateFilter(setFilterStato, e.target.value)}
+            placeholder="Tutti gli stati"
+            options={[
+              { value: 'in_servizio', label: 'In servizio' },
+              { value: 'malattia', label: 'Malattia' },
+              { value: 'infortunio', label: 'Infortunio' },
+              { value: 'aspettativa', label: 'Aspettativa' },
+              { value: 'cessato', label: 'Cessato' },
+              { value: 'pensionato', label: 'Pensionato' },
+              { value: 'sospeso', label: 'Sospeso' },
+            ]}
+            className="sm:w-40"
+          />
+          <Select
+            id="hr-filter-tipo"
+            label=""
+            value={filterTipo}
+            onChange={(e) => updateFilter(setFilterTipo, e.target.value)}
+            placeholder="Tipo"
+            options={[
+              { value: 'interno', label: 'Interni' },
+              { value: 'esterno', label: 'Esterni' },
+            ]}
+            className="sm:w-36"
+          />
+          <Select
+            id="hr-filter-contratto"
+            label=""
+            value={filterContratto}
+            onChange={(e) => updateFilter(setFilterContratto, e.target.value)}
+            placeholder="Contratto"
+            options={[
+              { value: 'indeterminato', label: 'Indeterminato' },
+              { value: 'determinato', label: 'Determinato' },
+              { value: 'stagionale', label: 'Stagionale' },
+              { value: 'collaborazione', label: 'Collaborazione' },
+              { value: 'volontario', label: 'Volontario' },
+            ]}
+            className="sm:w-40"
+          />
+          {(filterStato || filterTipo || filterContratto || searchInput) && (
             <Button
               variant="ghost"
-              size="sm"
-              onClick={() => { setSearch(''); setStatoFilter(''); }}
+              onClick={() => {
+                setPage(1);
+                setSearchInput('');
+                setSearch('');
+                setFilterStato('');
+                setFilterTipo('');
+                setFilterContratto('');
+              }}
             >
-              Pulisci filtri
+              Reset
             </Button>
           )}
         </div>
       </Card>
 
-      {/* Tabella dipendenti */}
+      {/* Errore */}
+      {error && (
+        <div
+          className="flex items-start gap-3 p-4 rounded-lg border"
+          style={{ background: '#CC334408', borderColor: '#CC334440', color: 'var(--cv-danger)' }}
+          role="alert"
+        >
+          <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          <div>
+            <p className="font-semibold text-sm">Errore caricamento</p>
+            <p className="text-xs mt-0.5">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Tabella */}
       <Card padding="none">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full" aria-label="Tabella dipendenti">
             <thead>
-              <tr style={{ borderBottom: '2px solid var(--cv-neutral-200)', background: 'var(--cv-neutral-100)' }}>
-                {['Dipendente', 'Codice Fiscale', 'Contatti', 'Contratto', 'Mansione', 'Stato', ''].map((h) => (
+              <tr style={{ borderBottom: '2px solid var(--cv-neutral-200)', background: 'var(--cv-neutral-50)' }}>
+                {['Dipendente', 'Codice Fiscale', 'Mansione', 'Contratto', 'Tipo', 'Stato', 'Flag', ''].map((h) => (
                   <th
                     key={h}
-                    className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wide"
-                    style={{ color: 'var(--cv-neutral-600)' }}
+                    className="text-left text-xs font-bold uppercase tracking-wider px-4 py-3"
+                    style={{ color: 'var(--cv-neutral-500)' }}
                   >
                     {h}
                   </th>
@@ -179,131 +325,146 @@ export default function HREmployeesPage() {
             </thead>
             <tbody>
               {loading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    {Array.from({ length: 8 }).map((_, j) => (
+                      <td key={j} className="px-4 py-3">
+                        <div className="h-4 rounded" style={{ background: 'var(--cv-neutral-200)', width: j === 0 ? '80%' : '60%' }} />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : employees.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center" style={{ color: 'var(--cv-neutral-500)' }}>
-                    <div className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Caricamento...
-                    </div>
+                  <td colSpan={8} className="px-4 py-12 text-center" style={{ color: 'var(--cv-neutral-500)' }}>
+                    <p className="font-semibold">Nessun dipendente trovato</p>
+                    <p className="text-sm mt-1">Prova a modificare i filtri di ricerca</p>
                   </td>
                 </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center" style={{ color: 'var(--cv-neutral-500)' }}>
-                    Nessun dipendente trovato
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((emp) => {
-                  const stato = statoColors[emp.stato] || statoColors.cessato;
-                  return (
-                    <tr
-                      key={emp.id}
-                      className="transition-colors border-b"
-                      style={{ borderColor: 'var(--cv-neutral-200)' }}
-                    >
-                      {/* Nome */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                            style={{ background: 'var(--cv-primary-lighter)', color: 'var(--cv-primary-dark)' }}
-                          >
-                            {emp.cognome[0]}{emp.nome[0]}
-                          </div>
-                          <div>
-                            <p className="font-semibold" style={{ color: 'var(--cv-neutral-900)' }}>
-                              {emp.cognome} {emp.nome}
-                            </p>
-                            {emp.data_assunzione && (
-                              <p className="text-xs" style={{ color: 'var(--cv-neutral-500)' }}>
-                                Dal {new Date(emp.data_assunzione).toLocaleDateString('it-IT', { year: 'numeric', month: 'short' })}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* CF */}
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-xs" style={{ color: 'var(--cv-neutral-700)' }}>
-                          {emp.codice_fiscale}
-                        </span>
-                      </td>
-
-                      {/* Contatti */}
-                      <td className="px-4 py-3">
-                        <div className="space-y-0.5">
-                          {emp.email_istituzionale && (
-                            <p className="text-xs" style={{ color: 'var(--cv-neutral-700)' }}>
-                              {emp.email_istituzionale}
-                            </p>
-                          )}
-                          {emp.telefono_lavoro && (
-                            <p className="text-xs" style={{ color: 'var(--cv-neutral-500)' }}>
-                              {emp.telefono_lavoro}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Contratto */}
-                      <td className="px-4 py-3">
-                        <span className="text-xs capitalize" style={{ color: 'var(--cv-neutral-700)' }}>
-                          {emp.tipo_contratto?.replace('_', ' ') || '—'}
-                        </span>
-                      </td>
-
-                      {/* Mansione */}
-                      <td className="px-4 py-3">
-                        <span className="text-xs" style={{ color: 'var(--cv-neutral-700)' }}>
-                          {emp.mansione || '—'}
-                        </span>
-                      </td>
-
-                      {/* Stato */}
-                      <td className="px-4 py-3">
-                        <span
-                          className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
-                          style={{ background: stato.bg, color: stato.text }}
+              ) : employees.map((emp) => {
+                const stato = STATO_BADGE[emp.stato] || { variant: 'neutral' as const, label: emp.stato };
+                return (
+                  <tr
+                    key={emp.id}
+                    style={{ borderBottom: '1px solid var(--cv-neutral-200)' }}
+                    className="transition-colors hover:bg-neutral-50"
+                  >
+                    {/* Dipendente */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                          style={{ background: avatarColor(emp.id), color: 'var(--cv-primary)' }}
                         >
-                          {stato.label}
-                        </span>
-                      </td>
-
-                      {/* Azioni */}
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/hr/${emp.id}`}
-                          className="text-xs font-medium transition-colors"
-                          style={{ color: 'var(--cv-primary)' }}
-                        >
-                          Fascicolo →
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+                          {getInitials(emp.nome, emp.cognome)}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm" style={{ color: 'var(--cv-neutral-900)' }}>
+                            {emp.cognome} {emp.nome}
+                          </p>
+                          <p className="text-xs" style={{ color: 'var(--cv-neutral-500)' }}>
+                            {emp.email_istituzionale || emp.email_personale || '—'}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    {/* CF */}
+                    <td className="px-4 py-3">
+                      <span className="font-mono text-xs" style={{ color: 'var(--cv-neutral-700)' }}>
+                        {emp.codice_fiscale}
+                      </span>
+                    </td>
+                    {/* Mansione */}
+                    <td className="px-4 py-3">
+                      <span className="text-sm" style={{ color: 'var(--cv-neutral-700)' }}>
+                        {emp.mansione || '—'}
+                      </span>
+                    </td>
+                    {/* Contratto */}
+                    <td className="px-4 py-3">
+                      <span className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
+                        {TIPO_CONTRATTO_LABEL[emp.tipo_contratto || ''] || emp.tipo_contratto || '—'}
+                      </span>
+                    </td>
+                    {/* Tipo */}
+                    <td className="px-4 py-3">
+                      <Badge variant={emp.tipo === 'interno' ? 'primary' : 'info'} size="sm">
+                        {emp.tipo === 'interno' ? 'Interno' : 'Esterno'}
+                      </Badge>
+                    </td>
+                    {/* Stato */}
+                    <td className="px-4 py-3">
+                      <Badge variant={stato.variant} size="sm" dot>
+                        {stato.label}
+                      </Badge>
+                    </td>
+                    {/* Flag AIB */}
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        {emp.is_aib_qualificato && (
+                          <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: '#CC840018', color: '#CC8400' }}>
+                            AIB
+                          </span>
+                        )}
+                        {emp.is_dos && (
+                          <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: '#9B59B618', color: '#9B59B6' }}>
+                            DOS
+                          </span>
+                        )}
+                        {emp.is_driver && (
+                          <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: '#2980B918', color: '#2980B9' }}>
+                            AUT
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    {/* Azioni */}
+                    <td className="px-4 py-3 text-right">
+                      <Link href={`/hr/dettaglio?id=${emp.id}`}>
+                        <Button variant="ghost" size="sm">
+                          Fascicolo
+                        </Button>
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
-        {/* Footer tabella */}
-        <div
-          className="px-4 py-3 border-t flex items-center justify-between text-xs"
-          style={{ borderColor: 'var(--cv-neutral-200)', color: 'var(--cv-neutral-500)' }}
-        >
-          <span>
-            Mostrando {filtered.length} di {employees.length} dipendenti
-          </span>
-          <span>
-            Dati aggiornati in tempo reale
-          </span>
-        </div>
+        {/* Paginazione */}
+        {!loading && employees.length > 0 && (
+          <div
+            className="flex items-center justify-between px-4 py-3"
+            style={{ borderTop: '1px solid var(--cv-neutral-200)', background: 'var(--cv-neutral-50)' }}
+          >
+            <p className="text-xs" style={{ color: 'var(--cv-neutral-500)' }}>
+              Mostrando {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, total)} di {total.toLocaleString('it-IT')} dipendenti
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                ← Prec
+              </Button>
+              <span className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
+                Pag. {page} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+              >
+                Succ →
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

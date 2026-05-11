@@ -43,3 +43,8 @@ Nessun obiettivo sospeso o bloccato registrato.
 ## 2026-05-11 14:02:04 - Aggiornamento objective
 
 **OBJ-005 - Collaudo anagrafica importata** **Stato:** attivo. **Priorita:** alta. **Descrizione:** usare i 4465 record anagrafici importati per testare HR, ricerca, dettaglio fascicolo, login e autorizzazioni. **Avanzamento:** import ripetibile e verificato; API HR rispondono su statistiche, lista e dettaglio con token locale; frontend collaudo avviato. **Prossimi passi:** reimpostare o confermare password admin, fare test browser login->HR, collegare pending utenti reale e introdurre RBAC HR.
+
+
+## 2026-05-11 15:02:42 - Aggiornamento objective
+
+**OBJ-005 - Collaudo anagrafica importata** **Stato:** attivo. **Priorita:** alta. **Avanzamento:** tutti i 4465 dipendenti sono ora a tempo indeterminato in collaudo; il fascicolo personale ha una prima funzione di modifica collegata all'API PUT. **Prossimi passi:** test browser end-to-end su login, apertura dipendente, modifica campi, salvataggio e ricaricamento; poi estendere documenti, qualifiche e RBAC HR.

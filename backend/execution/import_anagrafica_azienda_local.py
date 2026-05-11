@@ -148,12 +148,12 @@ def get_contract_map(src: pymysql.Connection) -> dict[int, str]:
 
 def map_contract(contracts: dict[int, str], contract_id: Any) -> str:
     if not contract_id:
-        return "determinato"
+        return "indeterminato"
     code = contracts.get(int(contract_id), "")
     for key, value in CONTRATTO_MAP_KEYS:
         if key in code:
             return value
-    return "determinato"
+    return "indeterminato"
 
 
 def ensure_main_organization(src: pymysql.Connection, dst: pymysql.Connection, apply: bool) -> int | None:

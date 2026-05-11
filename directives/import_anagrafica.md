@@ -33,6 +33,7 @@ backend\venv\Scripts\python.exe backend\execution\import_anagrafica_azienda_loca
 - Le matricole duplicate devono essere segnalate prima dell'import.
 - Gli aggiornamenti devono toccare solo i campi mappati dallo script.
 - Le tabelle di destinazione non devono essere svuotate automaticamente.
+- Per la fase corrente di collaudo tutti i dipendenti devono risultare con `tipo_contratto=indeterminato`.
 
 ## Ambiente
 

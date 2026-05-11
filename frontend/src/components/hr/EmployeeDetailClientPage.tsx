@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Modal } from '@/components/ui/Modal';
 import { api } from '@/lib/api';
 
 // ============================================
@@ -67,6 +70,37 @@ interface EmployeeDetail {
   qualifiche?: Qualification[];
 }
 
+type EmployeeFormState = {
+  nome: string;
+  cognome: string;
+  genere: string;
+  data_nascita: string;
+  luogo_nascita: string;
+  provincia_nascita: string;
+  email_istituzionale: string;
+  email_personale: string;
+  pec: string;
+  telefono_lavoro: string;
+  telefono_personale: string;
+  telefono_secondario: string;
+  tipo_contratto: string;
+  numero_matricola: string;
+  mansione: string;
+  livello_inquadramento: string;
+  stato: string;
+  is_aib_qualificato: boolean;
+  is_dos: boolean;
+  is_driver: boolean;
+  is_emergency_available: boolean;
+  is_emergency_coordinator: boolean;
+  is_operations_room_manager: boolean;
+  is_operations_room_operator: boolean;
+  is_mechanical_operator: boolean;
+  is_aib_pc_operator: boolean;
+  is_pc_operator: boolean;
+  note: string;
+};
+
 // ============================================
 // HELPERS
 // ============================================
@@ -109,6 +143,92 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'qualifiche', label: 'Qualifiche',  icon: '🎖️' },
   { id: 'documenti',  label: 'Documenti',   icon: '📁' },
 ];
+
+const GENERE_OPTIONS = [
+  { value: '', label: 'Non indicato' },
+  { value: 'M', label: 'Maschile' },
+  { value: 'F', label: 'Femminile' },
+  { value: 'NB', label: 'Non binario' },
+];
+
+const STATO_OPTIONS = [
+  { value: 'in_servizio', label: 'In servizio' },
+  { value: 'malattia', label: 'Malattia' },
+  { value: 'infortunio', label: 'Infortunio' },
+  { value: 'aspettativa', label: 'Aspettativa' },
+  { value: 'maternita', label: 'Maternita' },
+  { value: 'distaccato', label: 'Distaccato' },
+  { value: 'sospeso', label: 'Sospeso' },
+  { value: 'cessato', label: 'Cessato' },
+  { value: 'pensionato', label: 'Pensionato' },
+];
+
+const CONTRATTO_OPTIONS = [
+  { value: 'indeterminato', label: 'Tempo indeterminato' },
+  { value: 'determinato', label: 'Tempo determinato' },
+  { value: 'stagionale', label: 'Stagionale' },
+  { value: 'somministrazione', label: 'Somministrazione' },
+  { value: 'collaborazione', label: 'Collaborazione' },
+  { value: 'volontario', label: 'Volontario' },
+];
+
+const OPERATIONAL_FLAGS: { key: keyof EmployeeFormState; label: string }[] = [
+  { key: 'is_aib_qualificato', label: 'AIB qualificato' },
+  { key: 'is_dos', label: 'DOS' },
+  { key: 'is_driver', label: 'Autista' },
+  { key: 'is_emergency_available', label: 'Reperibile emergenza' },
+  { key: 'is_emergency_coordinator', label: 'Coordinatore emergenza' },
+  { key: 'is_operations_room_manager', label: 'Responsabile sala operativa' },
+  { key: 'is_operations_room_operator', label: 'Operatore sala operativa' },
+  { key: 'is_mechanical_operator', label: 'Operatore meccanico' },
+  { key: 'is_aib_pc_operator', label: 'Operatore AIB PC2' },
+  { key: 'is_pc_operator', label: 'Operatore PC' },
+];
+
+function toInputDate(value?: string): string {
+  return value ? value.slice(0, 10) : '';
+}
+
+function employeeToForm(emp: EmployeeDetail): EmployeeFormState {
+  return {
+    nome: emp.nome || '',
+    cognome: emp.cognome || '',
+    genere: emp.genere || '',
+    data_nascita: toInputDate(emp.data_nascita),
+    luogo_nascita: emp.luogo_nascita || '',
+    provincia_nascita: emp.provincia_nascita || '',
+    email_istituzionale: emp.email_istituzionale || '',
+    email_personale: emp.email_personale || '',
+    pec: emp.pec || '',
+    telefono_lavoro: emp.telefono_lavoro || '',
+    telefono_personale: emp.telefono_personale || '',
+    telefono_secondario: emp.telefono_secondario || '',
+    tipo_contratto: emp.tipo_contratto || 'indeterminato',
+    numero_matricola: emp.numero_matricola || '',
+    mansione: emp.mansione || '',
+    livello_inquadramento: emp.livello_inquadramento || '',
+    stato: emp.stato || 'in_servizio',
+    is_aib_qualificato: emp.is_aib_qualificato,
+    is_dos: emp.is_dos,
+    is_driver: emp.is_driver,
+    is_emergency_available: emp.is_emergency_available,
+    is_emergency_coordinator: emp.is_emergency_coordinator,
+    is_operations_room_manager: emp.is_operations_room_manager,
+    is_operations_room_operator: emp.is_operations_room_operator,
+    is_mechanical_operator: emp.is_mechanical_operator,
+    is_aib_pc_operator: emp.is_aib_pc_operator,
+    is_pc_operator: emp.is_pc_operator,
+    note: emp.note || '',
+  };
+}
+
+function normalizePayload(form: EmployeeFormState) {
+  const payload: Record<string, string | boolean | null> = {};
+  Object.entries(form).forEach(([key, value]) => {
+    payload[key] = typeof value === 'boolean' ? value : value.trim() || null;
+  });
+  return payload;
+}
 
 // ============================================
 // SUB-COMPONENTI
@@ -374,6 +494,129 @@ function TabDocumenti() {
   );
 }
 
+function EmployeeEditModal({
+  employee,
+  isOpen,
+  onClose,
+  onSaved,
+}: {
+  employee: EmployeeDetail;
+  isOpen: boolean;
+  onClose: () => void;
+  onSaved: (employee: EmployeeDetail) => void;
+}) {
+  const [form, setForm] = useState<EmployeeFormState>(() => employeeToForm(employee));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const update = (field: keyof EmployeeFormState, value: string | boolean) => {
+    setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const updated = await api.put<EmployeeDetail>(`/hr/employees/${employee.id}`, normalizePayload(form));
+      onSaved(updated);
+      onClose();
+    } catch {
+      setError('Salvataggio non riuscito. Verifica i dati e riprova.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Modifica fascicolo personale"
+      description={`${employee.cognome} ${employee.nome}`}
+      size="lg"
+      footer={(
+        <>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+            Annulla
+          </Button>
+          <Button type="button" onClick={save} loading={saving}>
+            Salva modifiche
+          </Button>
+        </>
+      )}
+    >
+      <div className="max-h-[70vh] overflow-y-auto pr-1 space-y-5">
+        {error && (
+          <div className="rounded-md border px-3 py-2 text-sm font-medium" style={{ color: 'var(--cv-danger)', borderColor: 'var(--cv-danger)' }}>
+            {error}
+          </div>
+        )}
+
+        <div>
+          <SectionTitle>Dati personali</SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label="Cognome" value={form.cognome} onChange={(e) => update('cognome', e.target.value)} required />
+            <Input label="Nome" value={form.nome} onChange={(e) => update('nome', e.target.value)} required />
+            <Select label="Genere" options={GENERE_OPTIONS} value={form.genere} onChange={(e) => update('genere', e.target.value)} />
+            <Input label="Data di nascita" type="date" value={form.data_nascita} onChange={(e) => update('data_nascita', e.target.value)} />
+            <Input label="Luogo di nascita" value={form.luogo_nascita} onChange={(e) => update('luogo_nascita', e.target.value)} />
+            <Input label="Provincia" maxLength={5} value={form.provincia_nascita} onChange={(e) => update('provincia_nascita', e.target.value.toUpperCase())} />
+          </div>
+        </div>
+
+        <div>
+          <SectionTitle>Contatti</SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label="Email istituzionale" type="email" value={form.email_istituzionale} onChange={(e) => update('email_istituzionale', e.target.value)} />
+            <Input label="Email personale" type="email" value={form.email_personale} onChange={(e) => update('email_personale', e.target.value)} />
+            <Input label="PEC" type="email" value={form.pec} onChange={(e) => update('pec', e.target.value)} />
+            <Input label="Telefono ufficio" value={form.telefono_lavoro} onChange={(e) => update('telefono_lavoro', e.target.value)} />
+            <Input label="Telefono personale" value={form.telefono_personale} onChange={(e) => update('telefono_personale', e.target.value)} />
+            <Input label="Telefono secondario" value={form.telefono_secondario} onChange={(e) => update('telefono_secondario', e.target.value)} />
+          </div>
+        </div>
+
+        <div>
+          <SectionTitle>Contratto e posizione</SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Select label="Tipo contratto" options={CONTRATTO_OPTIONS} value={form.tipo_contratto} onChange={(e) => update('tipo_contratto', e.target.value)} />
+            <Select label="Stato" options={STATO_OPTIONS} value={form.stato} onChange={(e) => update('stato', e.target.value)} />
+            <Input label="Matricola" value={form.numero_matricola} onChange={(e) => update('numero_matricola', e.target.value)} />
+            <Input label="Mansione" value={form.mansione} onChange={(e) => update('mansione', e.target.value)} />
+            <Input label="Livello inquadramento" value={form.livello_inquadramento} onChange={(e) => update('livello_inquadramento', e.target.value)} />
+          </div>
+        </div>
+
+        <div>
+          <SectionTitle>Flag operativi</SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {OPERATIONAL_FLAGS.map((flag) => (
+              <label key={flag.key} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'var(--cv-neutral-300)' }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(form[flag.key])}
+                  onChange={(e) => update(flag.key, e.target.checked)}
+                />
+                {flag.label}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <SectionTitle>Note</SectionTitle>
+          <textarea
+            className="w-full min-h-24 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cv-primary)]"
+            style={{ borderColor: 'var(--cv-neutral-300)', color: 'var(--cv-neutral-900)' }}
+            value={form.note}
+            onChange={(e) => update('note', e.target.value)}
+          />
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // ============================================
 // PAGINA PRINCIPALE
 // ============================================
@@ -386,6 +629,7 @@ export default function EmployeeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('anagrafica');
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -524,7 +768,7 @@ export default function EmployeeDetailPage() {
 
           {/* Azioni */}
           <div className="flex gap-2 flex-shrink-0">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
               ✏️ Modifica
             </Button>
           </div>
@@ -580,6 +824,15 @@ export default function EmployeeDetailPage() {
           {activeTab === 'documenti'  && <TabDocumenti />}
         </div>
       </Card>
+
+      {isEditOpen && (
+        <EmployeeEditModal
+          employee={emp}
+          isOpen={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          onSaved={setEmp}
+        />
+      )}
 
     </div>
   );

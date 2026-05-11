@@ -43,7 +43,7 @@ export default function RootLayout({
         <link rel="icon" href={`${basePath}/assets/logo-calabriaverde.png`} />
         <link rel="manifest" href={`${basePath}/manifest.json`} />
         <meta name="theme-color" content="#1A5C3A" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="CV Gestionale" />
       </head>
@@ -52,11 +52,24 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator && '${process.env.NODE_ENV}' === 'production') {
+              if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('${basePath}/sw.js')
-                    .then(reg => console.log('[SW] Registrato:', reg.scope))
-                    .catch(err => console.warn('[SW] Errore:', err));
+                  if ('${process.env.NODE_ENV}' === 'production') {
+                    navigator.serviceWorker.register('${basePath}/sw.js')
+                      .then(reg => console.log('[SW] Registrato:', reg.scope))
+                      .catch(err => console.warn('[SW] Errore:', err));
+                    return;
+                  }
+
+                  navigator.serviceWorker.getRegistrations()
+                    .then(function(registrations) {
+                      registrations.forEach(function(registration) {
+                        registration.unregister();
+                      });
+                    })
+                    .catch(function(err) {
+                      console.warn('[SW] Cleanup fallito:', err);
+                    });
                 });
               }
             `,

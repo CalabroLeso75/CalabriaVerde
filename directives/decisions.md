@@ -113,3 +113,13 @@ Prima di proporre cambi architetturali, consultare questo registro.
 ## 2026-05-11 08:58:01 - Aggiornamento decision
 
 **DEC-009 - Rami repository per ambienti** **Data:** 2026-05-11. **Decisione:** usare i rami Git locali collaudo e produzione come repository logici iniziali degli ambienti; il ramo main resta lo stato corrente storico finche' non sara' definito un remoto separato. **Motivo:** tracciare separatamente lavoro locale e rilasci approvati senza promuovere modifiche non verificate. **Impatto:** ogni modifica nasce in collaudo, viene pubblicata in test dopo build/verifica e confluisce in produzione solo dopo approvazione. **Stato:** attiva.
+
+
+## 2026-05-11 15:26:49 - Aggiornamento decision
+
+Per supportare i contratti del personale senza rompere l'import anagrafico, il gestionale estende per ora la tabella employees con campi contrattuali flat (CCNL, profilo, area/categoria, orario, scatti, integrativo, provenienza) invece di introdurre nuove tabelle dedicate. La migration 002 e' stata poi applicata nel database locale di collaudo dopo autorizzazione esplicita, mantenendo l'approccio di modifica controllata del DB.
+
+
+## 2026-05-11 16:13:49 - Aggiornamento decision
+
+La gestione dei contratti di sistema viene introdotta come modulo amministrativo separato (contract_type_definitions + contract_type_attachments) e non come semplice enum nel dipendente, cosi' si possono governare metadati, note e allegati ufficiali CCNL/integrativi senza irrigidire il fascicolo personale. Le migration 002 e 003 sono state applicate nel collaudo locale dopo autorizzazione esplicita, insieme al seed iniziale di Funzioni Locali e Idraulico-Forestale.

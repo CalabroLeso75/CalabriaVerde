@@ -32,6 +32,22 @@ class EmployeeCreate(BaseModel):
     data_fine_contratto: Optional[date] = None
     numero_matricola: Optional[str] = None
     livello_inquadramento: Optional[str] = None
+    ccnl_code: Optional[str] = None
+    ccnl_comparto: Optional[str] = None
+    macro_inquadramento: Optional[str] = None
+    profilo_professionale: Optional[str] = None
+    categoria_inquadramento: Optional[str] = None
+    posizione_economica: Optional[str] = None
+    orario_settimanale: Optional[int] = None
+    regime_orario: Optional[str] = None
+    scatti_anzianita: Optional[int] = None
+    data_prossimo_scatto: Optional[date] = None
+    integrativo_regionale: bool = False
+    integrativo_regionale_note: Optional[str] = None
+    applicazione_parziale_contratto: bool = False
+    applicazione_parziale_note: Optional[str] = None
+    provenienza_assorbimento: Optional[str] = None
+    ente_provenienza: Optional[str] = None
 
     # Organizzazione
     organization_id: Optional[int] = None
@@ -80,6 +96,22 @@ class EmployeeUpdate(BaseModel):
     data_fine_contratto: Optional[date] = None
     numero_matricola: Optional[str] = None
     livello_inquadramento: Optional[str] = None
+    ccnl_code: Optional[str] = None
+    ccnl_comparto: Optional[str] = None
+    macro_inquadramento: Optional[str] = None
+    profilo_professionale: Optional[str] = None
+    categoria_inquadramento: Optional[str] = None
+    posizione_economica: Optional[str] = None
+    orario_settimanale: Optional[int] = None
+    regime_orario: Optional[str] = None
+    scatti_anzianita: Optional[int] = None
+    data_prossimo_scatto: Optional[date] = None
+    integrativo_regionale: Optional[bool] = None
+    integrativo_regionale_note: Optional[str] = None
+    applicazione_parziale_contratto: Optional[bool] = None
+    applicazione_parziale_note: Optional[str] = None
+    provenienza_assorbimento: Optional[str] = None
+    ente_provenienza: Optional[str] = None
 
     organization_id: Optional[int] = None
     mansione: Optional[str] = None
@@ -158,6 +190,22 @@ class EmployeeResponse(BaseModel):
     data_fine_contratto: Optional[date] = None
     numero_matricola: Optional[str] = None
     livello_inquadramento: Optional[str] = None
+    ccnl_code: Optional[str] = None
+    ccnl_comparto: Optional[str] = None
+    macro_inquadramento: Optional[str] = None
+    profilo_professionale: Optional[str] = None
+    categoria_inquadramento: Optional[str] = None
+    posizione_economica: Optional[str] = None
+    orario_settimanale: Optional[int] = None
+    regime_orario: Optional[str] = None
+    scatti_anzianita: Optional[int] = None
+    data_prossimo_scatto: Optional[date] = None
+    integrativo_regionale: bool = False
+    integrativo_regionale_note: Optional[str] = None
+    applicazione_parziale_contratto: bool = False
+    applicazione_parziale_note: Optional[str] = None
+    provenienza_assorbimento: Optional[str] = None
+    ente_provenienza: Optional[str] = None
     organization_id: Optional[int] = None
     mansione: Optional[str] = None
     stato: str

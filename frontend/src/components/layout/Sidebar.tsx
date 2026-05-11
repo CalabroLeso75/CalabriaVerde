@@ -3,7 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import Image from 'next/image';
+
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/test';
+const logoSrc = `${basePath}/assets/logo-calabriaverde.png`;
 
 interface NavItem {
   label: string;
@@ -104,8 +106,8 @@ export function Sidebar() {
         {/* Header con logo */}
         <div className={`flex items-center gap-3 px-4 h-16 border-b border-white/10 ${collapsed ? 'justify-center' : ''}`}>
           <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-            <Image
-              src="/assets/logo-calabriaverde.png"
+            <img
+              src={logoSrc}
               alt="Calabria Verde"
               width={28}
               height={28}

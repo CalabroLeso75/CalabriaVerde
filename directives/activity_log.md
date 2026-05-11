@@ -184,3 +184,18 @@ Non inserire password, token, chiavi API, credenziali o dati sensibili.
 ## 2026-05-11 15:02:42 - Aggiornamento activity
 
 **Agente:** Codex orchestrazione principale. **Obiettivo collegato:** OBJ-005 - Collaudo anagrafica importata. **Azione svolta:** impostati tutti i 4465 dipendenti del collaudo a tempo indeterminato, aggiornata la regola di import per mantenere il contratto indeterminato nella fase corrente e preparata la modifica del fascicolo personale dal frontend. **File/DB coinvolti:** database locale gestionale_cv.employees, backend/execution/set_contracts_indeterminato.py, backend/execution/import_anagrafica_azienda_local.py, directives/import_anagrafica.md, frontend/src/components/hr/EmployeeDetailClientPage.tsx. **Esito:** completato. **Verifiche eseguite:** dry-run contratti records_to_change=0 dopo apply, import anagrafica dry-run 4465 invariati/0 errori, PUT /api/hr/employees/1 200, npm run lint, npm run build, py_compile script. **Note utili:** modifica fascicolo copre dati personali, contatti, contratto/posizione, stato, flag operativi e note; produzione non aggiornata.
+
+
+## 2026-05-11 15:26:49 - Aggiornamento activity
+
+Scroll della modale fascicolo corretto nel componente base Modal e preparata estensione del profilo contrattuale dipendente per CCNL idraulico-forestale/idraulico-agraria e funzioni locali: aggiunti campi backend e migration non applicata, aggiornati schemi API e form frontend con sezione contrattuale dinamica (CCNL, area/categoria, profilo, orario, scatti, integrativo regionale, provenienza assorbimento). Verifiche: py_compile, npm run lint, npm run build. Fonti analizzate: CCNL forestali 2021-2024 e CCNL Funzioni Locali 2019-2021, oltre a documentazione istituzionale Calabria Verde/Consiglio regionale su ex Comunità montane ed ex LSU/LPU.
+
+
+## 2026-05-11 16:13:49 - Aggiornamento activity
+
+Aggiunta nuova voce amministrativa Tipi di Contratto con CRUD dedicato e gestione allegati normativi. Implementati backend model/router/schema per anagrafica contratti e allegati CCNL/integrativo, storage file locale backend/storage/contract_types, migration 003 non applicata, e nuova pagina frontend /admin/contracts collegata alla dashboard amministrativa. Verifiche: py_compile backend, npm run lint, npm run build.
+
+
+## 2026-05-11 18:01:15 - Aggiornamento activity
+
+Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-002 / modulo amministrativo contratti. Azione svolta: applicate al database locale di collaudo le migration 002_employee_contract_profiles e 003_admin_contract_types, creato script deterministico backend/execution/seed_contract_types_local.py ed eseguito seed idempotente dei due contratti base (CCNL Funzioni Locali e CCNL idraulico-forestale e idraulico-agraria), quindi riavviato il backend locale. File coinvolti: backend/migrations/versions/002_employee_contract_profiles.py, backend/migrations/versions/003_admin_contract_types.py, backend/execution/seed_contract_types_local.py, .tmp/project_completion/collaudo/contracts_setup. Esito: completato. Verifiche eseguite: alembic current=003_admin_contract_types (head), seed creati=2, POST /api/auth/login 200, GET /api/admin/contracts/types 200 con Access-Control-Allow-Origin=http://127.0.0.1:3000 e payload di 2 contratti. Note utili: il falso errore CORS era conseguenza della 500 causata dalla tabella mancante, non un problema di configurazione CORS.

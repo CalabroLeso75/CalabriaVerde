@@ -13,6 +13,7 @@ const routeTitles: Record<string, { title: string; subtitle: string }> = {
   '/aib/map':          { title: 'Mappa Squadre AIB', subtitle: 'Posizioni in tempo reale' },
   '/operations':       { title: 'Sale Operative', subtitle: 'Monitoraggio operativo' },
   '/admin':            { title: 'Amministrazione', subtitle: 'Gestione sistema e utenti' },
+  '/admin/contracts':  { title: 'Tipi di Contratto', subtitle: 'CCNL, integrativi e regole base di sistema' },
   '/admin/pending':    { title: 'Registrazioni Pending', subtitle: 'Richieste di accesso in attesa' },
   '/admin/users':      { title: 'Gestione Utenti', subtitle: 'Ruoli, stati e permessi' },
   '/admin/roles':      { title: 'Ruoli e Permessi', subtitle: 'Configurazione accessi' },

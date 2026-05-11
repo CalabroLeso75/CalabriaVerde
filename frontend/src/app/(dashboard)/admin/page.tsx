@@ -48,6 +48,16 @@ const adminSections = [
     ),
   },
   {
+    title: 'Tipi di Contratto',
+    description: 'Configura i contratti gestiti dal sistema e allega CCNL e integrativi',
+    href: '/admin/contracts',
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586A1 1 0 0113.293 3.293l4.414 4.414A1 1 0 0118 8.414V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
     title: 'Log di Sistema',
     description: 'Audit trail delle operazioni eseguite sul gestionale',
     href: '/admin/logs',

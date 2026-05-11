@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { api, ApiError } from '@/lib/api';
+
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/test';
+const logoSrc = `${basePath}/assets/logo-calabriaverde.png`;
 
 // Step del form multi-pagina
 type Step = 'account' | 'anagrafica' | 'contratto' | 'conferma';
@@ -200,8 +202,8 @@ export default function RegisterPage() {
       >
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-md">
-            <Image
-              src="/assets/logo-calabriaverde.png"
+            <img
+              src={logoSrc}
               alt="Calabria Verde"
               width={40}
               height={40}

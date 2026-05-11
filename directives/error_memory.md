@@ -51,3 +51,8 @@ Nessun errore registrato.
 ## 2026-05-11 14:02:04 - Aggiornamento error
 
 **Contesto:** preparazione test anagrafica collaudo. **Errore/rischio:** DB locale aveva dati importati ma schema parzialmente legacy rispetto ai modelli Python; users usava hashed_password/status active, roles/organizations avevano nomi colonna legacy; frontend dev con output export dava 500 su next/image ottimizzata. **Causa individuata:** precedenti script/import avevano creato schema operativo non piu' allineato alla migration/modelli correnti; Next static export richiede immagini non ottimizzate. **Correzione applicata:** creato align_collaudo_schema.py con dry-run/apply e backup tabelle piccole; aggiunta configurazione images.unoptimized=true; verificati API e frontend. **Prevenzione futura:** prima dei test end-to-end eseguire dry-run import e controllo schema collaudo; mantenere report in .tmp/project_completion/collaudo/.
+
+
+## 2026-05-11 18:01:24 - Aggiornamento error
+
+Contesto: pagina amministrativa /admin/contracts in collaudo locale. Errore: il browser mostrava un blocco CORS su GET /api/admin/contracts/types, ma la causa reale era una risposta backend 500. Causa individuata: il database gestionale_cv era fermo ad Alembic 001_initial_schema e mancava la tabella contract_type_definitions introdotta dalla migration 003_admin_contract_types. Correzione applicata: verificato il log backend, applicate le migration 002 e 003, creato seed deterministico dei contratti base, riavviato backend locale e verificata la route con login admin. Prevenzione futura: quando una nuova sezione admin dipende da tabelle aggiuntive, controllare sempre alembic current e backend.err.log prima di trattare la console browser come problema CORS. Stato: risolto.

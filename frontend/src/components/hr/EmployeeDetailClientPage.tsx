@@ -48,6 +48,22 @@ interface EmployeeDetail {
   numero_matricola?: string;
   mansione?: string;
   livello_inquadramento?: string;
+  ccnl_code?: string;
+  ccnl_comparto?: string;
+  macro_inquadramento?: string;
+  profilo_professionale?: string;
+  categoria_inquadramento?: string;
+  posizione_economica?: string;
+  orario_settimanale?: number;
+  regime_orario?: string;
+  scatti_anzianita?: number;
+  data_prossimo_scatto?: string;
+  integrativo_regionale: boolean;
+  integrativo_regionale_note?: string;
+  applicazione_parziale_contratto: boolean;
+  applicazione_parziale_note?: string;
+  provenienza_assorbimento?: string;
+  ente_provenienza?: string;
   stato: string;
   stato_quiescenza?: string;
   organization_id?: number;
@@ -87,6 +103,22 @@ type EmployeeFormState = {
   numero_matricola: string;
   mansione: string;
   livello_inquadramento: string;
+  ccnl_code: string;
+  ccnl_comparto: string;
+  macro_inquadramento: string;
+  profilo_professionale: string;
+  categoria_inquadramento: string;
+  posizione_economica: string;
+  orario_settimanale: string;
+  regime_orario: string;
+  scatti_anzianita: string;
+  data_prossimo_scatto: string;
+  integrativo_regionale: boolean;
+  integrativo_regionale_note: string;
+  applicazione_parziale_contratto: boolean;
+  applicazione_parziale_note: string;
+  provenienza_assorbimento: string;
+  ente_provenienza: string;
   stato: string;
   is_aib_qualificato: boolean;
   is_dos: boolean;
@@ -172,6 +204,70 @@ const CONTRATTO_OPTIONS = [
   { value: 'volontario', label: 'Volontario' },
 ];
 
+const CCNL_OPTIONS = [
+  { value: '', label: 'Non definito' },
+  { value: 'idraulico_forestale', label: 'CCNL idraulico-forestale e idraulico-agraria' },
+  { value: 'funzioni_locali', label: 'CCNL funzioni locali' },
+];
+
+const MACRO_INQUADRAMENTO_OPTIONS = [
+  { value: '', label: 'Non definito' },
+  { value: 'operaio', label: 'Operaio' },
+  { value: 'impiegato', label: 'Impiegato' },
+];
+
+const REGIME_ORARIO_OPTIONS = [
+  { value: '', label: 'Non definito' },
+  { value: 'tempo_pieno', label: 'Tempo pieno' },
+  { value: 'part_time', label: 'Part-time' },
+  { value: 'turni', label: 'Turni' },
+  { value: 'flessibile', label: 'Flessibile' },
+  { value: 'multiperiodale', label: 'Multiperiodale' },
+];
+
+const PROVENIENZA_OPTIONS = [
+  { value: '', label: 'Non definita' },
+  { value: 'afor', label: 'Ex AFOR' },
+  { value: 'comunita_montana', label: 'Ex Comunità montana' },
+  { value: 'fondo_sollievo', label: 'Ex Fondo Sollievo' },
+  { value: 'legge_15_2008', label: 'Ex L.R. 15/2008' },
+  { value: 'lsu', label: 'Ex LSU' },
+  { value: 'lpu', label: 'Ex LPU' },
+  { value: 'nessuna', label: 'Nessun assorbimento' },
+  { value: 'altro', label: 'Altro' },
+];
+
+const FUNZIONI_LOCALI_AREE_OPTIONS = [
+  { value: '', label: 'Non definita' },
+  { value: 'area_operatori', label: 'Area Operatori' },
+  { value: 'area_operatori_esperti', label: 'Area Operatori esperti' },
+  { value: 'area_istruttori', label: 'Area Istruttori' },
+  { value: 'area_funzionari_eq', label: 'Area Funzionari ed EQ' },
+  { value: 'categoria_b_storica', label: 'Categoria B storica' },
+  { value: 'categoria_c_storica', label: 'Categoria C storica' },
+  { value: 'categoria_d_storica', label: 'Categoria D storica' },
+];
+
+const FORESTALE_LEVEL_OPTIONS = [
+  { value: '', label: 'Non definito' },
+  { value: '1', label: '1° livello - Operaio comune' },
+  { value: '2', label: '2° livello - Operaio qualificato' },
+  { value: '3', label: '3° livello - Operaio qualificato super' },
+  { value: '4', label: '4° livello - Operaio specializzato' },
+  { value: '5', label: '5° livello - Operaio specializzato super' },
+  { value: '1_imp', label: '1° livello impiegati' },
+  { value: '2_imp', label: '2° livello impiegati' },
+  { value: '3_imp', label: '3° livello impiegati' },
+  { value: '4_imp', label: '4° livello impiegati' },
+  { value: '5_imp', label: '5° livello impiegati' },
+  { value: '6_imp', label: '6° livello impiegati' },
+];
+
+const CONTRACT_SOURCE_NOTES: Record<string, string> = {
+  idraulico_forestale: 'CCNL 2021-2024: orario ordinario 39 ore; livelli operai 1-5 e impiegati 1-6; salario integrativo e altre materie rinviate al CIRL regionale.',
+  funzioni_locali: 'CCNL Funzioni Locali 2019-2021: orario ordinario 36 ore; sistema per aree con progressioni economiche interne tramite differenziali stipendiali; per ex LSU/LPU assorbiti può essere necessario gestire un’applicazione solo parziale.',
+};
+
 const OPERATIONAL_FLAGS: { key: keyof EmployeeFormState; label: string }[] = [
   { key: 'is_aib_qualificato', label: 'AIB qualificato' },
   { key: 'is_dos', label: 'DOS' },
@@ -207,6 +303,22 @@ function employeeToForm(emp: EmployeeDetail): EmployeeFormState {
     numero_matricola: emp.numero_matricola || '',
     mansione: emp.mansione || '',
     livello_inquadramento: emp.livello_inquadramento || '',
+    ccnl_code: emp.ccnl_code || '',
+    ccnl_comparto: emp.ccnl_comparto || '',
+    macro_inquadramento: emp.macro_inquadramento || '',
+    profilo_professionale: emp.profilo_professionale || '',
+    categoria_inquadramento: emp.categoria_inquadramento || '',
+    posizione_economica: emp.posizione_economica || '',
+    orario_settimanale: emp.orario_settimanale ? String(emp.orario_settimanale) : '',
+    regime_orario: emp.regime_orario || '',
+    scatti_anzianita: typeof emp.scatti_anzianita === 'number' ? String(emp.scatti_anzianita) : '',
+    data_prossimo_scatto: toInputDate(emp.data_prossimo_scatto),
+    integrativo_regionale: Boolean(emp.integrativo_regionale),
+    integrativo_regionale_note: emp.integrativo_regionale_note || '',
+    applicazione_parziale_contratto: Boolean(emp.applicazione_parziale_contratto),
+    applicazione_parziale_note: emp.applicazione_parziale_note || '',
+    provenienza_assorbimento: emp.provenienza_assorbimento || '',
+    ente_provenienza: emp.ente_provenienza || '',
     stato: emp.stato || 'in_servizio',
     is_aib_qualificato: emp.is_aib_qualificato,
     is_dos: emp.is_dos,
@@ -222,10 +334,49 @@ function employeeToForm(emp: EmployeeDetail): EmployeeFormState {
   };
 }
 
+function applyContractDefaults(current: EmployeeFormState, ccnlCode: string): EmployeeFormState {
+  if (ccnlCode === 'idraulico_forestale') {
+    return {
+      ...current,
+      ccnl_code: ccnlCode,
+      ccnl_comparto: 'CCNL idraulico-forestale e idraulico-agraria',
+      orario_settimanale: current.orario_settimanale || '39',
+      regime_orario: current.regime_orario || 'tempo_pieno',
+      integrativo_regionale: true,
+    };
+  }
+
+  if (ccnlCode === 'funzioni_locali') {
+    return {
+      ...current,
+      ccnl_code: ccnlCode,
+      ccnl_comparto: 'CCNL funzioni locali',
+      orario_settimanale: current.orario_settimanale || '36',
+      regime_orario: current.regime_orario || 'flessibile',
+    };
+  }
+
+  return {
+    ...current,
+    ccnl_code: '',
+    ccnl_comparto: '',
+  };
+}
+
 function normalizePayload(form: EmployeeFormState) {
-  const payload: Record<string, string | boolean | null> = {};
+  const numericFields = new Set(['orario_settimanale', 'scatti_anzianita']);
+  const payload: Record<string, string | boolean | number | null> = {};
   Object.entries(form).forEach(([key, value]) => {
-    payload[key] = typeof value === 'boolean' ? value : value.trim() || null;
+    if (typeof value === 'boolean') {
+      payload[key] = value;
+      return;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      payload[key] = null;
+      return;
+    }
+    payload[key] = numericFields.has(key) ? Number(trimmed) : trimmed;
   });
   return payload;
 }
@@ -320,15 +471,30 @@ function TabContratto({ emp }: { emp: EmployeeDetail }) {
       <SectionTitle>Tipo rapporto</SectionTitle>
       <FieldRow label="Tipo dipendente" value={emp.tipo === 'interno' ? 'Interno (dipendente diretto)' : 'Esterno (collaboratore/stagionale)'} />
       <FieldRow label="Tipo contratto" value={CONTRATTO_LABEL[emp.tipo_contratto || ''] || emp.tipo_contratto} />
+      <FieldRow label="CCNL applicato" value={emp.ccnl_comparto} />
+      <FieldRow label="Origine assorbimento" value={emp.provenienza_assorbimento?.replace(/_/g, ' ')} />
+      <FieldRow label="Ente provenienza" value={emp.ente_provenienza} />
 
       <SectionTitle>Date contrattuali</SectionTitle>
       <FieldRow label="Data assunzione" value={formatDate(emp.data_assunzione)} />
       <FieldRow label="Fine contratto" value={formatDate(emp.data_fine_contratto)} />
+      <FieldRow label="Prossimo scatto" value={formatDate(emp.data_prossimo_scatto)} />
 
       <SectionTitle>Posizione</SectionTitle>
       <FieldRow label="Numero matricola" value={emp.numero_matricola} mono />
       <FieldRow label="Mansione" value={emp.mansione} />
       <FieldRow label="Livello inquadramento" value={emp.livello_inquadramento} />
+      <FieldRow label="Macro inquadramento" value={emp.macro_inquadramento} />
+      <FieldRow label="Profilo professionale" value={emp.profilo_professionale} />
+      <FieldRow label="Categoria / Area" value={emp.categoria_inquadramento} />
+      <FieldRow label="Posizione economica" value={emp.posizione_economica} />
+      <FieldRow label="Orario settimanale" value={emp.orario_settimanale ? `${emp.orario_settimanale} ore` : undefined} />
+      <FieldRow label="Regime orario" value={emp.regime_orario?.replace(/_/g, ' ')} />
+      <FieldRow label="Scatti / differenziali maturati" value={typeof emp.scatti_anzianita === 'number' ? String(emp.scatti_anzianita) : undefined} />
+      <FieldRow label="Integrativo regionale" value={emp.integrativo_regionale ? 'Attivo' : 'Non attivo'} />
+      <FieldRow label="Note integrativo" value={emp.integrativo_regionale_note} />
+      <FieldRow label="Applicazione parziale contratto" value={emp.applicazione_parziale_contratto ? 'Sì' : 'No'} />
+      <FieldRow label="Note applicazione parziale" value={emp.applicazione_parziale_note} />
       <FieldRow label="Stato quiescenza" value={emp.stato_quiescenza?.replace(/_/g, ' ')} />
     </div>
   );
@@ -510,7 +676,12 @@ function EmployeeEditModal({
   const [error, setError] = useState('');
 
   const update = (field: keyof EmployeeFormState, value: string | boolean) => {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => {
+      if (field === 'ccnl_code' && typeof value === 'string') {
+        return applyContractDefaults({ ...current, ccnl_code: value }, value);
+      }
+      return { ...current, [field]: value };
+    });
   };
 
   const save = async () => {
@@ -545,7 +716,7 @@ function EmployeeEditModal({
         </>
       )}
     >
-      <div className="max-h-[70vh] overflow-y-auto pr-1 space-y-5">
+      <div className="space-y-5 pr-1">
         {error && (
           <div className="rounded-md border px-3 py-2 text-sm font-medium" style={{ color: 'var(--cv-danger)', borderColor: 'var(--cv-danger)' }}>
             {error}
@@ -580,10 +751,59 @@ function EmployeeEditModal({
           <SectionTitle>Contratto e posizione</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select label="Tipo contratto" options={CONTRATTO_OPTIONS} value={form.tipo_contratto} onChange={(e) => update('tipo_contratto', e.target.value)} />
+            <Select label="CCNL applicato" options={CCNL_OPTIONS} value={form.ccnl_code} onChange={(e) => update('ccnl_code', e.target.value)} />
             <Select label="Stato" options={STATO_OPTIONS} value={form.stato} onChange={(e) => update('stato', e.target.value)} />
             <Input label="Matricola" value={form.numero_matricola} onChange={(e) => update('numero_matricola', e.target.value)} />
             <Input label="Mansione" value={form.mansione} onChange={(e) => update('mansione', e.target.value)} />
             <Input label="Livello inquadramento" value={form.livello_inquadramento} onChange={(e) => update('livello_inquadramento', e.target.value)} />
+          </div>
+          {form.ccnl_code && (
+            <p className="mt-3 text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
+              {CONTRACT_SOURCE_NOTES[form.ccnl_code]}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <SectionTitle>Profilo contrattuale</SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label="Comparto CCNL" value={form.ccnl_comparto} onChange={(e) => update('ccnl_comparto', e.target.value)} />
+            <Select label="Macro inquadramento" options={MACRO_INQUADRAMENTO_OPTIONS} value={form.macro_inquadramento} onChange={(e) => update('macro_inquadramento', e.target.value)} />
+            {form.ccnl_code === 'idraulico_forestale' ? (
+              <Select label="Livello contrattuale" options={FORESTALE_LEVEL_OPTIONS} value={form.livello_inquadramento} onChange={(e) => update('livello_inquadramento', e.target.value)} />
+            ) : (
+              <Select label="Categoria / Area" options={FUNZIONI_LOCALI_AREE_OPTIONS} value={form.categoria_inquadramento} onChange={(e) => update('categoria_inquadramento', e.target.value)} />
+            )}
+            <Input label="Profilo professionale" value={form.profilo_professionale} onChange={(e) => update('profilo_professionale', e.target.value)} />
+            <Input label="Posizione economica" value={form.posizione_economica} onChange={(e) => update('posizione_economica', e.target.value)} />
+            <Input label="Orario settimanale" type="number" min="0" max="48" value={form.orario_settimanale} onChange={(e) => update('orario_settimanale', e.target.value)} />
+            <Select label="Regime orario" options={REGIME_ORARIO_OPTIONS} value={form.regime_orario} onChange={(e) => update('regime_orario', e.target.value)} />
+            <Input label="Scatti / differenziali maturati" type="number" min="0" max="12" value={form.scatti_anzianita} onChange={(e) => update('scatti_anzianita', e.target.value)} />
+            <Input label="Data prossimo scatto" type="date" value={form.data_prossimo_scatto} onChange={(e) => update('data_prossimo_scatto', e.target.value)} />
+            <Select label="Provenienza assorbimento" options={PROVENIENZA_OPTIONS} value={form.provenienza_assorbimento} onChange={(e) => update('provenienza_assorbimento', e.target.value)} />
+            <Input label="Ente provenienza" value={form.ente_provenienza} onChange={(e) => update('ente_provenienza', e.target.value)} />
+          </div>
+          <label className="mt-3 flex items-center gap-2 rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'var(--cv-neutral-300)' }}>
+            <input
+              type="checkbox"
+              checked={form.integrativo_regionale}
+              onChange={(e) => update('integrativo_regionale', e.target.checked)}
+            />
+            Applicazione integrativo regionale
+          </label>
+          <label className="mt-3 flex items-center gap-2 rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'var(--cv-neutral-300)' }}>
+            <input
+              type="checkbox"
+              checked={form.applicazione_parziale_contratto}
+              onChange={(e) => update('applicazione_parziale_contratto', e.target.checked)}
+            />
+            Applicazione solo parziale del contratto
+          </label>
+          <div className="mt-3">
+            <Input label="Note integrativo / particolarità contrattuali" value={form.integrativo_regionale_note} onChange={(e) => update('integrativo_regionale_note', e.target.value)} />
+          </div>
+          <div className="mt-3">
+            <Input label="Note applicazione parziale" value={form.applicazione_parziale_note} onChange={(e) => update('applicazione_parziale_note', e.target.value)} />
           </div>
         </div>
 

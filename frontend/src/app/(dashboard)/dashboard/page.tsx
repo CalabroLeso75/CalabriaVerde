@@ -85,15 +85,12 @@ const quickLinks = [
 ];
 
 export default function DashboardPage() {
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Buongiorno' : hour < 17 ? 'Buon pomeriggio' : 'Buonasera';
-
   return (
     <div className="space-y-6">
       {/* Intestazione */}
       <div>
         <h2 className="text-2xl font-bold" style={{ color: 'var(--cv-neutral-900)' }}>
-          {greeting} 👋
+          Benvenuto
         </h2>
         <p className="mt-1" style={{ color: 'var(--cv-neutral-600)' }}>
           Panoramica operativa — Calabria Verde

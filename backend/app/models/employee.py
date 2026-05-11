@@ -118,6 +118,22 @@ class Employee(Base):
     # --- Posizione e qualifica ---
     mansione = Column(String(200), nullable=True)        # position / job_title
     livello_inquadramento = Column(String(50), nullable=True)  # level
+    ccnl_code = Column(String(50), nullable=True)
+    ccnl_comparto = Column(String(100), nullable=True)
+    macro_inquadramento = Column(String(50), nullable=True)
+    profilo_professionale = Column(String(150), nullable=True)
+    categoria_inquadramento = Column(String(50), nullable=True)
+    posizione_economica = Column(String(20), nullable=True)
+    orario_settimanale = Column(Integer, nullable=True)
+    regime_orario = Column(String(50), nullable=True)
+    scatti_anzianita = Column(Integer, nullable=True)
+    data_prossimo_scatto = Column(Date, nullable=True)
+    integrativo_regionale = Column(Boolean, default=False, nullable=False)
+    integrativo_regionale_note = Column(Text, nullable=True)
+    applicazione_parziale_contratto = Column(Boolean, default=False, nullable=False)
+    applicazione_parziale_note = Column(Text, nullable=True)
+    provenienza_assorbimento = Column(String(50), nullable=True)
+    ente_provenienza = Column(String(150), nullable=True)
 
     # --- Stato operativo ---
     stato = Column(Enum(EmployeeStatus), nullable=False, default=EmployeeStatus.in_servizio)

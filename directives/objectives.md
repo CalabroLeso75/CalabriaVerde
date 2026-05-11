@@ -38,3 +38,8 @@ Nessun obiettivo sospeso o bloccato registrato.
 ## 2026-05-11 08:58:01 - Aggiornamento objective
 
 **OBJ-004 - Stabilizzazione collaudo prima della produzione** **Stato:** attivo. **Priorita:** alta. **Descrizione:** chiudere i blocchi individuati dall'analisi backend/frontend del collaudo prima di promuovere in Produzione. **Avanzamento:** corretta la navigazione al dettaglio HR con route statica /hr/dettaglio?id=... e pubblicata in Test. **Prossimi passi:** RBAC HR, pending utenti reale, route mancanti, allineamento campi registrazione/backend, backend pubblico e test end-to-end.
+
+
+## 2026-05-11 14:02:04 - Aggiornamento objective
+
+**OBJ-005 - Collaudo anagrafica importata** **Stato:** attivo. **Priorita:** alta. **Descrizione:** usare i 4465 record anagrafici importati per testare HR, ricerca, dettaglio fascicolo, login e autorizzazioni. **Avanzamento:** import ripetibile e verificato; API HR rispondono su statistiche, lista e dettaglio con token locale; frontend collaudo avviato. **Prossimi passi:** reimpostare o confermare password admin, fare test browser login->HR, collegare pending utenti reale e introdurre RBAC HR.

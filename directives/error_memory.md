@@ -46,3 +46,8 @@ Nessun errore registrato.
 ## 2026-05-11 08:48:51 - Aggiornamento error
 
 **Contesto:** analisi collaudo backend/frontend con agente dedicato. **Errore/rischio:** collaudo tecnico parziale non ancora promuovibile a TEST stabile. **Elementi bloccanti:** RBAC HR troppo permissivo, admin pending ancora mock, fascicolo dipendente linkato ma route assente nell'export statico, build dipendente da Google Fonts/rete, dati professionali registrazione non persistiti, route sidebar/admin mancanti, backend pubblico non ancora validato end-to-end. **Correzione prevista:** chiudere checklist collaudo prima della promozione stabile a TEST/produzione. **Prevenzione futura:** ogni promozione ambiente richiede checklist e aggiornamento registri.
+
+
+## 2026-05-11 14:02:04 - Aggiornamento error
+
+**Contesto:** preparazione test anagrafica collaudo. **Errore/rischio:** DB locale aveva dati importati ma schema parzialmente legacy rispetto ai modelli Python; users usava hashed_password/status active, roles/organizations avevano nomi colonna legacy; frontend dev con output export dava 500 su next/image ottimizzata. **Causa individuata:** precedenti script/import avevano creato schema operativo non piu' allineato alla migration/modelli correnti; Next static export richiede immagini non ottimizzate. **Correzione applicata:** creato align_collaudo_schema.py con dry-run/apply e backup tabelle piccole; aggiunta configurazione images.unoptimized=true; verificati API e frontend. **Prevenzione futura:** prima dei test end-to-end eseguire dry-run import e controllo schema collaudo; mantenere report in .tmp/project_completion/collaudo/.

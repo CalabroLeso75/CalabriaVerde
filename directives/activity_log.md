@@ -169,3 +169,13 @@ Non inserire password, token, chiavi API, credenziali o dati sensibili.
 ## 2026-05-11 14:02:04 - Aggiornamento activity
 
 **Agente:** Codex orchestrazione principale. **Obiettivo collegato:** OBJ-002 / OBJ-004. **Azione svolta:** predisposta procedura deterministica per import anagrafica da azienda_local a gestionale_cv, eseguito dry-run con 4465 record sorgente e 4465 destinazione senza differenze, allineato schema locale di collaudo per consentire auth/API con i modelli correnti, verificato backend HR con token locale e avviati server di collaudo. **File coinvolti:** directives/import_anagrafica.md, backend/execution/import_anagrafica_azienda_local.py, backend/execution/align_collaudo_schema.py, frontend/next.config.ts, .tmp/project_completion/collaudo/import_anagrafica, .tmp/project_completion/collaudo/schema_alignment. **Esito:** completato. **Verifiche eseguite:** dry-run import 4465 invariati/0 errori, API /api/health 200, /api/hr/employees/stats 200 con token, /api/hr/employees 200 con token, /api/hr/employees/1 200 con token, frontend locale login/dashboard/hr 200, npm run lint, npm run build, py_compile script. **Note utili:** per login browser serve conoscere o reimpostare password admin con CV_ADMIN_PASSWORD; Produzione non aggiornata.
+
+
+## 2026-05-11 14:32:32 - Aggiornamento activity
+
+**Agente:** Codex orchestrazione principale. **Obiettivo collegato:** OBJ-005 - Collaudo anagrafica importata. **Azione svolta:** reimpostata password dell'utente admin locale di collaudo e verificato login API. **File/DB coinvolti:** database locale gestionale_cv, tabella users. **Esito:** completato. **Verifiche eseguite:** POST /api/auth/login restituisce 200, utente admin@calabriaverde.eu attivo e superadmin, access_token generato. **Note utili:** warning passlib/bcrypt non bloccante durante hashing/verifica; non registrare password nei log futuri.
+
+
+## 2026-05-11 14:40:57 - Aggiornamento activity
+
+**Agente:** Codex orchestrazione principale. **Obiettivo collegato:** OBJ-005 - Collaudo anagrafica importata. **Azione svolta:** risolto blocco login browser in collaudo: frontend locale puntava all'API online, CORS backend non accettava 127.0.0.1 e il backend locale ereditava password DB remota dal .env. **File coinvolti:** frontend/.env.local, backend/app/core/config.py, .env.example, frontend/src/app/layout.tsx. **Esito:** completato. **Verifiche eseguite:** CORS preflight 200 da http://127.0.0.1:3000, POST /api/auth/login 200 con origin browser simulata, pagina /test/login 200, npm run lint, py_compile config. **Note utili:** in sviluppo locale la service worker e' disabilitata; se il browser conserva vecchi asset, fare hard refresh o cancellare dati sito per 127.0.0.1.

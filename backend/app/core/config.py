@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     DB_NAME: str = "gestionale_cv"
     DB_USER: str = "root"
     DB_PASSWORD: str = ""
+    LOCAL_DB_NO_PASSWORD: bool = False
 
     # Database di produzione (vecchio hosting)
     PROD_DB_HOST: str = ""
@@ -45,6 +46,8 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
         "https://gestionale.calabriaverde.eu",
         "https://smart-cv.it",
     ]
@@ -78,7 +81,8 @@ class Settings(BaseSettings):
     @property
     def DATABASE_URL(self) -> str:
         """URL di connessione al database locale."""
-        return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
+        password = "" if self.LOCAL_DB_NO_PASSWORD else self.DB_PASSWORD
+        return f"mysql+pymysql://{self.DB_USER}:{password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?charset=utf8mb4"
 
     @property
     def PROD_DATABASE_URL(self) -> str:

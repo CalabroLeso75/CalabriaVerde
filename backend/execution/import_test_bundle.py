@@ -23,6 +23,13 @@ TABLES = [
     "employee_operational_roles",
     "contract_type_definitions",
     "contract_type_attachments",
+    "geo_countries",
+    "geo_regions",
+    "geo_provinces",
+    "geo_municipalities",
+    "geo_province_boundaries",
+    "geo_municipality_boundaries",
+    "geo_calabria_toponyms",
 ]
 
 ROOT_DIR = Path(__file__).resolve().parents[2]

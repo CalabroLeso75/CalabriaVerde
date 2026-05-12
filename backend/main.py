@@ -16,11 +16,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.models import organization, user, employee, contract_type  # noqa: F401
+from app.models import organization, user, employee, contract_type, geography  # noqa: F401
 from app.api.auth.router import router as auth_router
 from app.api.users.router import router as users_router
 from app.api.hr.router import router as hr_router
 from app.api.admin_contracts.router import router as admin_contracts_router
+from app.api.admin_geography.router import router as admin_geography_router
 
 
 @asynccontextmanager
@@ -58,6 +59,7 @@ app.include_router(auth_router, prefix="/api/auth", tags=["Autenticazione"])
 app.include_router(users_router, prefix="/api/users", tags=["Utenti"])
 app.include_router(hr_router, prefix="/api/hr", tags=["Risorse Umane"])
 app.include_router(admin_contracts_router, prefix="/api/admin/contracts", tags=["Tipi di contratto"])
+app.include_router(admin_geography_router, prefix="/api/admin/geography", tags=["Geografia"])
 
 
 @app.get("/api/health", tags=["Sistema"])

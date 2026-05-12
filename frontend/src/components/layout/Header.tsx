@@ -4,39 +4,42 @@ import React, { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 const routeTitles: Record<string, { title: string; subtitle: string }> = {
-  '/dashboard':        { title: 'Dashboard', subtitle: 'Panoramica operativa' },
-  '/hr':               { title: 'Risorse Umane', subtitle: 'Anagrafica evoluta dei dipendenti' },
-  '/hr/new':           { title: 'Nuovo Dipendente', subtitle: 'Inserimento anagrafica' },
-  '/fleet':            { title: 'Parco Macchine', subtitle: 'Veicoli e attrezzature' },
-  '/warehouse':        { title: 'Magazzino', subtitle: 'Giacenze e movimentazioni' },
-  '/aib':              { title: 'Antincendio — AIB', subtitle: 'Gestione eventi e squadre' },
-  '/aib/map':          { title: 'Mappa Squadre AIB', subtitle: 'Posizioni in tempo reale' },
-  '/operations':       { title: 'Sale Operative', subtitle: 'Monitoraggio operativo' },
-  '/admin':            { title: 'Amministrazione', subtitle: 'Gestione sistema e utenti' },
-  '/admin/contracts':  { title: 'Tipi di Contratto', subtitle: 'CCNL, integrativi e regole base di sistema' },
-  '/admin/pending':    { title: 'Registrazioni Pending', subtitle: 'Richieste di accesso in attesa' },
-  '/admin/users':      { title: 'Gestione Utenti', subtitle: 'Ruoli, stati e permessi' },
-  '/admin/roles':      { title: 'Ruoli e Permessi', subtitle: 'Configurazione accessi' },
+  '/dashboard': { title: 'Dashboard', subtitle: 'Panoramica operativa' },
+  '/hr': { title: 'Risorse Umane', subtitle: 'Accesso alle anagrafiche del personale' },
+  '/hr/interna': { title: 'Anagrafica interna', subtitle: 'Personale dipendente di Calabria Verde' },
+  '/hr/esterna': { title: 'Anagrafica esterna', subtitle: 'Personale esterno e organizzazioni collegate' },
+  '/hr/new': { title: 'Nuovo Dipendente', subtitle: 'Inserimento anagrafica' },
+  '/fleet': { title: 'Parco Macchine', subtitle: 'Veicoli e attrezzature' },
+  '/warehouse': { title: 'Magazzino', subtitle: 'Giacenze e movimentazioni' },
+  '/aib': { title: 'Antincendio - AIB', subtitle: 'Gestione eventi e squadre' },
+  '/aib/map': { title: 'Mappa Squadre AIB', subtitle: 'Posizioni in tempo reale' },
+  '/operations': { title: 'Sale Operative', subtitle: 'Monitoraggio operativo' },
+  '/tools': { title: 'Strumenti', subtitle: 'Utilita trasversali e moduli di supporto' },
+  '/tools/geography': { title: 'Geografia', subtitle: 'Stati, regioni, province, comuni e layer territoriali' },
+  '/tools/codice-fiscale': { title: 'Codice Fiscale', subtitle: 'Ricerca, analisi e generazione inversa' },
+  '/admin': { title: 'Amministrazione', subtitle: 'Gestione sistema e utenti' },
+  '/admin/contracts': { title: 'Tipi di Contratto', subtitle: 'CCNL, integrativi e regole base di sistema' },
+  '/admin/geography': { title: 'Geografia', subtitle: 'Stati, regioni, province, comuni e layer territoriali' },
+  '/admin/pending': { title: 'Registrazioni Pending', subtitle: 'Richieste di accesso in attesa' },
+  '/admin/users': { title: 'Gestione Utenti', subtitle: 'Ruoli, stati e permessi' },
+  '/admin/roles': { title: 'Ruoli e Permessi', subtitle: 'Configurazione accessi' },
   '/admin/organizations': { title: 'Organizzazioni', subtitle: 'Distretti e strutture' },
-  '/admin/logs':       { title: 'Log di Sistema', subtitle: 'Audit trail operazioni' },
-  '/admin/settings':   { title: 'Configurazione', subtitle: 'Impostazioni e integrazioni' },
-  '/login':            { title: 'Accesso', subtitle: 'Calabria Verde Gestionale' },
-  '/register':         { title: 'Richiesta di Accesso', subtitle: 'Nuovo account gestionale' },
+  '/admin/logs': { title: 'Log di Sistema', subtitle: 'Audit trail operazioni' },
+  '/admin/settings': { title: 'Configurazione', subtitle: 'Impostazioni e integrazioni' },
+  '/login': { title: 'Accesso', subtitle: 'Calabria Verde Gestionale' },
+  '/register': { title: 'Richiesta di Accesso', subtitle: 'Nuovo account gestionale' },
 };
 
 function getPageMeta(pathname: string) {
-  // Match esatto
   if (routeTitles[pathname]) return routeTitles[pathname];
 
-  // Fascicolo dipendente: /hr/[id numerico]
   if (/^\/hr\/\d+$/.test(pathname)) {
     return { title: 'Fascicolo Dipendente', subtitle: 'Dati anagrafici, contrattuali e operativi' };
   }
 
-  // Match parziale per route dinamiche (es. /hr/123 → /hr)
   const segments = pathname.split('/').filter(Boolean);
-  for (let i = segments.length; i > 0; i--) {
-    const partial = '/' + segments.slice(0, i).join('/');
+  for (let i = segments.length; i > 0; i -= 1) {
+    const partial = `/${segments.slice(0, i).join('/')}`;
     if (routeTitles[partial]) return routeTitles[partial];
   }
 
@@ -77,12 +80,10 @@ export function Header() {
         borderColor: 'var(--cv-neutral-300)',
       }}
     >
-      {/* Skiplinks accessibilità AGID */}
       <div className="skiplinks" role="navigation" aria-label="Scorciatoie">
         <a href="#main-content">Vai al contenuto principale</a>
       </div>
 
-      {/* Titolo pagina dinamico */}
       <div>
         <h1 className="text-lg font-bold" style={{ color: 'var(--cv-neutral-900)' }}>
           {title}
@@ -92,9 +93,7 @@ export function Header() {
         </p>
       </div>
 
-      {/* Azioni header */}
       <div className="flex items-center gap-2">
-        {/* Notifiche */}
         <button
           id="header-notifications"
           className="relative p-2 rounded-lg transition-colors"
@@ -112,7 +111,6 @@ export function Header() {
           </span>
         </button>
 
-        {/* Profilo */}
         <div className="relative" ref={menuRef}>
           <button
             id="header-profile"
@@ -138,7 +136,10 @@ export function Header() {
             <svg
               className={`w-4 h-4 hidden sm:block transition-transform ${menuOpen ? 'rotate-180' : ''}`}
               style={{ color: 'var(--cv-neutral-500)' }}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>

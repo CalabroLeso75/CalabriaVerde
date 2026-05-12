@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { usePathname } from 'next/navigation';
+import React, { useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 
 const routeTitles: Record<string, { title: string; subtitle: string }> = {
   '/dashboard':        { title: 'Dashboard', subtitle: 'Panoramica operativa' },
@@ -45,7 +45,29 @@ function getPageMeta(pathname: string) {
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const { title, subtitle } = getPageMeta(pathname || '/dashboard');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    window.dispatchEvent(new Event('auth-state-changed'));
+    setMenuOpen(false);
+    router.replace('/login');
+  };
 
   return (
     <header
@@ -91,33 +113,64 @@ export function Header() {
         </button>
 
         {/* Profilo */}
-        <button
-          id="header-profile"
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors"
-          aria-label="Profilo utente"
-        >
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
-            style={{ background: 'var(--cv-primary)' }}
+        <div className="relative" ref={menuRef}>
+          <button
+            id="header-profile"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors hover:bg-[var(--cv-neutral-100)]"
+            aria-label="Profilo utente"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((current) => !current)}
           >
-            RC
-          </div>
-          <div className="hidden sm:block text-left">
-            <p className="text-sm font-semibold" style={{ color: 'var(--cv-neutral-800)' }}>
-              R. Cusano
-            </p>
-            <p className="text-[10px]" style={{ color: 'var(--cv-neutral-600)' }}>
-              Amministratore
-            </p>
-          </div>
-          <svg
-            className="w-4 h-4 hidden sm:block"
-            style={{ color: 'var(--cv-neutral-500)' }}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+              style={{ background: 'var(--cv-primary)' }}
+            >
+              RC
+            </div>
+            <div className="hidden sm:block text-left">
+              <p className="text-sm font-semibold" style={{ color: 'var(--cv-neutral-800)' }}>
+                R. Cusano
+              </p>
+              <p className="text-[10px]" style={{ color: 'var(--cv-neutral-600)' }}>
+                Amministratore
+              </p>
+            </div>
+            <svg
+              className={`w-4 h-4 hidden sm:block transition-transform ${menuOpen ? 'rotate-180' : ''}`}
+              style={{ color: 'var(--cv-neutral-500)' }}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {menuOpen && (
+            <div
+              className="absolute right-0 mt-2 w-56 rounded-lg border bg-white shadow-lg overflow-hidden"
+              style={{ borderColor: 'var(--cv-neutral-200)' }}
+            >
+              <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--cv-neutral-200)' }}>
+                <p className="text-sm font-semibold" style={{ color: 'var(--cv-neutral-900)' }}>
+                  R. Cusano
+                </p>
+                <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
+                  amministratore@calabriaverde.eu
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-colors hover:bg-[var(--cv-neutral-100)]"
+                onClick={handleLogout}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H9m4 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h5a2 2 0 012 2v1" />
+                </svg>
+                Disconnetti
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

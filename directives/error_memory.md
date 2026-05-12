@@ -56,3 +56,13 @@ Nessun errore registrato.
 ## 2026-05-11 18:01:24 - Aggiornamento error
 
 Contesto: pagina amministrativa /admin/contracts in collaudo locale. Errore: il browser mostrava un blocco CORS su GET /api/admin/contracts/types, ma la causa reale era una risposta backend 500. Causa individuata: il database gestionale_cv era fermo ad Alembic 001_initial_schema e mancava la tabella contract_type_definitions introdotta dalla migration 003_admin_contract_types. Correzione applicata: verificato il log backend, applicate le migration 002 e 003, creato seed deterministico dei contratti base, riavviato backend locale e verificata la route con login admin. Prevenzione futura: quando una nuova sezione admin dipende da tabelle aggiuntive, controllare sempre alembic current e backend.err.log prima di trattare la console browser come problema CORS. Stato: risolto.
+
+
+## 2026-05-12 20:44:00 - Aggiornamento error
+
+Contesto: provisioning backend FastAPI su VPS per l'ambiente Test. Errore/rischio: il servizio MariaDB del VPS risultava attivo ma non ascoltava sulla porta standard 3306; i tentativi di migration fallivano con Connection refused su localhost:3306. Causa individuata: l'istanza MariaDB del VPS e' configurata per ascoltare sulla porta 8443. Correzione applicata: creazione database dedicato gestionale_cv_test e utente applicativo dedicato, aggiornamento env del backend Test verso DB_PORT=8443, migration rieseguite con successo. Prevenzione futura: sui server esterni verificare sempre systemctl status, socket/porta reale e ss -ltnp prima di assumere la porta 3306 nei runbook.
+
+
+## 2026-05-12 20:50:00 - Aggiornamento error
+
+Contesto: import del bundle dati di collaudo nel database Test su VPS. Errore/rischio: il primo import falliva per colonne legacy non presenti nella migration e per codici organizzazione duplicati (ACV) nel database locale. Causa individuata: il collaudo locale contiene alcune colonne e duplicazioni residue da allineamenti precedenti dello schema. Correzione applicata: import_test_bundle.py ora filtra solo le colonne esistenti nel DB di destinazione e normalizza i codici organizzazione duplicati mantenendo gli ID referenziati dai dipendenti. Prevenzione futura: per promozioni tra ambienti usare import deterministici che facciano intersection delle colonne e non assumano un dump 1:1 di schemi non perfettamente omogenei.

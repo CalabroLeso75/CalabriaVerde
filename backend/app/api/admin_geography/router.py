@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -93,7 +93,11 @@ async def list_regions(
     if search:
         term = f"%{search}%"
         query = query.filter(GeoRegion.name.ilike(term))
-    return query.order_by(GeoRegion.sort_order.asc().nullslast(), GeoRegion.name).all()
+    return query.order_by(
+        case((GeoRegion.sort_order.is_(None), 1), else_=0),
+        GeoRegion.sort_order.asc(),
+        GeoRegion.name.asc(),
+    ).all()
 
 
 @router.get("/provinces", response_model=list[GeoProvinceResponse])

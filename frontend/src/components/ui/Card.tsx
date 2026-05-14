@@ -25,12 +25,16 @@ export function Card({
   return (
     <div
       className={`
-        bg-white rounded-lg border border-[var(--cv-neutral-300)]
-        shadow-sm
-        ${hover ? 'hover:shadow-md hover:border-[var(--cv-primary-light)] transition-all duration-200 cursor-pointer' : ''}
+        rounded-[var(--cv-radius-md)] border
+        bg-[var(--cv-surface-2)] backdrop-blur-sm
+        shadow-[var(--cv-shadow-sm)]
+        ${hover ? 'hover:-translate-y-[1px] hover:shadow-[var(--cv-shadow-md)] hover:border-[color:var(--cv-border-strong)] transition-all duration-200 cursor-pointer' : ''}
         ${paddingStyles[padding]}
         ${className}
       `}
+      style={{
+        borderColor: 'var(--cv-border-subtle)',
+      }}
     >
       {children}
     </div>
@@ -45,14 +49,14 @@ interface CardHeaderProps {
 
 export function CardHeader({ title, subtitle, action }: CardHeaderProps) {
   return (
-    <div className="flex items-center justify-between mb-4">
-      <div>
-        <h3 className="text-lg font-semibold text-[var(--cv-neutral-900)]">{title}</h3>
+    <div className="mb-4 flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <h3 className="text-base font-semibold text-[var(--cv-neutral-900)]">{title}</h3>
         {subtitle && (
-          <p className="text-sm text-[var(--cv-neutral-600)] mt-0.5">{subtitle}</p>
+          <p className="mt-1 text-sm text-[var(--cv-neutral-600)]">{subtitle}</p>
         )}
       </div>
-      {action && <div>{action}</div>}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }

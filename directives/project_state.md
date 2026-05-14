@@ -2,75 +2,84 @@
 
 ## Obiettivo generale
 
-Definire e mantenere un sistema di lavoro per IDE IA multi-agente basato su direttive, orchestrazione e script deterministici.
+Consolidare il gestionale Calabria Verde come piattaforma modulare, veloce e verificabile, mantenendo separati Collaudo locale, Test pubblico e Produzione.
 
 ## Stack tecnico previsto
 
 - Frontend: Next.js, React, Tailwind CSS
-- Backend: FastAPI oppure Next.js API routes
-- Automazioni e tool: Python in `execution/`
+- Backend: FastAPI
+- Automazioni e tool: Python in `backend/execution/`
 - Direttive operative: Markdown in `directives/`
 
 ## Struttura principale
 
 ```text
 project-root/
-├── directives/
-├── execution/
-├── .tmp/
-├── MASTER_PROMPT.md
-├── README.md
-└── .gitignore
+|-- backend/
+|-- frontend/
+|-- directives/
+|-- scripts/
+|-- .tmp/
+|-- MASTER_PROMPT.md
+`-- .gitignore
 ```
 
 ## Moduli presenti
 
-- Direttive operative
-- Registro attività
-- Registro obiettivi
-- Memoria errori
-- Registro decisioni
-- Script utility iniziale
+- Risorse Umane: anagrafica interna, anagrafica esterna, fascicolo personale
+- Amministrazione: contratti, pending, utenti, geografia
+- Strumenti: geografia, codice fiscale
+- Runtime locale guidato per Collaudo/Test
+- Registri di progetto e script deterministici di import/export/promozione
 
 ## Funzionalità completate
 
-- Struttura base del progetto
-- Prompt principale
-- File di registro iniziali
-- Convenzioni operative
-- Fase 0 frontend/backend avviata con Next.js, FastAPI, SQLAlchemy e Alembic
-- Lista HR e fascicolo dipendente collegati alle API backend reali
-- Schema iniziale Alembic riallineato ai modelli runtime
-- Frontend statico pubblicato in ambiente Test su `https://smart-cv.it/test/`
-- Cartella Produzione predisposta su hosting in `/Gestionale/public/produzione/`
-- Controllo autorizzativo minimo aggiunto alle route utenti/pending
+- Frontend e backend di base avviati e collegati
+- Backend pubblico di Test attivo su `https://smart-cv.it/api`
+- Ambiente Test pubblico attivo su `https://smart-cv.it/test/`
+- Import anagrafica interna completato con 4465 dipendenti
+- Import anagrafica esterna completato con 120 record validi
+- Fascicolo personale con modifica anagrafica, collaborazione esterni, patenti, abilitazioni, documenti/scadenze e nuove qualifiche
+- Separazione HR tra anagrafica interna ed esterna
+- Modulo Strumenti attivo con Geografia e Codice Fiscale
+- Runtime locale consolidato su `http://127.0.0.1:3000/gestionale/collaudo/` e `/gestionale/test/`
+- Estrazione di componenti e helper riusabili in cartelle comuni
+- Promozione completa su Test del fascicolo HR aggiornato e della collaborazione esterni
+- Bundle dati di Test riallineato da Collaudo con backend VPS e migration portate a `006`
+- Pulizia dell'ambiente Test hosting con ripubblicazione completa della build statica
+- Pulizia locale di cache e artefatti non utili al collaudo (`.pytest_cache`, `frontend/out`, `__pycache__` script)
 
 ## Funzionalità in corso
 
-- Completamento Fase 0 del gestionale Calabria Verde.
-- Verifica end-to-end su database MySQL reale per autenticazione, pending utenti e modulo HR.
-- Preparazione backend FastAPI per deploy provvisorio su VPS dopo validazione locale.
-- Adozione dei tre ambienti: Collaudo locale, Test su hosting, Produzione separata.
+- Upload reale degli allegati nel fascicolo personale
+- Rifinitura dei controlli autorizzativi e del flusso pending utenti
+- Preparazione del passaggio verso Produzione
+- Rifinitura finale UI/UX sui moduli ancora più deboli prima della promozione stabile
 
 ## Problemi noti
 
-- `next build` richiede accesso rete per scaricare i font Google usati da `next/font`.
-- `create_admin.py` richiede la variabile `CV_ADMIN_PASSWORD`.
-- Il frontend online è statico: le funzioni API richiedono backend pubblico o reverse proxy.
-- Presenza locale di file sensibili/artefatti ignorati da Git: non vanno committati o caricati in bundle.
-- Il collaudo non è ancora promuovibile a Produzione: restano RBAC HR, route mancanti, pending utenti reale, API pubbliche e test end-to-end.
+- Il logout resta client-side; non esiste ancora un endpoint server dedicato
+- La sezione documenti del fascicolo gestisce metadati e scadenze, ma non ancora upload fisico file
+- Restano da completare RBAC fine, pending utenti completo e verifica produzione
+- I layer geografici opzionali (confini/toponimi) restano vuoti finché non vengono mappate le tabelle sorgente reali
 
 ## Prossimi passi
 
-- Creare superadmin con `CV_ADMIN_PASSWORD`.
-- Testare login, approvazione pending e navigazione HR con dati reali.
-- Collegare anche le pagine admin/pending alle API reali.
-- Implementare autorizzazioni HR e route frontend mancanti prima di promozioni stabili.
-- Preparare runbook VPS con systemd, Nginx, CORS e variabili ambiente reali.
+- Portare l'upload file reale nella sezione documenti del fascicolo
+- Completare RBAC fine e pending utenti reale
+- Tenere Collaudo essenziale ma completo per sviluppo, debug e verifiche dati
+- Aggiornare la documentazione direzionale e i registri a ogni promozione
+- Preparare la checklist di passaggio verso Produzione
 
 ## File critici
 
 - `MASTER_PROMPT.md`
+- `frontend/src/components/hr/EmployeeDetailClientPage.tsx`
+- `frontend/src/components/hr/HrRegistryPage.tsx`
+- `frontend/src/components/tools/GeographyWorkbench.tsx`
+- `scripts/local/Common.ps1`
+- `backend/migrations/versions/005_external_collaboration_profiles.py`
+- `backend/migrations/versions/006_backfill_external_collaboration_type.py`
 - `directives/project_state.md`
 - `directives/objectives.md`
 - `directives/decisions.md`
@@ -79,4 +88,4 @@ project-root/
 
 ## Agenti specializzati
 
-- `Project Documentation Agent` — agente redazionale da configurare con il modello leggero `Gemini 3 Flash`. Si occupa esclusivamente della stesura e dell'aggiornamento continuo del progetto da presentare alla Direzione Generale, usando `directives/project_proposal.md` e `directives/project_proposal_history.md`.
+- `Project Documentation Agent` — agente redazionale dedicato all'aggiornamento continuo del progetto direzionale.

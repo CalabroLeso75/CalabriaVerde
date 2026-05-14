@@ -128,3 +128,18 @@ La gestione dei contratti di sistema viene introdotta come modulo amministrativo
 ## 2026-05-14 16:36:00 - Aggiornamento decision
 
 Le procedure riusabili non devono restare annidate nei moduli verticali: da oggi si estraggono in cartelle comuni dedicate. Per il frontend i mattoni condivisi vivono in `frontend/src/components/common/` e `frontend/src/hooks/`; per gli script di import/export e promozione dati vivono in `backend/execution/common/`. Questa scelta riduce duplicazioni tra HR, Strumenti, amministrazione e script di deploy dati, e diventa regola di riferimento per le prossime estensioni.
+
+
+## 2026-05-14 18:25:00 - Aggiornamento decision
+
+Per l'esecuzione locale non usiamo piu' `next dev` come prerequisito funzionale di collaudo: gli ambienti locali Collaudo e Test vengono serviti come export statici rigenerati da script in `scripts/local/`, con backend FastAPI locale separato. La scelta riduce interferenze con servizi presenti sul PC, rende gli URL stabili e produce un collaudo ripetibile.
+
+
+## 2026-05-14 18:28:00 - Aggiornamento decision
+
+Il fascicolo del personale esterno non deve replicare il profilo contrattuale dei dipendenti interni. Per gli esterni si adotta un modello dedicato basato su `tipo_collaborazione`, documentazione di collaborazione e dati operativi, mentre le logiche CCNL/inquadramento restano riservate al personale interno.
+
+
+## 2026-05-14 19:20:00 - Aggiornamento decision
+
+Le promozioni da Collaudo a Test devono avvenire con sostituzione pulita dell'ambiente pubblico: prima si pulisce la cartella hosting `test/`, poi si ripubblica l'export statico completo; lato VPS si riallineano gli script di import, si aggiorna il bundle dati e si verifica esplicitamente lo stato Alembic prima del riavvio del servizio. Questa scelta riduce drift tra ambienti, elimina artefatti obsoleti e rende il deploy ripetibile.

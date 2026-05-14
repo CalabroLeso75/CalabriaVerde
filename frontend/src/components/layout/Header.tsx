@@ -74,21 +74,22 @@ export function Header() {
 
   return (
     <header
-      className="fixed top-0 right-0 h-16 bg-white border-b z-30 flex items-center justify-between px-6"
+      className="fixed top-0 right-0 z-30 flex h-16 items-center justify-between border-b px-6 backdrop-blur-md"
       style={{
         left: 'var(--sidebar-width, 260px)',
-        borderColor: 'var(--cv-neutral-300)',
+        borderColor: 'var(--cv-border-subtle)',
+        background: 'rgba(255,255,255,0.88)',
       }}
     >
       <div className="skiplinks" role="navigation" aria-label="Scorciatoie">
         <a href="#main-content">Vai al contenuto principale</a>
       </div>
 
-      <div>
-        <h1 className="text-lg font-bold" style={{ color: 'var(--cv-neutral-900)' }}>
+      <div className="min-w-0">
+        <h1 className="truncate text-lg font-bold" style={{ color: 'var(--cv-neutral-900)' }}>
           {title}
         </h1>
-        <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
+        <p className="truncate text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
           {subtitle}
         </p>
       </div>
@@ -96,8 +97,8 @@ export function Header() {
       <div className="flex items-center gap-2">
         <button
           id="header-notifications"
-          className="relative p-2 rounded-lg transition-colors"
-          style={{ color: 'var(--cv-neutral-600)' }}
+          className="relative rounded-[var(--cv-radius-md)] border p-2 transition-colors hover:bg-[var(--cv-neutral-100)]"
+          style={{ color: 'var(--cv-neutral-600)', borderColor: 'var(--cv-border-subtle)' }}
           aria-label="Notifiche"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -114,7 +115,8 @@ export function Header() {
         <div className="relative" ref={menuRef}>
           <button
             id="header-profile"
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors hover:bg-[var(--cv-neutral-100)]"
+            className="flex items-center gap-2 rounded-[var(--cv-radius-md)] border px-3 py-1.5 transition-colors hover:bg-[var(--cv-neutral-100)]"
+            style={{ borderColor: 'var(--cv-border-subtle)' }}
             aria-label="Profilo utente"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((current) => !current)}
@@ -147,10 +149,10 @@ export function Header() {
 
           {menuOpen && (
             <div
-              className="absolute right-0 mt-2 w-56 rounded-lg border bg-white shadow-lg overflow-hidden"
-              style={{ borderColor: 'var(--cv-neutral-200)' }}
+              className="absolute right-0 mt-2 w-56 overflow-hidden rounded-[var(--cv-radius-md)] border bg-white shadow-[var(--cv-shadow-md)]"
+              style={{ borderColor: 'var(--cv-border-subtle)' }}
             >
-              <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--cv-neutral-200)' }}>
+              <div className="border-b px-4 py-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
                 <p className="text-sm font-semibold" style={{ color: 'var(--cv-neutral-900)' }}>
                   R. Cusano
                 </p>

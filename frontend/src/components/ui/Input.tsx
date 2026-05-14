@@ -32,15 +32,15 @@ export function Input({
       <input
         id={inputId}
         className={`
-          w-full px-3 py-2 rounded-md border transition-all duration-200
-          font-normal text-[var(--cv-neutral-900)]
+          w-full min-h-10 rounded-[var(--cv-radius-md)] border px-3 py-2 transition-all duration-200
+          bg-white/95 font-normal text-[var(--cv-neutral-900)] shadow-[inset_0_1px_1px_rgba(24,33,30,0.02)]
           placeholder:text-[var(--cv-neutral-500)]
           ${error
             ? 'border-[var(--cv-danger)] focus:ring-[var(--cv-danger)]'
-            : 'border-[var(--cv-neutral-300)] focus:border-[var(--cv-primary)] focus:ring-[var(--cv-primary)]'
+            : 'border-[var(--cv-border-subtle)] focus:border-[var(--cv-primary)] focus:ring-[var(--cv-primary)]'
           }
-          focus:outline-none focus:ring-2 focus:ring-offset-0
-          disabled:bg-[var(--cv-neutral-200)] disabled:cursor-not-allowed
+          focus:bg-white focus:outline-none focus:ring-2 focus:ring-offset-0
+          disabled:bg-[var(--cv-neutral-200)] disabled:text-[var(--cv-neutral-500)] disabled:cursor-not-allowed
           ${className}
         `}
         {...props}

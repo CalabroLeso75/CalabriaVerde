@@ -2,45 +2,53 @@
 /* Fonts caricati via next/font/google nel layout.tsx */
 
 /* ============================================
-   DESIGN SYSTEM — CALABRIA VERDE
-   Basato su AGID .italia con palette verde
+   DESIGN SYSTEM - CALABRIA VERDE
+   Base AGID con palette istituzionale verde
    ============================================ */
 
 :root {
-  /* Colore Primario (Verde Calabria) */
-  --cv-primary-lighter: #F2FBF6;
-  --cv-primary-light: #C4E8D4;
+  --cv-primary-lighter: #f4faf7;
+  --cv-primary-light: #d4e9dd;
+  --cv-primary-soft: #e7f3ec;
   --cv-primary: #339966;
-  --cv-primary-dark: #22734D;
-  --cv-primary-darker: #1A5C3A;
+  --cv-primary-dark: #267a52;
+  --cv-primary-darker: #1b563c;
 
-  /* Accent (Oro/Giallo) */
-  --cv-accent: #F2C12E;
-  --cv-accent-dark: #A8870A;
+  --cv-accent: #f2c12e;
+  --cv-accent-soft: #fff4c7;
+  --cv-accent-dark: #9b7b12;
 
-  /* Colori di Sistema (AGID) */
-  --cv-success: #008040;
-  --cv-warning: #CC8400;
-  --cv-danger: #CC3344;
-  --cv-info: #5B8FCC;
+  --cv-success: #0f7a47;
+  --cv-warning: #b96b00;
+  --cv-danger: #b93542;
+  --cv-info: #2f6fa3;
 
-  /* Neutri */
-  --cv-neutral-100: #FAFAFA;
-  --cv-neutral-200: #F5F5F5;
-  --cv-neutral-300: #E6E6E6;
-  --cv-neutral-400: #D4D4D4;
-  --cv-neutral-500: #A3A3A3;
-  --cv-neutral-600: #748A9D;
-  --cv-neutral-700: #5D7083;
-  --cv-neutral-800: #404040;
-  --cv-neutral-900: #262626;
-  --cv-white: #FFFFFF;
+  --cv-neutral-50: #fcfdfc;
+  --cv-neutral-100: #f6f8f7;
+  --cv-neutral-200: #edf1ef;
+  --cv-neutral-300: #dde4e0;
+  --cv-neutral-400: #c1cbc6;
+  --cv-neutral-500: #84928b;
+  --cv-neutral-600: #61716a;
+  --cv-neutral-700: #44524d;
+  --cv-neutral-800: #293430;
+  --cv-neutral-900: #18211e;
+  --cv-white: #ffffff;
 
-  /* Sfondo e Testo */
-  --background: var(--cv-neutral-100);
+  --cv-surface-1: rgba(255, 255, 255, 0.88);
+  --cv-surface-2: rgba(255, 255, 255, 0.96);
+  --cv-border-subtle: rgba(27, 86, 60, 0.08);
+  --cv-border-strong: rgba(27, 86, 60, 0.16);
+
+  --cv-radius-sm: 6px;
+  --cv-radius-md: 8px;
+  --cv-radius-lg: 10px;
+  --cv-shadow-sm: 0 1px 2px rgba(24, 33, 30, 0.05), 0 10px 24px rgba(24, 33, 30, 0.04);
+  --cv-shadow-md: 0 2px 4px rgba(24, 33, 30, 0.06), 0 14px 32px rgba(24, 33, 30, 0.08);
+
+  --background: linear-gradient(180deg, #f8fbf9 0%, #f3f7f5 100%);
   --foreground: var(--cv-neutral-900);
 
-  /* Sidebar */
   --sidebar-width: 260px;
   --sidebar-collapsed-width: 72px;
   --header-height: 64px;
@@ -58,57 +66,61 @@
   --color-warning: var(--cv-warning);
   --color-danger: var(--cv-danger);
   --color-info: var(--cv-info);
-  --font-sans: 'Titillium Web', sans-serif;
-  --font-serif: 'Lora', serif;
-  --font-mono: 'Roboto Mono', monospace;
+  --font-sans: "Titillium Web", sans-serif;
+  --font-serif: "Lora", serif;
+  --font-mono: "Roboto Mono", monospace;
 }
 
-/* ============================================
-   BODY & GLOBAL
-   ============================================ */
+html {
+  scroll-behavior: smooth;
+}
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-titillium), 'Titillium Web', sans-serif;
+  font-family: var(--font-titillium), "Titillium Web", sans-serif;
   font-size: 16px;
   line-height: 1.5;
+  letter-spacing: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* ============================================
-   TIPOGRAFIA AGID
-   ============================================ */
+::selection {
+  background: rgba(51, 153, 102, 0.18);
+  color: var(--cv-neutral-900);
+}
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-titillium), 'Titillium Web', sans-serif;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-titillium), "Titillium Web", sans-serif;
   color: var(--cv-neutral-900);
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
-h1 { font-size: 2.5rem; letter-spacing: -0.025em; }
-h2 { font-size: 2rem; letter-spacing: -0.025em; }
-h3 { font-size: 1.75rem; }
-h4 { font-size: 1.5rem; font-weight: 600; }
-h5 { font-size: 1.25rem; font-weight: 600; }
+h1 { font-size: 2.35rem; }
+h2 { font-size: 1.9rem; }
+h3 { font-size: 1.45rem; }
+h4 { font-size: 1.2rem; font-weight: 600; }
+h5 { font-size: 1.05rem; font-weight: 600; }
 h6 { font-size: 1rem; font-weight: 600; }
 
-.font-serif { font-family: 'Lora', serif; }
-.font-mono { font-family: 'Roboto Mono', monospace; }
+.font-serif { font-family: "Lora", serif; }
+.font-mono { font-family: "Roboto Mono", monospace; }
 
-/* ============================================
-   COMPONENTI BASE
-   ============================================ */
-
-/* Skiplinks - Accessibilità AGID */
 .skiplinks {
   position: absolute;
   top: -100%;
   left: 0;
   z-index: 9999;
 }
+
 .skiplinks:focus-within {
   top: 0;
   background: var(--cv-primary-darker);
@@ -116,30 +128,35 @@ h6 { font-size: 1rem; font-weight: 600; }
   padding: 8px 16px;
   width: 100%;
 }
+
 .skiplinks a {
   color: white;
   text-decoration: underline;
 }
 
-/* Focus visibile - Accessibilità */
 *:focus-visible {
-  outline: 3px solid var(--cv-primary);
+  outline: 3px solid rgba(51, 153, 102, 0.6);
   outline-offset: 2px;
   border-radius: 2px;
 }
 
-/* Scrollbar personalizzata */
+table {
+  border-collapse: collapse;
+}
+
+th {
+  color: var(--cv-neutral-600);
+}
+
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: var(--cv-neutral-200); }
 ::-webkit-scrollbar-thumb {
-  background: var(--cv-neutral-400);
-  border-radius: 4px;
+  background: #c7d1cc;
+  border-radius: 999px;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--cv-neutral-500); }
-
-/* ============================================
-   ANIMAZIONI
-   ============================================ */
+::-webkit-scrollbar-thumb:hover {
+  background: #aab8b1;
+}
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
@@ -156,19 +173,16 @@ h6 { font-size: 1rem; font-weight: 600; }
   50% { opacity: 0.5; }
 }
 
-.animate-fade-in { animation: fadeIn 0.3s ease-out; }
-.animate-slide-in { animation: slideInLeft 0.3s ease-out; }
+.animate-fade-in { animation: fadeIn 0.24s ease-out; }
+.animate-slide-in { animation: slideInLeft 0.24s ease-out; }
 .animate-pulse { animation: pulse 2s ease-in-out infinite; }
 
-/* ============================================
-   RESPONSIVE
-   ============================================ */
-
 @media (max-width: 768px) {
-  h1 { font-size: 2rem; }
+  h1 { font-size: 1.95rem; }
   h2 { font-size: 1.5rem; }
-  h3 { font-size: 1.25rem; }
-  h4 { font-size: 1.125rem; }
+  h3 { font-size: 1.2rem; }
+  h4 { font-size: 1.05rem; }
+
   :root {
     --sidebar-width: 0px;
   }

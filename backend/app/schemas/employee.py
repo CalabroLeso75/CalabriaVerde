@@ -48,6 +48,7 @@ class EmployeeCreate(BaseModel):
     applicazione_parziale_note: Optional[str] = None
     provenienza_assorbimento: Optional[str] = None
     ente_provenienza: Optional[str] = None
+    tipo_collaborazione: Optional[str] = None
 
     # Organizzazione
     organization_id: Optional[int] = None
@@ -112,6 +113,7 @@ class EmployeeUpdate(BaseModel):
     applicazione_parziale_note: Optional[str] = None
     provenienza_assorbimento: Optional[str] = None
     ente_provenienza: Optional[str] = None
+    tipo_collaborazione: Optional[str] = None
 
     organization_id: Optional[int] = None
     mansione: Optional[str] = None
@@ -206,6 +208,7 @@ class EmployeeResponse(BaseModel):
     applicazione_parziale_note: Optional[str] = None
     provenienza_assorbimento: Optional[str] = None
     ente_provenienza: Optional[str] = None
+    tipo_collaborazione: Optional[str] = None
     organization_id: Optional[int] = None
     mansione: Optional[str] = None
     stato: str

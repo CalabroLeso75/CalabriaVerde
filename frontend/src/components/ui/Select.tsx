@@ -38,15 +38,16 @@ export function Select({
       )}
       <select
         id={selectId}
-        className={`w-full px-3 py-2 rounded-md border text-sm transition-all duration-200 appearance-none bg-white ${className}`}
+        className={`w-full min-h-10 appearance-none rounded-[var(--cv-radius-md)] border bg-white/95 px-3 py-2 text-sm transition-all duration-200 focus:outline-none focus:ring-2 ${className}`}
         style={{
-          borderColor: error ? 'var(--cv-danger)' : 'var(--cv-neutral-300)',
+          borderColor: error ? 'var(--cv-danger)' : 'var(--cv-border-subtle)',
           color: 'var(--cv-neutral-900)',
           backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23748A9D' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
           backgroundRepeat: 'no-repeat',
           backgroundPosition: 'right 10px center',
           backgroundSize: '16px',
           paddingRight: '36px',
+          boxShadow: 'inset 0 1px 1px rgba(24,33,30,0.02)',
         }}
         {...props}
       >

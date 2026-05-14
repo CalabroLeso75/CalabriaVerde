@@ -134,6 +134,7 @@ class Employee(Base):
     applicazione_parziale_note = Column(Text, nullable=True)
     provenienza_assorbimento = Column(String(50), nullable=True)
     ente_provenienza = Column(String(150), nullable=True)
+    tipo_collaborazione = Column(String(100), nullable=True)
 
     # --- Stato operativo ---
     stato = Column(Enum(EmployeeStatus), nullable=False, default=EmployeeStatus.in_servizio)

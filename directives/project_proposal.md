@@ -2,133 +2,156 @@
 
 ## Titolo provvisorio
 
-Sviluppo di un gestionale integrato per il supporto alle attività operative, amministrative e di coordinamento.
+Sviluppo di un gestionale integrato per il supporto alle attività operative, amministrative e di coordinamento di Calabria Verde.
 
 ---
 
 ## Premessa
 
-Il presente documento raccoglie progressivamente finalità, obiettivi, requisiti, moduli, benefici e stato di avanzamento del gestionale in fase di progettazione e sviluppo.
-
-Il documento deve essere aggiornato dopo ogni azione significativa svolta sul progetto, in modo da poter essere utilizzato come base per una relazione da presentare alla Direzione Generale.
+Il presente documento raccoglie finalità, obiettivi, moduli, benefici e stato di avanzamento del gestionale in corso di realizzazione, con aggiornamento continuo in base alle attività tecniche realmente verificate.
 
 ---
 
 ## Esigenza organizzativa
 
-Da compilare e aggiornare in base alle attività progettuali registrate.
+Calabria Verde necessita di una piattaforma unica per gestire in modo ordinato personale interno, personale esterno, strumenti territoriali, contratti e funzioni operative, superando frammentazione, lentezza e difficoltà di controllo del precedente gestionale.
 
 ---
 
 ## Obiettivi generali
 
-Da compilare e aggiornare.
+- creare un gestionale modulare, veloce e manutenibile;
+- separare sviluppo, collaudo pubblico e produzione;
+- rendere verificabili dati, ruoli, fascicoli e flussi operativi;
+- costruire una base estendibile per attività HR, territoriali, AIB e amministrative.
 
 ---
 
 ## Obiettivi specifici
 
-Da compilare e aggiornare.
+- gestire anagrafica interna ed esterna in viste separate ma coerenti;
+- mantenere un fascicolo personale evoluto con qualifiche, documenti, patenti e abilitazioni;
+- governare i contratti interni e le collaborazioni esterne con modelli distinti;
+- fornire strumenti riusabili per geografia e codice fiscale;
+- mantenere ambienti Collaudo, Test e Produzione con promozione controllata.
 
 ---
 
 ## Destinatari e utilizzatori
 
-Da compilare e aggiornare.
+- Direzione Generale;
+- uffici Risorse Umane;
+- strutture amministrative;
+- responsabili di area e distretto;
+- personale operativo e collaboratori esterni, secondo i ruoli assegnati.
 
 ---
 
 ## Benefici attesi
 
-Da compilare e aggiornare.
+- maggiore ordine e tracciabilità dei dati;
+- riduzione di errori e duplicazioni;
+- migliore governo del personale interno ed esterno;
+- strumenti più rapidi per consultazione anagrafica e territoriale;
+- base tecnica più semplice da mantenere ed evolvere.
 
 ---
 
 ## Moduli previsti
 
-Da compilare e aggiornare.
+- Risorse Umane;
+- Amministrazione;
+- Strumenti;
+- moduli operativi AIB, magazzino, parco macchine e sale operative in progressiva stabilizzazione.
 
 ---
 
 ## Funzionalità principali
 
-Da compilare e aggiornare.
+- login e gestione sessione;
+- fascicolo dipendente con sezioni anagrafiche, operative e documentali;
+- anagrafica esterna con tipo di collaborazione dedicato;
+- strumenti geografici e fiscali di supporto;
+- gestione configurabile dei tipi di contratto.
 
 ---
 
 ## Ruoli e livelli di accesso
 
-Da compilare e aggiornare.
+La piattaforma adotta un modello a ruoli con approvazione e assegnazione controllata. Le attività più sensibili vengono validate in Collaudo e Test prima della promozione stabile.
 
 ---
 
 ## Sicurezza, tracciabilità e continuità operativa
 
-Da compilare e aggiornare.
+Sono stati separati gli ambienti Collaudo, Test e Produzione. Il backend di Test è pubblico ma dedicato; il runtime locale è stato reso deterministico per ridurre interferenze tecniche e migliorare la verificabilità del collaudo.
 
 ---
 
 ## Gestione dati e archiviazione
 
-Da compilare e aggiornare.
+L'anagrafica interna è stata importata e verificata su base reale; il personale esterno è stato importato da sorgente legacy dedicata con regole idempotenti e scarti controllati per record privi di codice fiscale.
 
 ---
 
 ## Reportistica e strumenti di controllo
 
-Da compilare e aggiornare.
+I registri tecnici del progetto (`project_state`, `objectives`, `activity_log`, `decisions`, `error_memory`) mantengono uno stato continuo e sintetico dell'avanzamento, utile sia per il controllo operativo sia per la rendicontazione direzionale.
 
 ---
 
 ## Integrazioni future
 
-Da compilare e aggiornare.
+- upload allegati e gestione documentale completa;
+- affinamento dei ruoli e delle autorizzazioni;
+- estensione dei moduli operativi verticali;
+- preparazione del passaggio all'ambiente Produzione.
 
 ---
 
 ## Fasi di sviluppo
 
-Da compilare e aggiornare.
+1. fondazione tecnica frontend/backend e schema dati;
+2. attivazione Collaudo locale;
+3. pubblicazione controllata in Test;
+4. consolidamento dei moduli HR e Strumenti;
+5. pulizia finale e promozione progressiva verso Produzione.
 
 ---
 
 ## Stato di avanzamento
 
-La Fase 0 tecnica è in corso. Sono state predisposte le fondamenta del gestionale con frontend Next.js, backend FastAPI, autenticazione JWT, schema dati SQLAlchemy/Alembic e prime interfacce operative.
-
-Il modulo Risorse Umane dispone ora di lista dipendenti e fascicolo personale collegati alle API backend reali, con paginazione, filtri, KPI, dettaglio anagrafico, contrattuale e operativo.
-
-È stata pubblicata una prima versione statica consultabile in ambiente Test su `smart-cv.it/test`, utile per verifiche visuali e condivisione interna preliminare. È stata inoltre predisposta una cartella separata per l'ambiente Produzione su `smart-cv.it/produzione`, da aggiornare solo dopo esito positivo delle verifiche in collaudo e test. Il backend applicativo resta da esporre tramite VPS dopo validazione locale.
+La piattaforma ha superato la sola fase prototipale. Sono oggi funzionanti il backend FastAPI, il frontend Next.js statico per Test, il runtime locale di Collaudo/Test, il modulo Risorse Umane con distinzione interna/esterna e il modulo Strumenti con geografia e codice fiscale. L'ambiente Test è stato riallineato con l'ultimo consolidamento tecnico e dati dinamici coerenti con il Collaudo.
 
 ---
 
 ## Criticità note
 
-- La verifica completa richiede un database MySQL locale inizializzato con Alembic.
-- La build frontend scarica font istituzionali tramite Google Fonts, quindi necessita di rete durante la compilazione.
-- Lo script di creazione superadmin richiede password fornita tramite variabile d'ambiente, per evitare credenziali hardcoded.
-- Il backend non deve essere esposto pubblicamente prima di completare controlli autorizzativi, CORS, segreti e test end-to-end.
-- La promozione in Produzione deve restare bloccata finché non sono chiusi RBAC HR, pending utenti reale, route mancanti e collegamento API pubblico.
+- il modulo documentale è ancora centrato su metadati e scadenze, senza upload file completo;
+- alcune autorizzazioni di dettaglio e il flusso pending utenti devono essere rifiniti;
+- il passaggio in Produzione resta subordinato al completamento delle verifiche funzionali e organizzative.
 
 ---
 
 ## Decisioni già assunte
 
-Da compilare e aggiornare.
+- adozione di stack Next.js + FastAPI + MySQL;
+- separazione in Collaudo, Test e Produzione;
+- uso di registri locali e script deterministici;
+- separazione tra dipendenti interni e collaboratori esterni nel fascicolo personale;
+- centralizzazione delle procedure riusabili in cartelle comuni.
 
 ---
 
 ## Prossimi passi
 
-- Inizializzare il database MySQL locale con la migration aggiornata.
-- Creare il superadmin e testare il flusso login.
-- Collegare gestione pending utenti e approvazione ruoli alle API reali.
-- Proseguire con test end-to-end del modulo Risorse Umane.
-- Predisporre deploy FastAPI su VPS con reverse proxy HTTPS e variabili ambiente protette.
-- Mantenere aggiornati i rami/repository `collaudo` e `produzione` a ogni modifica approvata.
+- mantenere allineati Collaudo e Test con promozioni pulite e verificabili;
+- completare upload documentale e autorizzazioni fini;
+- mantenere Collaudo ordinato e completo per sviluppo e debug;
+- preparare il passaggio sicuro verso Produzione.
 
 ---
 
 ## Allegati tecnici eventuali
 
-Da compilare e aggiornare.
+Da aggiornare in base alle prossime promozioni ambiente e ai moduli completati.

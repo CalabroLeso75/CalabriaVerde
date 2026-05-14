@@ -130,16 +130,19 @@ export function Sidebar() {
       <aside
         className={`
           fixed left-0 top-0 h-screen z-50
-          bg-[var(--cv-primary-darker)] text-white
+          text-white
           transition-all duration-300 ease-in-out
           flex flex-col
           ${collapsed ? 'w-[72px]' : 'w-[260px]'}
-          shadow-xl
+          shadow-[0_18px_48px_rgba(14,37,27,0.24)]
         `}
+        style={{
+          background: 'linear-gradient(180deg, #174431 0%, #1d5a40 52%, #1b563c 100%)',
+        }}
       >
         {/* Header con logo */}
-        <div className={`flex items-center gap-3 px-4 h-16 border-b border-white/10 ${collapsed ? 'justify-center' : ''}`}>
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+        <div className={`flex h-16 items-center gap-3 border-b px-4 ${collapsed ? 'justify-center' : ''}`} style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-[var(--cv-radius-md)] bg-white shadow-sm">
             <img
               src={logoSrc}
               alt="Calabria Verde"
@@ -150,14 +153,14 @@ export function Sidebar() {
           </div>
           {!collapsed && (
             <div className="animate-fade-in overflow-hidden">
-              <p className="text-sm font-bold leading-tight">Calabria Verde</p>
-              <p className="text-[10px] text-white/60 leading-tight">Gestionale Aziendale</p>
+              <p className="text-sm font-bold leading-tight text-white">Calabria Verde</p>
+              <p className="text-[10px] leading-tight text-white/58">Gestionale Aziendale</p>
             </div>
           )}
         </div>
 
         {/* Navigazione */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2" role="navigation" aria-label="Navigazione principale">
+        <nav className="flex-1 overflow-y-auto px-2 py-4" role="navigation" aria-label="Navigazione principale">
           <ul className="space-y-1">
             {navigationItems.map((item) => {
               const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
@@ -166,21 +169,25 @@ export function Sidebar() {
                   <Link
                     href={item.href}
                     className={`
-                      flex items-center gap-3 px-3 py-2.5 rounded-lg
+                      flex items-center gap-3 px-3 py-2.5 rounded-[var(--cv-radius-md)]
                       transition-all duration-200 group
                       ${isActive
-                        ? 'bg-white/15 text-white font-semibold shadow-sm'
-                        : 'text-white/70 hover:bg-white/10 hover:text-white'
+                        ? 'text-white font-semibold shadow-sm'
+                        : 'text-white/72 hover:text-white'
                       }
                       ${collapsed ? 'justify-center' : ''}
                     `}
+                    style={{
+                      background: isActive ? 'rgba(255,255,255,0.12)' : 'transparent',
+                      border: isActive ? '1px solid rgba(255,255,255,0.12)' : '1px solid transparent',
+                    }}
                     title={collapsed ? item.label : undefined}
                   >
-                    <span className={`flex-shrink-0 ${isActive ? 'text-[var(--cv-accent)]' : ''}`}>
+                    <span className={`flex-shrink-0 ${isActive ? 'text-[var(--cv-accent)]' : 'text-white/72 group-hover:text-white'}`}>
                       {item.icon}
                     </span>
                     {!collapsed && (
-                      <span className="text-sm truncate animate-fade-in">{item.label}</span>
+                      <span className="truncate text-sm animate-fade-in">{item.label}</span>
                     )}
                     {!collapsed && item.badge && (
                       <span className="ml-auto bg-[var(--cv-accent)] text-[var(--cv-neutral-900)] text-xs font-bold px-2 py-0.5 rounded-full">
@@ -189,7 +196,7 @@ export function Sidebar() {
                     )}
                   </Link>
                   {!collapsed && item.children && isActive && (
-                    <ul className="mt-1 ml-6 space-y-1">
+                    <ul className="mt-1 ml-6 space-y-1 border-l pl-3" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                       {item.children.map((child) => {
                         const childActive = pathname === child.href || pathname?.startsWith(child.href + '/');
                         return (
@@ -197,11 +204,14 @@ export function Sidebar() {
                             <Link
                               href={child.href}
                               className={`
-                                flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-200
+                                flex items-center gap-3 px-3 py-2 rounded-[var(--cv-radius-sm)] text-sm transition-all duration-200
                                 ${childActive
-                                  ? 'bg-white/10 text-white font-semibold'
-                                  : 'text-white/65 hover:bg-white/5 hover:text-white'}
+                                  ? 'text-white font-semibold'
+                                  : 'text-white/66 hover:text-white'}
                               `}
+                              style={{
+                                background: childActive ? 'rgba(255,255,255,0.09)' : 'transparent',
+                              }}
                             >
                               <span className="flex-shrink-0">{child.icon}</span>
                               <span className="truncate">{child.label}</span>
@@ -220,7 +230,8 @@ export function Sidebar() {
         {/* Toggle collapse */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center justify-center h-12 border-t border-white/10 text-white/50 hover:text-white hover:bg-white/5 transition-colors"
+          className="flex h-12 items-center justify-center border-t text-white/52 transition-colors hover:bg-white/5 hover:text-white"
+          style={{ borderColor: 'rgba(255,255,255,0.08)' }}
           aria-label={collapsed ? 'Espandi sidebar' : 'Comprimi sidebar'}
         >
           <svg

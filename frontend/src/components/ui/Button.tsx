@@ -10,17 +10,17 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<string, string> = {
-  primary: 'bg-[var(--cv-primary)] hover:bg-[var(--cv-primary-dark)] text-white shadow-sm',
-  secondary: 'bg-[var(--cv-neutral-700)] hover:bg-[var(--cv-neutral-800)] text-white shadow-sm',
-  outline: 'border-2 border-[var(--cv-primary)] text-[var(--cv-primary)] hover:bg-[var(--cv-primary-lighter)]',
-  danger: 'bg-[var(--cv-danger)] hover:bg-red-700 text-white shadow-sm',
-  ghost: 'text-[var(--cv-neutral-700)] hover:bg-[var(--cv-neutral-200)]',
+  primary: 'border border-[var(--cv-primary)] bg-[var(--cv-primary)] text-white shadow-[var(--cv-shadow-sm)] hover:bg-[var(--cv-primary-dark)] hover:border-[var(--cv-primary-dark)]',
+  secondary: 'border border-[var(--cv-neutral-700)] bg-[var(--cv-neutral-700)] text-white shadow-[var(--cv-shadow-sm)] hover:bg-[var(--cv-neutral-800)] hover:border-[var(--cv-neutral-800)]',
+  outline: 'border border-[var(--cv-border-strong)] bg-white text-[var(--cv-primary-darker)] hover:border-[var(--cv-primary-light)] hover:bg-[var(--cv-primary-lighter)]',
+  danger: 'border border-[var(--cv-danger)] bg-[var(--cv-danger)] text-white shadow-[var(--cv-shadow-sm)] hover:brightness-95',
+  ghost: 'border border-transparent text-[var(--cv-neutral-700)] hover:bg-[var(--cv-neutral-200)] hover:text-[var(--cv-neutral-900)]',
 };
 
 const sizeStyles: Record<string, string> = {
-  sm: 'px-3 py-1.5 text-sm rounded',
-  md: 'px-4 py-2 text-base rounded-md',
-  lg: 'px-6 py-3 text-lg rounded-lg',
+  sm: 'min-h-9 px-3 py-1.5 text-sm rounded-[var(--cv-radius-sm)]',
+  md: 'min-h-10 px-4 py-2 text-sm rounded-[var(--cv-radius-md)]',
+  lg: 'min-h-11 px-5 py-2.5 text-base rounded-[var(--cv-radius-md)]',
 };
 
 export function Button({
@@ -37,9 +37,11 @@ export function Button({
     <button
       className={`
         inline-flex items-center justify-center gap-2
-        font-semibold transition-all duration-200
+        whitespace-nowrap font-semibold tracking-normal
+        transition-all duration-200
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cv-primary)] focus-visible:ring-offset-2
         disabled:opacity-50 disabled:cursor-not-allowed
+        hover:-translate-y-[1px] active:translate-y-0
         ${variantStyles[variant]}
         ${sizeStyles[size]}
         ${className}

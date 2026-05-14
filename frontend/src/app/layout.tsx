@@ -1,29 +1,7 @@
 import type { Metadata } from "next";
-import { Titillium_Web, Lora, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "/test";
-
-const titillium = Titillium_Web({
-  subsets: ["latin"],
-  weight: ["300", "400", "600", "700"],
-  variable: "--font-titillium",
-  display: "swap",
-});
-
-const lora = Lora({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-lora",
-  display: "swap",
-});
-
-const robotoMono = Roboto_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-roboto-mono",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Gestionale Calabria Verde",
@@ -37,7 +15,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="it" className={`${titillium.variable} ${lora.variable} ${robotoMono.variable}`}>
+    <html lang="it">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href={`${basePath}/assets/logo-calabriaverde.png`} />

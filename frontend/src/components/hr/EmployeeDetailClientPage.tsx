@@ -25,6 +25,19 @@ interface Qualification {
   note?: string;
 }
 
+interface QualificationDraft {
+  tipo_qualifica: string;
+  ente_rilascio: string;
+  data_conseguimento: string;
+  data_scadenza: string;
+  note: string;
+}
+
+interface DocumentDraft {
+  tipo: string;
+  data_scadenza: string;
+}
+
 interface EmployeeDetail {
   id: number;
   codice_fiscale: string;
@@ -64,6 +77,7 @@ interface EmployeeDetail {
   applicazione_parziale_note?: string;
   provenienza_assorbimento?: string;
   ente_provenienza?: string;
+  tipo_collaborazione?: string;
   stato: string;
   stato_quiescenza?: string;
   organization_id?: number;
@@ -119,6 +133,7 @@ type EmployeeFormState = {
   applicazione_parziale_note: string;
   provenienza_assorbimento: string;
   ente_provenienza: string;
+  tipo_collaborazione: string;
   stato: string;
   is_aib_qualificato: boolean;
   is_dos: boolean;
@@ -176,6 +191,13 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'documenti',  label: 'Documenti',   icon: '📁' },
 ];
 
+function getTabsForEmployee(tipo: 'interno' | 'esterno') {
+  if (tipo === 'esterno') {
+    return TABS.map((tab) => tab.id === 'contratto' ? { ...tab, label: 'Collaborazione' } : tab);
+  }
+  return TABS;
+}
+
 const GENERE_OPTIONS = [
   { value: '', label: 'Non indicato' },
   { value: 'M', label: 'Maschile' },
@@ -202,6 +224,28 @@ const CONTRATTO_OPTIONS = [
   { value: 'somministrazione', label: 'Somministrazione' },
   { value: 'collaborazione', label: 'Collaborazione' },
   { value: 'volontario', label: 'Volontario' },
+];
+
+const COLLABORAZIONE_OPTIONS = [
+  { value: '', label: 'Non definita' },
+  { value: 'collaborazione_generica', label: 'Collaborazione generica / da classificare' },
+  { value: 'consulenza_professionale', label: 'Consulenza professionale' },
+  { value: 'incarico_tecnico_specialistico', label: 'Incarico tecnico specialistico' },
+  { value: 'libero_professionista_partita_iva', label: 'Libero professionista / Partita IVA' },
+  { value: 'collaborazione_coordinata_continuativa', label: 'Collaborazione coordinata e continuativa' },
+  { value: 'prestazione_occasionale', label: 'Prestazione occasionale' },
+  { value: 'somministrazione_lavoro', label: 'Somministrazione di lavoro' },
+  { value: 'appalto_servizi', label: 'Appalto di servizi' },
+  { value: 'cooperativa_sociale', label: 'Cooperativa sociale / soggetto convenzionato' },
+  { value: 'distacco_comando', label: 'Distacco / comando da altro ente' },
+  { value: 'convenzione_ente_pubblico', label: 'Convenzione con ente pubblico' },
+  { value: 'convenzione_associazione', label: 'Convenzione con associazione / ETS' },
+  { value: 'tirocinio_stage', label: 'Tirocinio / stage' },
+  { value: 'borsa_lavoro', label: 'Borsa lavoro / inclusione' },
+  { value: 'servizio_civile', label: 'Servizio civile' },
+  { value: 'volontariato', label: 'Volontariato' },
+  { value: 'stagionale_esterno', label: 'Operatore stagionale esterno' },
+  { value: 'altro', label: 'Altro / da definire' },
 ];
 
 const CCNL_OPTIONS = [
@@ -319,6 +363,7 @@ function employeeToForm(emp: EmployeeDetail): EmployeeFormState {
     applicazione_parziale_note: emp.applicazione_parziale_note || '',
     provenienza_assorbimento: emp.provenienza_assorbimento || '',
     ente_provenienza: emp.ente_provenienza || '',
+    tipo_collaborazione: emp.tipo_collaborazione || '',
     stato: emp.stato || 'in_servizio',
     is_aib_qualificato: emp.is_aib_qualificato,
     is_dos: emp.is_dos,
@@ -379,6 +424,37 @@ function normalizePayload(form: EmployeeFormState) {
     payload[key] = numericFields.has(key) ? Number(trimmed) : trimmed;
   });
   return payload;
+}
+
+function normalizeCollection(values: string[]): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function normalizeDocumentType(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9àèéìòù_\-\s]/gi, '')
+    .replace(/\s+/g, '_');
+}
+
+function documentDraftsToPayload(items: DocumentDraft[]): Record<string, string> | null {
+  const payload = items.reduce<Record<string, string>>((acc, item) => {
+    const tipo = normalizeDocumentType(item.tipo);
+    const data = item.data_scadenza.trim();
+    if (tipo && data) {
+      acc[tipo] = data;
+    }
+    return acc;
+  }, {});
+
+  return Object.keys(payload).length > 0 ? payload : null;
 }
 
 // ============================================
@@ -466,6 +542,32 @@ function TabAnagrafica({ emp }: { emp: EmployeeDetail }) {
 }
 
 function TabContratto({ emp }: { emp: EmployeeDetail }) {
+  if (emp.tipo === 'esterno') {
+    const collaborazioneLabel =
+      COLLABORAZIONE_OPTIONS.find((option) => option.value === emp.tipo_collaborazione)?.label
+      || emp.tipo_collaborazione
+      || 'Collaborazione generica';
+
+    return (
+      <div>
+        <SectionTitle>Collaborazione esterna</SectionTitle>
+        <FieldRow label="Tipo rapporto" value="Personale esterno" />
+        <FieldRow label="Tipo collaborazione" value={collaborazioneLabel} />
+        <FieldRow label="Incarico / ruolo" value={emp.mansione} />
+        <FieldRow label="Ente / organizzazione" value={emp.ente_provenienza} />
+        <FieldRow label="Stato" value={STATO_BADGE[emp.stato]?.label || emp.stato} />
+
+        <SectionTitle>Decorrenza</SectionTitle>
+        <FieldRow label="Data inizio" value={formatDate(emp.data_assunzione)} />
+        <FieldRow label="Data fine" value={formatDate(emp.data_fine_contratto)} />
+
+        <SectionTitle>Riferimenti</SectionTitle>
+        <FieldRow label="Provenienza / sorgente" value={emp.provenienza_assorbimento?.replace(/_/g, ' ')} />
+        <FieldRow label="Contatto organizzativo" value={emp.email_istituzionale || emp.telefono_lavoro} />
+      </div>
+    );
+  }
+
   return (
     <div>
       <SectionTitle>Tipo rapporto</SectionTitle>
@@ -648,7 +750,53 @@ function TabQualifiche({ empId }: { empId: number }) {
   );
 }
 
-function TabDocumenti() {
+function TabDocumenti({ emp }: { emp: EmployeeDetail }) {
+  const allegati = Object.entries(emp.documenti_scadenza || {});
+
+  if (emp.tipo === 'esterno') {
+    return (
+      <div className="space-y-5">
+        <div>
+          <SectionTitle>Allegati collaborazione</SectionTitle>
+          {allegati.length > 0 ? (
+            <div className="space-y-2">
+              {allegati.map(([tipo, data]) => (
+                <div
+                  key={tipo}
+                  className="flex items-center justify-between rounded-lg border px-3 py-3"
+                  style={{ borderColor: 'var(--cv-neutral-300)', background: 'var(--cv-surface-2)' }}
+                >
+                  <div>
+                    <p className="text-sm font-semibold capitalize" style={{ color: 'var(--cv-neutral-900)' }}>
+                      {tipo.replace(/_/g, ' ')}
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--cv-neutral-500)' }}>
+                      Scadenza registrata
+                    </p>
+                  </div>
+                  <span className="text-sm font-medium" style={{ color: 'var(--cv-neutral-700)' }}>
+                    {formatDate(data)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              className="rounded-lg border px-4 py-4"
+              style={{ borderColor: 'var(--cv-neutral-300)', background: 'var(--cv-neutral-100)' }}
+            >
+              <p className="text-sm font-semibold" style={{ color: 'var(--cv-neutral-700)' }}>
+                Nessun allegato registrato
+              </p>
+              <p className="text-sm mt-1" style={{ color: 'var(--cv-neutral-500)' }}>
+                Qui vanno tracciati incarico o convenzione, documento di identita, curriculum, coperture assicurative e ogni altro allegato utile alla collaborazione esterna.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="py-12 text-center">
       <p className="text-4xl mb-3">📁</p>
@@ -674,6 +822,14 @@ function EmployeeEditModal({
   const [form, setForm] = useState<EmployeeFormState>(() => employeeToForm(employee));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [patenti, setPatenti] = useState<string[]>(employee.patenti || []);
+  const [abilitazioni, setAbilitazioni] = useState<string[]>(employee.abilitazioni || []);
+  const [patenteInput, setPatenteInput] = useState('');
+  const [abilitazioneInput, setAbilitazioneInput] = useState('');
+  const [documenti, setDocumenti] = useState<DocumentDraft[]>(
+    Object.entries(employee.documenti_scadenza || {}).map(([tipo, data_scadenza]) => ({ tipo, data_scadenza }))
+  );
+  const [qualificationDrafts, setQualificationDrafts] = useState<QualificationDraft[]>([]);
 
   const update = (field: keyof EmployeeFormState, value: string | boolean) => {
     setForm((current) => {
@@ -684,12 +840,88 @@ function EmployeeEditModal({
     });
   };
 
+  const addPatente = () => {
+    const value = patenteInput.trim().toUpperCase();
+    if (!value) return;
+    setPatenti((current) => normalizeCollection([...current, value]));
+    setPatenteInput('');
+  };
+
+  const addAbilitazione = () => {
+    const value = abilitazioneInput.trim();
+    if (!value) return;
+    setAbilitazioni((current) => normalizeCollection([...current, value]));
+    setAbilitazioneInput('');
+  };
+
+  const removePatente = (value: string) => {
+    setPatenti((current) => current.filter((item) => item !== value));
+  };
+
+  const removeAbilitazione = (value: string) => {
+    setAbilitazioni((current) => current.filter((item) => item !== value));
+  };
+
+  const addDocumento = () => {
+    setDocumenti((current) => [...current, { tipo: '', data_scadenza: '' }]);
+  };
+
+  const updateDocumento = (index: number, field: keyof DocumentDraft, value: string) => {
+    setDocumenti((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item));
+  };
+
+  const removeDocumento = (index: number) => {
+    setDocumenti((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const addQualificationDraft = () => {
+    setQualificationDrafts((current) => [
+      ...current,
+      {
+        tipo_qualifica: '',
+        ente_rilascio: '',
+        data_conseguimento: '',
+        data_scadenza: '',
+        note: '',
+      },
+    ]);
+  };
+
+  const updateQualificationDraft = (index: number, field: keyof QualificationDraft, value: string) => {
+    setQualificationDrafts((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item));
+  };
+
+  const removeQualificationDraft = (index: number) => {
+    setQualificationDrafts((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  };
+
   const save = async () => {
     setSaving(true);
     setError('');
     try {
-      const updated = await api.put<EmployeeDetail>(`/hr/employees/${employee.id}`, normalizePayload(form));
-      onSaved(updated);
+      const employeePayload = {
+        ...normalizePayload(form),
+        patenti: patenti.length > 0 ? normalizeCollection(patenti) : null,
+        abilitazioni: abilitazioni.length > 0 ? normalizeCollection(abilitazioni) : null,
+        documenti_scadenza: documentDraftsToPayload(documenti),
+      };
+
+      await api.put<EmployeeDetail>(`/hr/employees/${employee.id}`, employeePayload);
+
+      const validQualificationDrafts = qualificationDrafts.filter((item) => item.tipo_qualifica.trim());
+      for (const draft of validQualificationDrafts) {
+        await api.post<Qualification>(`/hr/employees/${employee.id}/qualifications`, {
+          tipo_qualifica: draft.tipo_qualifica.trim(),
+          ente_rilascio: draft.ente_rilascio.trim() || null,
+          data_conseguimento: draft.data_conseguimento || null,
+          data_scadenza: draft.data_scadenza || null,
+          note: draft.note.trim() || null,
+          is_attiva: true,
+        });
+      }
+
+      const refreshed = await api.get<EmployeeDetail>(`/hr/employees/${employee.id}`);
+      onSaved(refreshed);
       onClose();
     } catch {
       setError('Salvataggio non riuscito. Verifica i dati e riprova.');
@@ -747,6 +979,7 @@ function EmployeeEditModal({
           </div>
         </div>
 
+        {employee.tipo === 'interno' ? (
         <div>
           <SectionTitle>Contratto e posizione</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -763,7 +996,22 @@ function EmployeeEditModal({
             </p>
           )}
         </div>
+        ) : (
+        <div>
+          <SectionTitle>Collaborazione</SectionTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Select label="Tipo collaborazione" options={COLLABORAZIONE_OPTIONS} value={form.tipo_collaborazione} onChange={(e) => update('tipo_collaborazione', e.target.value)} />
+            <Select label="Stato" options={STATO_OPTIONS} value={form.stato} onChange={(e) => update('stato', e.target.value)} />
+            <Input label="Incarico / ruolo" value={form.mansione} onChange={(e) => update('mansione', e.target.value)} />
+            <Input label="Ente / organizzazione" value={form.ente_provenienza} onChange={(e) => update('ente_provenienza', e.target.value)} />
+          </div>
+          <div className="mt-3 rounded-lg border px-4 py-3 text-sm" style={{ borderColor: 'var(--cv-neutral-300)', background: 'var(--cv-neutral-100)', color: 'var(--cv-neutral-600)' }}>
+            La scheda del personale esterno non usa il profilo contrattuale dei dipendenti interni. Qui gestiamo solo la natura della collaborazione con Calabria Verde.
+          </div>
+        </div>
+        )}
 
+        {employee.tipo === 'interno' && (
         <div>
           <SectionTitle>Profilo contrattuale</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -806,6 +1054,7 @@ function EmployeeEditModal({
             <Input label="Note applicazione parziale" value={form.applicazione_parziale_note} onChange={(e) => update('applicazione_parziale_note', e.target.value)} />
           </div>
         </div>
+        )}
 
         <div>
           <SectionTitle>Flag operativi</SectionTitle>
@@ -820,6 +1069,184 @@ function EmployeeEditModal({
                 {flag.label}
               </label>
             ))}
+          </div>
+        </div>
+
+        <div>
+          <SectionTitle>Patenti di guida</SectionTitle>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input
+              label="Aggiungi patente"
+              placeholder="Es. B, C, D, CE"
+              value={patenteInput}
+              onChange={(e) => setPatenteInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addPatente();
+                }
+              }}
+            />
+            <div className="sm:self-end">
+              <Button type="button" variant="outline" onClick={addPatente}>
+                Aggiungi patente
+              </Button>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {patenti.length > 0 ? patenti.map((patente) => (
+              <button
+                key={patente}
+                type="button"
+                onClick={() => removePatente(patente)}
+                className="rounded-full border px-3 py-1 text-sm font-semibold"
+                style={{ borderColor: 'var(--cv-primary-light)', background: 'var(--cv-primary-lighter)', color: 'var(--cv-primary-dark)' }}
+              >
+                {patente} ×
+              </button>
+            )) : (
+              <p className="text-sm" style={{ color: 'var(--cv-neutral-500)' }}>Nessuna patente inserita.</p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <SectionTitle>Abilitazioni</SectionTitle>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input
+              label="Aggiungi abilitazione"
+              placeholder="Es. motosega, gru, decespugliatore"
+              value={abilitazioneInput}
+              onChange={(e) => setAbilitazioneInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addAbilitazione();
+                }
+              }}
+            />
+            <div className="sm:self-end">
+              <Button type="button" variant="outline" onClick={addAbilitazione}>
+                Aggiungi abilitazione
+              </Button>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {abilitazioni.length > 0 ? abilitazioni.map((abilitazione) => (
+              <button
+                key={abilitazione}
+                type="button"
+                onClick={() => removeAbilitazione(abilitazione)}
+                className="rounded-full border px-3 py-1 text-sm font-medium"
+                style={{ borderColor: 'var(--cv-neutral-300)', background: 'var(--cv-neutral-100)', color: 'var(--cv-neutral-800)' }}
+              >
+                {abilitazione} ×
+              </button>
+            )) : (
+              <p className="text-sm" style={{ color: 'var(--cv-neutral-500)' }}>Nessuna abilitazione inserita.</p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <SectionTitle>Documenti e scadenze</SectionTitle>
+          <div className="space-y-3">
+            {documenti.map((documento, index) => (
+              <div key={`${documento.tipo}-${index}`} className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-3 rounded-lg border p-3"
+                style={{ borderColor: 'var(--cv-neutral-300)', background: 'var(--cv-neutral-100)' }}>
+                <Input
+                  label="Tipo documento"
+                  placeholder="Es. carta_identita, contratto, patentino"
+                  value={documento.tipo}
+                  onChange={(e) => updateDocumento(index, 'tipo', e.target.value)}
+                />
+                <Input
+                  label="Scadenza"
+                  type="date"
+                  value={documento.data_scadenza}
+                  onChange={(e) => updateDocumento(index, 'data_scadenza', e.target.value)}
+                />
+                <div className="sm:self-end">
+                  <Button type="button" variant="ghost" onClick={() => removeDocumento(index)}>
+                    Rimuovi
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button type="button" variant="outline" onClick={addDocumento}>
+              Aggiungi documento
+            </Button>
+          </div>
+        </div>
+
+        <div>
+          <SectionTitle>Qualifiche</SectionTitle>
+          {employee.qualifiche && employee.qualifiche.length > 0 && (
+            <div className="mb-4 space-y-2">
+              {employee.qualifiche.map((qualifica) => (
+                <div key={qualifica.id} className="rounded-lg border px-3 py-3"
+                  style={{ borderColor: 'var(--cv-neutral-300)', background: 'var(--cv-neutral-100)' }}>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--cv-neutral-900)' }}>
+                    {qualifica.tipo_qualifica.replace(/_/g, ' ')}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--cv-neutral-500)' }}>
+                    {qualifica.ente_rilascio || 'Ente non indicato'}
+                    {qualifica.data_scadenza ? ` • Scade ${formatDate(qualifica.data_scadenza)}` : ''}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="space-y-3">
+            {qualificationDrafts.map((draft, index) => (
+              <div key={`qualification-draft-${index}`} className="rounded-lg border p-3"
+                style={{ borderColor: 'var(--cv-neutral-300)', background: 'var(--cv-neutral-100)' }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Input
+                    label="Tipo qualifica"
+                    placeholder="Es. DOS, motosega, AIB"
+                    value={draft.tipo_qualifica}
+                    onChange={(e) => updateQualificationDraft(index, 'tipo_qualifica', e.target.value)}
+                  />
+                  <Input
+                    label="Ente rilascio"
+                    value={draft.ente_rilascio}
+                    onChange={(e) => updateQualificationDraft(index, 'ente_rilascio', e.target.value)}
+                  />
+                  <Input
+                    label="Data conseguimento"
+                    type="date"
+                    value={draft.data_conseguimento}
+                    onChange={(e) => updateQualificationDraft(index, 'data_conseguimento', e.target.value)}
+                  />
+                  <Input
+                    label="Data scadenza"
+                    type="date"
+                    value={draft.data_scadenza}
+                    onChange={(e) => updateQualificationDraft(index, 'data_scadenza', e.target.value)}
+                  />
+                </div>
+                <div className="mt-3">
+                  <label className="text-sm font-semibold" style={{ color: 'var(--cv-neutral-800)' }}>
+                    Note
+                  </label>
+                  <textarea
+                    className="mt-1 w-full min-h-20 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cv-primary)]"
+                    style={{ borderColor: 'var(--cv-neutral-300)', color: 'var(--cv-neutral-900)' }}
+                    value={draft.note}
+                    onChange={(e) => updateQualificationDraft(index, 'note', e.target.value)}
+                  />
+                </div>
+                <div className="mt-3">
+                  <Button type="button" variant="ghost" onClick={() => removeQualificationDraft(index)}>
+                    Rimuovi qualifica
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button type="button" variant="outline" onClick={addQualificationDraft}>
+              Aggiungi qualifica
+            </Button>
           </div>
         </div>
 
@@ -909,6 +1336,7 @@ export default function EmployeeDetailPage() {
   }
 
   const stato = STATO_BADGE[emp.stato] || { variant: 'neutral' as const, label: emp.stato };
+  const tabs = getTabsForEmployee(emp.tipo);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -1009,7 +1437,7 @@ export default function EmployeeDetailPage() {
         role="tablist"
         aria-label="Sezioni fascicolo"
       >
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             role="tab"
@@ -1041,7 +1469,7 @@ export default function EmployeeDetailPage() {
           {activeTab === 'contratto'  && <TabContratto  emp={emp} />}
           {activeTab === 'operativo'  && <TabOperativo  emp={emp} />}
           {activeTab === 'qualifiche' && <TabQualifiche empId={emp.id} />}
-          {activeTab === 'documenti'  && <TabDocumenti />}
+          {activeTab === 'documenti'  && <TabDocumenti emp={emp} />}
         </div>
       </Card>
 

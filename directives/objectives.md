@@ -48,3 +48,13 @@ Nessun obiettivo sospeso o bloccato registrato.
 ## 2026-05-11 15:02:42 - Aggiornamento objective
 
 **OBJ-005 - Collaudo anagrafica importata** **Stato:** attivo. **Priorita:** alta. **Avanzamento:** tutti i 4465 dipendenti sono ora a tempo indeterminato in collaudo; il fascicolo personale ha una prima funzione di modifica collegata all'API PUT. **Prossimi passi:** test browser end-to-end su login, apertura dipendente, modifica campi, salvataggio e ricaricamento; poi estendere documenti, qualifiche e RBAC HR.
+
+
+## 2026-05-14 18:20:00 - Aggiornamento objective
+
+**OBJ-006 - Consolidamento piattaforma e promozione controllata** **Stato:** attivo. **Priorita:** alta. **Descrizione:** consolidare codice, moduli comuni, design system, runtime locale e registri di progetto; poi promuovere in Test una build pulita e mantenere Collaudo essenziale ma completo. **Avanzamento:** runtime locale stabilizzato, moduli comuni estratti, fascicolo HR evoluto per interni ed esterni, documento direzionale riallineato. **Prossimi passi:** build pulita per Test, pulizia remota degli elementi inutili, aggiornamento GitHub e prosecuzione verso upload documentale/RBAC.
+
+
+## 2026-05-14 19:30:00 - Aggiornamento objective
+
+**OBJ-006 - Consolidamento piattaforma e promozione controllata** **Stato:** attivo. **Priorita:** alta. **Avanzamento:** Test è stato riallineato con build frontend pulita, bundle dati aggiornato da Collaudo, backend VPS riportato a migration `006_backfill_external_collaboration_type`, anagrafica esterna verificata con `tipo_collaborazione`, e Collaudo è stato ripulito dagli artefatti locali non più utili. **Prossimi passi:** chiudere upload documentale reale, completare RBAC/pending utenti e preparare checklist di promozione Produzione.

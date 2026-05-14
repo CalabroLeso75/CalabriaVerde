@@ -17,13 +17,51 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (localStorage.getItem('access_token')) {
-      router.replace('/dashboard');
+    let alive = true;
+    const token = localStorage.getItem('access_token');
+
+    if (!token) {
+      setCheckingSession(false);
+      return () => {
+        alive = false;
+      };
     }
+
+    api.get('/auth/me', { skipAuthRedirect: true })
+      .then(() => {
+        if (alive) {
+          router.replace('/dashboard');
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.dispatchEvent(new Event('auth-state-changed'));
+      })
+      .finally(() => {
+        if (alive) {
+          setCheckingSession(false);
+        }
+      });
+
+    return () => {
+      alive = false;
+    };
   }, [router]);
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--cv-neutral-100)' }}>
+        <div className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
+          Verifica sessione in corso...
+        </div>
+      </div>
+    );
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

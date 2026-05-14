@@ -3,11 +3,37 @@
  */
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+const APP_BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 interface ApiOptions {
   method?: string;
   body?: unknown;
   headers?: Record<string, string>;
+  skipAuthRedirect?: boolean;
+}
+
+function clearAuthState() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  window.dispatchEvent(new Event('auth-state-changed'));
+}
+
+function redirectToLogin() {
+  if (typeof window === 'undefined') return;
+  const loginUrl = `${APP_BASE_PATH}/login/`.replace(/\/{2,}/g, '/');
+  window.location.replace(loginUrl);
+}
+
+function isAuthFailure(status: number, detail: string, hadToken: boolean) {
+  if (status === 401) return true;
+  if (status === 403 && hadToken) return true;
+
+  const normalized = detail.toLowerCase();
+  return normalized.includes('token non valido')
+    || normalized.includes('token non valido o scaduto')
+    || normalized.includes('not authenticated')
+    || normalized.includes('non autenticato');
 }
 
 class ApiClient {
@@ -24,13 +50,15 @@ class ApiClient {
   }
 
   async request<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
-    const { method = 'GET', body, headers = {} } = options;
+    const { method = 'GET', body, headers = {}, skipAuthRedirect = false } = options;
+    const authHeaders = this.getAuthHeaders();
+    const hadToken = Boolean(authHeaders.Authorization);
 
     const config: RequestInit = {
       method,
       headers: {
         'Content-Type': 'application/json',
-        ...this.getAuthHeaders(),
+        ...authHeaders,
         ...headers,
       },
     };
@@ -43,14 +71,22 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Errore di rete' }));
-      throw new ApiError(response.status, error.detail || 'Errore sconosciuto');
+      const detail = error.detail || 'Errore sconosciuto';
+
+      if (!skipAuthRedirect && isAuthFailure(response.status, detail, hadToken)) {
+        clearAuthState();
+        redirectToLogin();
+        return new Promise<T>(() => {});
+      }
+
+      throw new ApiError(response.status, detail);
     }
 
     return response.json();
   }
 
   // Shorthand methods
-  get<T>(endpoint: string) { return this.request<T>(endpoint); }
+  get<T>(endpoint: string, options?: Omit<ApiOptions, 'method' | 'body'>) { return this.request<T>(endpoint, options); }
   post<T>(endpoint: string, body: unknown) { return this.request<T>(endpoint, { method: 'POST', body }); }
   put<T>(endpoint: string, body: unknown) { return this.request<T>(endpoint, { method: 'PUT', body }); }
   delete<T>(endpoint: string) { return this.request<T>(endpoint, { method: 'DELETE' }); }

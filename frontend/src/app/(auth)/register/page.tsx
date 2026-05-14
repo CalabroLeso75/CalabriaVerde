@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { withAppBasePath } from '@/lib/app-path';
 import { api, ApiError } from '@/lib/api';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/test';
@@ -181,7 +182,7 @@ export default function RegisterPage() {
               <li>Riceverai una email con la conferma di attivazione</li>
             </ol>
           </div>
-          <Link href="/login">
+          <Link href={withAppBasePath('/login')}>
             <Button variant="outline" className="w-full">
               Torna al Login
             </Button>
@@ -590,7 +591,7 @@ export default function RegisterPage() {
           {/* Link login */}
           <p className="text-center text-sm mt-4" style={{ color: 'var(--cv-neutral-600)' }}>
             Hai già un account?{' '}
-            <Link href="/login" className="font-semibold" style={{ color: 'var(--cv-primary)' }}>
+            <Link href={withAppBasePath('/login')} className="font-semibold" style={{ color: 'var(--cv-primary)' }}>
               Accedi
             </Link>
           </p>

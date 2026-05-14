@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
+import { withAppBasePath } from '@/lib/app-path';
 import { api } from '@/lib/api';
 
 // ============================================
@@ -1295,7 +1296,7 @@ export default function EmployeeDetailPage() {
             <p className="text-lg font-semibold" style={{ color: 'var(--cv-danger)' }}>
               Dipendente non specificato.
             </p>
-            <Button variant="outline" className="mt-4" onClick={() => router.push('/hr')}>
+            <Button variant="outline" className="mt-4" onClick={() => router.push(withAppBasePath('/hr'))}>
               Torna alla lista
             </Button>
           </div>
@@ -1319,14 +1320,14 @@ export default function EmployeeDetailPage() {
   if (error || !emp) {
     return (
       <div className="space-y-4">
-        <Link href="/hr">
+        <Link href={withAppBasePath('/hr')}>
           <Button variant="ghost" size="sm">← Torna alla lista</Button>
         </Link>
         <Card>
           <div className="py-12 text-center">
             <p className="text-4xl mb-3">⚠️</p>
             <p className="font-semibold" style={{ color: 'var(--cv-danger)' }}>{error || 'Dipendente non trovato'}</p>
-            <Button variant="outline" className="mt-4" onClick={() => router.push('/hr')}>
+            <Button variant="outline" className="mt-4" onClick={() => router.push(withAppBasePath('/hr'))}>
               Torna alla lista HR
             </Button>
           </div>
@@ -1343,7 +1344,7 @@ export default function EmployeeDetailPage() {
 
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
-        <Link href="/hr" className="hover:underline" style={{ color: 'var(--cv-primary)' }}>
+        <Link href={withAppBasePath('/hr')} className="hover:underline" style={{ color: 'var(--cv-primary)' }}>
           Risorse Umane
         </Link>
         <span style={{ color: 'var(--cv-neutral-400)' }}>›</span>

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useSyncExternalStore } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
+import { withAppBasePath } from '@/lib/app-path';
 
 function subscribeAuth(onStoreChange: () => void) {
   const handler = () => onStoreChange();
@@ -31,14 +32,19 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const isAuthenticated = useSyncExternalStore(subscribeAuth, getAuthSnapshot, () => false);
+  const [authResolved, setAuthResolved] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace('/login');
-    }
-  }, [isAuthenticated, pathname, router]);
+    setAuthResolved(true);
+  }, []);
 
-  if (!isAuthenticated) {
+  useEffect(() => {
+    if (authResolved && !isAuthenticated) {
+      router.replace(withAppBasePath('/login'));
+    }
+  }, [authResolved, isAuthenticated, pathname, router]);
+
+  if (!authResolved || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--cv-neutral-100)' }}>
         <div className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>

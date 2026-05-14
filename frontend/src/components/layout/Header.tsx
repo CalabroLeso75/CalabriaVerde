@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { withAppBasePath } from '@/lib/app-path';
 
 const routeTitles: Record<string, { title: string; subtitle: string }> = {
   '/dashboard': { title: 'Dashboard', subtitle: 'Panoramica operativa' },
@@ -72,7 +73,7 @@ export function Header() {
     localStorage.removeItem('refresh_token');
     window.dispatchEvent(new Event('auth-state-changed'));
     setMenuOpen(false);
-    router.replace('/login');
+    router.replace(withAppBasePath('/login'));
   };
 
   return (

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { NoticeBanner } from '@/components/common/NoticeBanner';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { withAppBasePath } from '@/lib/app-path';
 import { api, ApiError } from '@/lib/api';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/test';
@@ -34,7 +35,7 @@ export default function LoginPage() {
     api.get('/auth/me', { skipAuthRedirect: true })
       .then(() => {
         if (alive) {
-          router.replace('/dashboard');
+          router.replace(withAppBasePath('/dashboard'));
         }
       })
       .catch(() => {
@@ -73,7 +74,7 @@ export default function LoginPage() {
       localStorage.setItem('access_token', response.access_token);
       localStorage.setItem('refresh_token', response.refresh_token);
       window.dispatchEvent(new Event('auth-state-changed'));
-      router.push('/dashboard');
+      router.push(withAppBasePath('/dashboard'));
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -186,7 +187,7 @@ export default function LoginPage() {
                 autoComplete="current-password"
               />
               <div className="flex justify-end">
-                <Link href="/auth/reset-password" className="text-sm font-medium transition-colors hover:opacity-80" style={{ color: 'var(--cv-primary)' }}>
+                <Link href={withAppBasePath('/reset-password')} className="text-sm font-medium transition-colors hover:opacity-80" style={{ color: 'var(--cv-primary)' }}>
                   Password dimenticata?
                 </Link>
               </div>
@@ -200,7 +201,7 @@ export default function LoginPage() {
           <div className="mt-6 text-center">
             <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
               Non hai ancora un account?{' '}
-              <Link href="/register" className="font-semibold transition-colors hover:opacity-80" style={{ color: 'var(--cv-primary)' }}>
+              <Link href={withAppBasePath('/register')} className="font-semibold transition-colors hover:opacity-80" style={{ color: 'var(--cv-primary)' }}>
                 Richiedi accesso
               </Link>
             </p>

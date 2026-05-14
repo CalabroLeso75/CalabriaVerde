@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { withAppBasePath } from '@/lib/app-path';
 
 type UnderConstructionPageProps = {
   title: string;
@@ -63,7 +64,7 @@ export function UnderConstructionPage({
             <Button type="button" onClick={() => router.back()}>
               Torna alla pagina precedente
             </Button>
-            <Link href={fallbackHref} className="sm:w-auto">
+            <Link href={withAppBasePath(fallbackHref)} className="sm:w-auto">
               <Button type="button" variant="outline" className="w-full">
                 {fallbackLabel}
               </Button>

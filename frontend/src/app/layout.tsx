@@ -32,13 +32,6 @@ export default function RootLayout({
             __html: `
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
-                  if ('${process.env.NODE_ENV}' === 'production') {
-                    navigator.serviceWorker.register('${basePath}/sw.js')
-                      .then(reg => console.log('[SW] Registrato:', reg.scope))
-                      .catch(err => console.warn('[SW] Errore:', err));
-                    return;
-                  }
-
                   navigator.serviceWorker.getRegistrations()
                     .then(function(registrations) {
                       registrations.forEach(function(registration) {

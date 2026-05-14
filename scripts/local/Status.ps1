@@ -1,7 +1,6 @@
 . (Join-Path $PSScriptRoot "Common.ps1")
 
 $services = @(
-    @{ Name = "backend"; Port = $Script:BackendPort; Url = "http://127.0.0.1:$($Script:BackendPort)/api/health" },
     @{ Name = "frontend"; Port = $Script:FrontendPort; Url = "http://127.0.0.1:$($Script:FrontendPort)/gestionale/collaudo/login/" }
 )
 
@@ -14,3 +13,4 @@ foreach ($service in $services) {
 Write-Host ""
 Write-Host ("Collaudo: http://127.0.0.1:{0}/gestionale/collaudo/login/" -f $Script:FrontendPort)
 Write-Host ("Test:      http://127.0.0.1:{0}/gestionale/test/login/" -f $Script:FrontendPort)
+Write-Host "API:       https://smart-cv.it/api"

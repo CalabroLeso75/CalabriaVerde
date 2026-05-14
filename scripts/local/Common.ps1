@@ -147,7 +147,7 @@ function Build-FrontendVariant {
             Remove-Item -LiteralPath "out" -Recurse -Force
         }
 
-        $env:NEXT_PUBLIC_API_URL = "http://127.0.0.1:$($Script:BackendPort)/api"
+        $env:NEXT_PUBLIC_API_URL = "https://smart-cv.it/api"
         $env:NEXT_PUBLIC_BASE_PATH = $BasePath
         $env:NEXT_PUBLIC_APP_NAME = "Gestionale Calabria Verde"
         $env:NEXT_PUBLIC_APP_VERSION = "1.0.0"
@@ -221,21 +221,18 @@ function Start-FrontendStaticHost {
 
 function Start-CollaudoOnly {
     Prepare-SiteRoot
-    Start-BackendLocal
     Build-FrontendVariant -BasePath "/gestionale/collaudo" -TargetFolder "gestionale\collaudo"
     Start-FrontendStaticHost
 }
 
 function Start-TestOnly {
     Prepare-SiteRoot
-    Start-BackendLocal
     Build-FrontendVariant -BasePath "/gestionale/test" -TargetFolder "gestionale\test"
     Start-FrontendStaticHost
 }
 
 function Start-AllLocal {
     Prepare-SiteRoot
-    Start-BackendLocal
     Build-FrontendVariant -BasePath "/gestionale/collaudo" -TargetFolder "gestionale\collaudo"
     Build-FrontendVariant -BasePath "/gestionale/test" -TargetFolder "gestionale\test"
     Start-FrontendStaticHost
@@ -243,13 +240,13 @@ function Start-AllLocal {
 
 function Show-LocalEndpoints {
     Write-Host ""
-    Write-Host "Backend locale:"
-    Write-Host ("  http://127.0.0.1:{0}/api/health" -f $Script:BackendPort)
-    Write-Host ""
     Write-Host "Collaudo locale:"
     Write-Host ("  http://127.0.0.1:{0}/gestionale/collaudo/login/" -f $Script:FrontendPort)
     Write-Host ""
     Write-Host "Test locale:"
     Write-Host ("  http://127.0.0.1:{0}/gestionale/test/login/" -f $Script:FrontendPort)
+    Write-Host ""
+    Write-Host "API usata dal frontend locale:"
+    Write-Host "  https://smart-cv.it/api"
     Write-Host ""
 }

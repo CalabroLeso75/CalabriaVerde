@@ -61,3 +61,7 @@ Nessun obiettivo sospeso o bloccato registrato.
 ## 2026-05-14 21:50:00 - Aggiornamento objective
 
 **OBJ-007 - Attivazione Parco Macchine** **Stato:** attivo. **Priorita:** alta. **Descrizione:** trasformare il vecchio parco mezzi legacy in un modulo operativo coerente con il nuovo gestionale, con dashboard, anagrafica mezzi, dettaglio storico, coperture, revisioni, assegnazioni, sinistri e mappa predisposta al tracking. **Avanzamento:** modulo frontend/backend creato, migration `007_fleet_module` applicata in Collaudo, 20 mezzi legacy importati con 7 revisioni storiche e 2 collegamenti AIB, verifiche API effettuate via `TestClient`. **Prossimi passi:** aggiungere CRUD operativo del fascicolo mezzo, promuovere il modulo su Test con bundle dedicato e integrare successivamente localizzazione live e documenti di assegnazione/restituzione.
+
+## 2026-05-14 22:50:00 - Aggiornamento objective
+
+**OBJ-007 - Attivazione Parco Macchine** **Stato:** attivo. **Priorita:** alta. **Avanzamento:** modulo promosso anche su Test pubblico con migration `007_fleet_module`, bundle dati aggiornato e route API fleet verificate in autenticazione reale (`summary`, lista, dettaglio). Runtime locale stabilizzato facendo puntare Collaudo/Test locali all'API pubblica Test, eliminando il `Failed to fetch` causato dal backend locale instabile. **Prossimi passi:** introdurre CRUD pieno del fascicolo mezzo, documenti di assegnazione/restituzione, sinistri operativi e successiva integrazione della mappa con localizzazione live via API dedicate.

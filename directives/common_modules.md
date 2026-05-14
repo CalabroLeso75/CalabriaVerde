@@ -43,6 +43,7 @@ Quando una procedura o un componente viene usato in piu moduli:
 
 - adottato da:
   - HR
+  - Parco Macchine
   - Strumenti / Geografia
   - script bundle Test
   - export legacy personale esterno

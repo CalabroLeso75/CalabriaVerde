@@ -54,6 +54,18 @@ const navigationItems: NavItem[] = [
         <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
       </svg>
     ),
+    children: [
+      {
+        label: 'Anagrafica mezzi',
+        href: '/fleet/anagrafica',
+        icon: <span className="w-2 h-2 rounded-full bg-current inline-block" />,
+      },
+      {
+        label: 'Mappa mezzi',
+        href: '/fleet/mappa',
+        icon: <span className="w-2 h-2 rounded-full bg-current inline-block" />,
+      },
+    ],
   },
   {
     label: 'Magazzino',

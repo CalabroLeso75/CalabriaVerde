@@ -143,3 +143,8 @@ Il fascicolo del personale esterno non deve replicare il profilo contrattuale de
 ## 2026-05-14 19:20:00 - Aggiornamento decision
 
 Le promozioni da Collaudo a Test devono avvenire con sostituzione pulita dell'ambiente pubblico: prima si pulisce la cartella hosting `test/`, poi si ripubblica l'export statico completo; lato VPS si riallineano gli script di import, si aggiorna il bundle dati e si verifica esplicitamente lo stato Alembic prima del riavvio del servizio. Questa scelta riduce drift tra ambienti, elimina artefatti obsoleti e rende il deploy ripetibile.
+
+
+## 2026-05-14 21:55:00 - Aggiornamento decision
+
+Il modulo `Parco Macchine` viene costruito in continuita' con il vecchio database legacy, mantenendo compatibilita' nominale delle tabelle `vehicle_types`, `vehicles`, `vehicle_revisions`, `vehicle_logs` e `aib_team_vehicles`, ed estendendo il modello solo dove serve (`vehicle_incidents`, `vehicle_documents`, campi tracker e dati tecnici aggiuntivi). Questo consente di importare i dati reali esistenti senza riscrivere il patrimonio storico e lascia spazio a evoluzioni future come localizzazione live, sinistri e allegati.

@@ -52,3 +52,11 @@ Non deve diventare un log tecnico completo: per quello esiste `activity_log.md`.
 **Motivo:** utile per rappresentare che il progetto non è solo sviluppato localmente, ma viene promosso con metodo e verifiche su un ambiente pubblico controllato.  
 **File consultati:** `activity_log.md`, `error_memory.md`, `project_state.md`, script di bundle/import, configurazione VPS/hosting  
 **Note per la stesura finale:** sottolineare il metodo di promozione pulita, la separazione tra ambienti e la coerenza dei dati dinamici tra Collaudo e Test.
+## 2026-05-14 - Aggiornamento documento direzionale
+
+**Origine aggiornamento:** attivazione del modulo Parco Macchine in Collaudo  
+**Elemento aggiornato:** moduli previsti, funzionalita principali, stato avanzamento, prossimi passi  
+**Sintesi:** avviato il modulo Parco Macchine con dashboard, anagrafica mezzi, dettaglio storico e mappa predisposta al tracking, importando 20 mezzi legacy reali, 7 revisioni e 2 collegamenti AIB nel database di Collaudo.  
+**Motivo:** utile per mostrare che il progetto sta estendendo i moduli operativi reali oltre il solo perimetro HR, mantenendo riuso del patrimonio dati esistente.  
+**File consultati:** `activity_log.md`, `project_state.md`, `objectives.md`, `decisions.md`, codice backend/frontend, dati legacy parco mezzi  
+**Note per la stesura finale:** valorizzare la continuita tra patrimonio storico e nuova architettura, evidenziando la possibilita futura di integrazione con localizzazione live e gestione documentale dei mezzi.

@@ -1,10 +1,5 @@
-import { UnderConstructionPage } from '@/components/system/UnderConstructionPage';
+import FleetDashboardClientPage from '@/components/fleet/FleetDashboardClientPage';
 
 export default function FleetPage() {
-  return (
-    <UnderConstructionPage
-      title="Parco Macchine"
-      description="La sezione per la gestione di veicoli e attrezzature è stata predisposta come area temporanea in attesa del modulo operativo."
-    />
-  );
+  return <FleetDashboardClientPage />;
 }

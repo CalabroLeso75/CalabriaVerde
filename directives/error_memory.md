@@ -95,3 +95,8 @@ Contesto: promozione su ambiente Test del consolidamento HR esterni e bundle dat
 ## 2026-05-14 19:22:00 - Aggiornamento error
 
 Contesto: stop del runtime locale su Windows. Errore/rischio: `Stop-All.ps1` fermava correttamente gli ambienti ma lasciava in console messaggi rumorosi di `Accesso negato` da `taskkill`, rendendo il collaudo piu' confuso. Causa individuata: `taskkill` emetteva errori standard su PID non gestibili anche quando la procedura complessiva era completata. Correzione applicata: soppressione esplicita dello stderr di `taskkill` in `scripts/local/Common.ps1`. Prevenzione futura: i launcher locali devono essere silenziosi sugli errori non bloccanti e lasciare in output solo lo stato utile per chi esegue il collaudo. Stato: risolto.
+
+
+## 2026-05-14 21:45:00 - Aggiornamento error
+
+Contesto: applicazione della migration `007_fleet_module` sul database locale di Collaudo. Errore/rischio: Alembic rifiutava l'upgrade con messaggio di revisione sovrapposta tra `005_external_collaboration_profiles` e `006_backfill_external_collaboration_type`, pur avendo una catena lineare di migration nel codice. Causa individuata: nella tabella `alembic_version` erano rimaste due righe (`005...` e `006...`) e le revisioni lunghe oltre 32 caratteri risultavano troncate in `varchar(32)`, generando uno stato ambiguo. Correzione applicata: pulita la tabella `alembic_version` lasciando una sola head valida, applicata `007_fleet_module`, poi riallineata la head a `007_fleet_module`. Prevenzione futura: controllare sempre `SELECT * FROM alembic_version` quando Alembic segnala overlap inattesi; usare identificativi revisione compatti nelle future migration o verificare il limite della colonna `version_num`. Stato: risolto.

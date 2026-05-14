@@ -69,3 +69,7 @@ Nessun obiettivo sospeso o bloccato registrato.
 ## 2026-05-14 23:58:00 - Aggiornamento objective
 
 **OBJ-007 - Attivazione Parco Macchine** **Stato:** attivo. **Priorita:** alta. **Avanzamento:** il fascicolo mezzo e' diventato operativo con gruppi di mezzi, rinnovi massivi di assicurazione e revisione, assegnazioni multiple, registri di utilizzo con km e note, alert SOS e sinistri, e registro ufficiale delle comunicazioni verso responsabili regionali e provinciali. La migration `008_fleet_ops_comms` e' stata promossa su Test e il backend pubblico e' allineato. **Prossimi passi:** aggiungere upload reale dei documenti di assegnazione e restituzione e dei sinistri, integrare gateway SMS/WhatsApp e notifiche push, collegare le API di tracking live per km e posizione, completare l'interfaccia impostazioni per i destinatari e i comparti delle comunicazioni ufficiali.
+
+## 2026-05-15 01:15:00 - Aggiornamento objective
+
+**OBJ-007 - Attivazione Parco Macchine** **Stato:** attivo. **Priorita:** alta. **Avanzamento:** resa esplicita la UX operativa del modulo mezzi: la dashboard mostra ora scadenze assicurative e revisioni da gestire, mezzi da assegnare e da restituire con accesso diretto alla tab corretta; il dettaglio mezzo include restituzione esplicita e un elenco operazioni completo espandibile. **Prossimi passi:** aggiungere upload reale documenti assegnazione, restituzione e sinistro, introdurre un registro globale delle comunicazioni ufficiali, collegare tracking live e gateway notifiche esterne.

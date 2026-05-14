@@ -162,6 +162,18 @@ type VehicleDetail = {
 };
 
 type FleetTab = 'anagrafica' | 'revisioni' | 'assegnazioni' | 'documenti' | 'sinistri' | 'comunicazioni';
+type VehicleOperationKind = 'assicurazione' | 'revisione' | 'assegnazione' | 'utilizzo' | 'alert' | 'sinistro' | 'comunicazione';
+
+type VehicleOperation = {
+  id: string;
+  kind: VehicleOperationKind;
+  title: string;
+  dateValue: string;
+  summary: string;
+  badge: string;
+  details: Array<{ label: string; value: string }>;
+  note?: string | null;
+};
 
 function formatDate(value?: string | null) {
   if (!value) return '—';
@@ -211,6 +223,7 @@ function TextareaField({
 export default function FleetDetailClientPage() {
   const searchParams = useSearchParams();
   const vehicleId = searchParams.get('id');
+  const requestedTab = searchParams.get('tab') as FleetTab | null;
 
   const [vehicle, setVehicle] = useState<VehicleDetail | null>(null);
   const [groups, setGroups] = useState<GroupItem[]>([]);
@@ -219,6 +232,7 @@ export default function FleetDetailClientPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [tab, setTab] = useState<FleetTab>('anagrafica');
+  const [expandedOperationId, setExpandedOperationId] = useState<string | null>(null);
 
   const [groupLinkId, setGroupLinkId] = useState('');
   const [insuranceForm, setInsuranceForm] = useState({
@@ -269,6 +283,14 @@ export default function FleetDetailClientPage() {
     location_text: '',
     province_code: '',
   });
+  const [returnForm, setReturnForm] = useState({
+    assignment_id: '',
+    km_finali: '',
+    riconsegnato_il: '',
+    documento_restituzione_numero: '',
+    documento_restituzione_data: '',
+    note: '',
+  });
 
   const loadVehicle = async () => {
     if (!vehicleId) return;
@@ -290,6 +312,13 @@ export default function FleetDetailClientPage() {
     loadVehicle().catch((err) => setError(err.message || 'Impossibile caricare il mezzo.'));
   }, [vehicleId]);
 
+  useEffect(() => {
+    if (!requestedTab) return;
+    if (['anagrafica', 'revisioni', 'assegnazioni', 'documenti', 'sinistri', 'comunicazioni'].includes(requestedTab)) {
+      setTab(requestedTab);
+    }
+  }, [requestedTab]);
+
   const availableGroups = useMemo(
     () => groups.filter((group) => !vehicle?.groups.some((item) => item.id === group.id)),
     [groups, vehicle],
@@ -304,6 +333,133 @@ export default function FleetDetailClientPage() {
     () => [{ value: '', label: 'Seleziona assegnazione' }, ...(vehicle?.assignments || []).map((item) => ({ value: String(item.id), label: `${item.employee_display_name || item.user_display_name || 'Operatore'} · ${item.stato}` }))],
     [vehicle],
   );
+
+  const activeAssignments = useMemo(
+    () => (vehicle?.assignments || []).filter((item) => !item.riconsegnato_il),
+    [vehicle],
+  );
+
+  const operations = useMemo<VehicleOperation[]>(() => {
+    if (!vehicle) return [];
+
+    const insuranceOps: VehicleOperation[] = vehicle.insurance_records.map((record) => ({
+      id: `insurance-${record.id}`,
+      kind: 'assicurazione',
+      title: `Copertura ${record.compagnia}`,
+      dateValue: record.data_scadenza,
+      summary: `${record.is_current ? 'Corrente' : 'Storica'} · scadenza ${formatDate(record.data_scadenza)}`,
+      badge: 'Assicurazione',
+      details: [
+        { label: 'Compagnia', value: record.compagnia },
+        { label: 'Polizza', value: record.numero_polizza || '—' },
+        { label: 'Pacchetto', value: record.package_name || '—' },
+        { label: 'Scadenza', value: formatDate(record.data_scadenza) },
+      ],
+      note: record.note,
+    }));
+
+    const revisionOps: VehicleOperation[] = vehicle.revisions.map((revision) => ({
+      id: `revision-${revision.id}`,
+      kind: 'revisione',
+      title: `Revisione del ${formatDate(revision.data_revisione)}`,
+      dateValue: revision.data_revisione,
+      summary: `${revision.esito} · km ${revision.km_rilevati?.toLocaleString('it-IT') || '—'}`,
+      badge: 'Revisione',
+      details: [
+        { label: 'Data revisione', value: formatDate(revision.data_revisione) },
+        { label: 'Esito', value: revision.esito },
+        { label: 'Km rilevati', value: revision.km_rilevati?.toLocaleString('it-IT') || '—' },
+      ],
+      note: revision.note,
+    }));
+
+    const assignmentOps: VehicleOperation[] = vehicle.assignments.map((assignment) => ({
+      id: `assignment-${assignment.id}`,
+      kind: 'assegnazione',
+      title: `Assegnazione a ${assignment.employee_display_name || assignment.user_display_name || 'Operatore'}`,
+      dateValue: assignment.assegnato_il || '',
+      summary: `${assignment.stato} · dal ${formatDateTime(assignment.assegnato_il)}`,
+      badge: 'Assegnazione',
+      details: [
+        { label: 'Operatore', value: assignment.employee_display_name || assignment.user_display_name || '—' },
+        { label: 'Km iniziali', value: assignment.km_iniziali.toLocaleString('it-IT') },
+        { label: 'Documento assegnazione', value: assignment.documento_assegnazione_numero || '—' },
+        { label: 'Restituito il', value: formatDateTime(assignment.riconsegnato_il) },
+        { label: 'Documento restituzione', value: assignment.documento_restituzione_numero || '—' },
+      ],
+      note: assignment.note,
+    }));
+
+    const usageOps: VehicleOperation[] = vehicle.usage_logs.map((usage) => ({
+      id: `usage-${usage.id}`,
+      kind: 'utilizzo',
+      title: `Utilizzo mezzo - ${usage.actor_display_name || 'Operatore'}`,
+      dateValue: usage.started_at,
+      summary: `${usage.km_partenza.toLocaleString('it-IT')} km partenza · ${formatDateTime(usage.started_at)}`,
+      badge: 'Utilizzo',
+      details: [
+        { label: 'Operatore', value: usage.actor_display_name || '—' },
+        { label: 'Km partenza', value: usage.km_partenza.toLocaleString('it-IT') },
+        { label: 'Km rientro', value: usage.km_rientro?.toLocaleString('it-IT') || '—' },
+        { label: 'Inizio', value: formatDateTime(usage.started_at) },
+        { label: 'Fine', value: formatDateTime(usage.ended_at) },
+        { label: 'Problemi rilevati', value: usage.issue_flags.length > 0 ? usage.issue_flags.join(', ') : '—' },
+      ],
+      note: [usage.note_presa ? `Presa: ${usage.note_presa}` : null, usage.note_rientro ? `Rientro: ${usage.note_rientro}` : null].filter(Boolean).join(' · '),
+    }));
+
+    const alertOps: VehicleOperation[] = vehicle.alerts.map((alert) => ({
+      id: `alert-${alert.id}`,
+      kind: 'alert',
+      title: `${alert.alert_type.toUpperCase()} - ${alert.title}`,
+      dateValue: alert.event_at || '',
+      summary: `${alert.severity} · ${alert.status}`,
+      badge: 'Alert',
+      details: [
+        { label: 'Tipo', value: alert.alert_type },
+        { label: 'Gravità', value: alert.severity },
+        { label: 'Provincia', value: alert.province_code || '—' },
+        { label: 'Luogo', value: alert.location_text || '—' },
+        { label: 'Operatore', value: alert.actor_display_name || '—' },
+      ],
+      note: alert.description,
+    }));
+
+    const incidentOps: VehicleOperation[] = vehicle.incidents.map((incident) => ({
+      id: `incident-${incident.id}`,
+      kind: 'sinistro',
+      title: incident.tipo || 'Sinistro',
+      dateValue: incident.data_evento,
+      summary: `${incident.stato} · ${incident.luogo || 'luogo non indicato'}`,
+      badge: 'Sinistro',
+      details: [
+        { label: 'Data evento', value: formatDate(incident.data_evento) },
+        { label: 'Numero sinistro', value: incident.numero_sinistro || '—' },
+        { label: 'Stato', value: incident.stato },
+        { label: 'Luogo', value: incident.luogo || '—' },
+      ],
+      note: incident.descrizione || incident.note,
+    }));
+
+    const communicationOps: VehicleOperation[] = communications.map((item) => ({
+      id: `communication-${item.id}`,
+      kind: 'comunicazione',
+      title: item.subject,
+      dateValue: item.created_at || '',
+      summary: `${item.event_type} · ${item.channel} · ${item.status}`,
+      badge: 'Comunicazione',
+      details: [
+        { label: 'Canale', value: item.channel },
+        { label: 'Evento', value: item.event_type },
+        { label: 'Stato', value: item.status },
+        { label: 'Destinatari', value: item.recipients.length ? item.recipients.map((recipient) => recipient.recipient_label).join(', ') : '—' },
+      ],
+      note: item.message,
+    }));
+
+    return [...insuranceOps, ...revisionOps, ...assignmentOps, ...usageOps, ...alertOps, ...incidentOps, ...communicationOps]
+      .sort((left, right) => new Date(right.dateValue || 0).getTime() - new Date(left.dateValue || 0).getTime());
+  }, [communications, vehicle]);
 
   const tabs = useMemo(() => ([
     { id: 'anagrafica', label: 'Anagrafica' },
@@ -660,6 +816,25 @@ export default function FleetDetailClientPage() {
                             <Info label="Km finali" value={assignment.km_finali?.toLocaleString('it-IT') || '—'} />
                           </div>
                           {assignment.note ? <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{assignment.note}</p> : null}
+                          {!assignment.riconsegnato_il ? (
+                            <button
+                              type="button"
+                              className="mt-3 text-sm font-medium"
+                              style={{ color: 'var(--cv-primary)' }}
+                              onClick={() => {
+                                setReturnForm({
+                                  assignment_id: String(assignment.id),
+                                  km_finali: assignment.km_finali ? String(assignment.km_finali) : '',
+                                  riconsegnato_il: '',
+                                  documento_restituzione_numero: assignment.documento_restituzione_numero || '',
+                                  documento_restituzione_data: assignment.documento_restituzione_data || '',
+                                  note: '',
+                                });
+                              }}
+                            >
+                              Apri restituzione mezzo
+                            </button>
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -777,6 +952,46 @@ export default function FleetDetailClientPage() {
                       }}
                     >
                       Registra utilizzo
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3 rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                    <h3 className="text-lg font-semibold">Restituzione mezzo</h3>
+                    <Select
+                      label="Assegnazione attiva"
+                      value={returnForm.assignment_id}
+                      onChange={(event) => setReturnForm((current) => ({ ...current, assignment_id: event.target.value }))}
+                      options={[{ value: '', label: 'Seleziona assegnazione' }, ...activeAssignments.map((item) => ({ value: String(item.id), label: `${item.employee_display_name || item.user_display_name || 'Operatore'} · ${item.stato}` }))]}
+                    />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Input label="Km finali" type="number" value={returnForm.km_finali} onChange={(event) => setReturnForm((current) => ({ ...current, km_finali: event.target.value }))} />
+                      <Input label="Data restituzione" type="datetime-local" value={returnForm.riconsegnato_il} onChange={(event) => setReturnForm((current) => ({ ...current, riconsegnato_il: event.target.value }))} />
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Input label="Documento restituzione" value={returnForm.documento_restituzione_numero} onChange={(event) => setReturnForm((current) => ({ ...current, documento_restituzione_numero: event.target.value }))} />
+                      <Input label="Data documento restituzione" type="date" value={returnForm.documento_restituzione_data} onChange={(event) => setReturnForm((current) => ({ ...current, documento_restituzione_data: event.target.value }))} />
+                    </div>
+                    <TextareaField label="Note restituzione" value={returnForm.note} onChange={(value) => setReturnForm((current) => ({ ...current, note: value }))} />
+                    <Button
+                      type="button"
+                      disabled={!returnForm.assignment_id || !returnForm.km_finali}
+                      onClick={() => {
+                        api.patch(`/fleet/assignments/${returnForm.assignment_id}/return`, {
+                          km_finali: Number(returnForm.km_finali),
+                          riconsegnato_il: returnForm.riconsegnato_il || null,
+                          documento_restituzione_numero: returnForm.documento_restituzione_numero || null,
+                          documento_restituzione_data: returnForm.documento_restituzione_data || null,
+                          note: returnForm.note || null,
+                        })
+                          .then(async () => {
+                            setSuccess('Restituzione del mezzo registrata.');
+                            setReturnForm({ assignment_id: '', km_finali: '', riconsegnato_il: '', documento_restituzione_numero: '', documento_restituzione_data: '', note: '' });
+                            await loadVehicle();
+                          })
+                          .catch((err) => setError(err.message || 'Impossibile registrare la restituzione del mezzo.'));
+                      }}
+                    >
+                      Registra restituzione
                     </Button>
                   </div>
                 </div>
@@ -957,6 +1172,72 @@ export default function FleetDetailClientPage() {
               </div>
             </Card>
           )}
+
+          <Card padding="md">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold">Elenco operazioni del mezzo</h3>
+                <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
+                  Qui trovi tutta la storia del mezzo. Clicca su una riga per aprire il dettaglio dell'operazione.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {operations.length === 0 && (
+                  <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
+                    Nessuna operazione registrata su questo mezzo.
+                  </p>
+                )}
+                {operations.map((operation) => {
+                  const expanded = expandedOperationId === operation.id;
+                  return (
+                    <button
+                      key={operation.id}
+                      type="button"
+                      className="w-full rounded-[var(--cv-radius-md)] border p-4 text-left"
+                      style={{ borderColor: 'var(--cv-border-subtle)', background: 'white' }}
+                      onClick={() => setExpandedOperationId((current) => current === operation.id ? null : operation.id)}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold" style={{ color: 'var(--cv-neutral-900)' }}>
+                            {operation.title}
+                          </p>
+                          <p className="mt-1 text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
+                            {operation.summary}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>
+                            {operation.badge}
+                          </span>
+                          <p className="mt-1 text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
+                            {formatDateTime(operation.dateValue)}
+                          </p>
+                        </div>
+                      </div>
+                      {expanded ? (
+                        <div className="mt-4 grid gap-3 border-t pt-4 md:grid-cols-2" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                          {operation.details.map((detail) => (
+                            <Info key={`${operation.id}-${detail.label}`} label={detail.label} value={detail.value} />
+                          ))}
+                          {operation.note ? (
+                            <div className="md:col-span-2">
+                              <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>
+                                Note
+                              </p>
+                              <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-700)' }}>
+                                {operation.note}
+                              </p>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
         </>
       )}
     </div>

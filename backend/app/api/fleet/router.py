@@ -36,6 +36,7 @@ from app.schemas.fleet import (
     FleetVehicleAlertCreate,
     FleetVehicleAlertResponse,
     FleetVehicleAssignmentCreate,
+    FleetVehicleAssignmentReturn,
     FleetVehicleAssignmentResponse,
     FleetVehicleDetailResponse,
     FleetVehicleDocumentResponse,
@@ -651,6 +652,59 @@ async def create_vehicle_assignment(
         note=assignment.note,
         user_display_name=actor_display_name(current_user, None),
         employee_display_name=actor_display_name(None, db.query(Employee).filter(Employee.id == assignment.employee_id).first() if assignment.employee_id else None),
+    )
+
+
+@router.patch("/assignments/{assignment_id}/return", response_model=FleetVehicleAssignmentResponse)
+async def return_vehicle_assignment(
+    assignment_id: int,
+    data: FleetVehicleAssignmentReturn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    assignment = (
+        db.query(VehicleAssignment)
+        .options(joinedload(VehicleAssignment.user), joinedload(VehicleAssignment.employee))
+        .filter(VehicleAssignment.id == assignment_id)
+        .first()
+    )
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assegnazione mezzo non trovata")
+
+    vehicle = load_vehicle_or_404(db, assignment.vehicle_id)
+    if data.km_finali < assignment.km_iniziali:
+        raise HTTPException(status_code=400, detail="I km finali non possono essere inferiori ai km iniziali")
+
+    assignment.km_finali = data.km_finali
+    assignment.riconsegnato_il = data.riconsegnato_il or datetime.now(timezone.utc)
+    assignment.documento_restituzione_numero = data.documento_restituzione_numero
+    assignment.documento_restituzione_data = data.documento_restituzione_data
+    assignment.stato = data.stato
+    assignment.note = "\n".join([part for part in [assignment.note, data.note] if part]).strip() or assignment.note
+
+    if data.km_finali > vehicle.km_attuali:
+        vehicle.km_attuali = data.km_finali
+
+    db.commit()
+    db.refresh(assignment)
+    employee = assignment.employee or (db.query(Employee).filter(Employee.id == assignment.employee_id).first() if assignment.employee_id else None)
+    return FleetVehicleAssignmentResponse(
+        id=assignment.id,
+        vehicle_id=assignment.vehicle_id,
+        user_id=assignment.user_id,
+        employee_id=assignment.employee_id,
+        km_iniziali=assignment.km_iniziali,
+        km_finali=assignment.km_finali,
+        assegnato_il=assignment.assegnato_il,
+        riconsegnato_il=assignment.riconsegnato_il,
+        documento_assegnazione_numero=assignment.documento_assegnazione_numero,
+        documento_assegnazione_data=assignment.documento_assegnazione_data,
+        documento_restituzione_numero=assignment.documento_restituzione_numero,
+        documento_restituzione_data=assignment.documento_restituzione_data,
+        stato=assignment.stato,
+        note=assignment.note,
+        user_display_name=actor_display_name(assignment.user or current_user, None),
+        employee_display_name=actor_display_name(None, employee),
     )
 
 

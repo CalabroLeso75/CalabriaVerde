@@ -190,6 +190,15 @@ class FleetVehicleAssignmentCreate(BaseModel):
     note: Optional[str] = None
 
 
+class FleetVehicleAssignmentReturn(BaseModel):
+    km_finali: int
+    riconsegnato_il: Optional[datetime] = None
+    documento_restituzione_numero: Optional[str] = None
+    documento_restituzione_data: Optional[date] = None
+    note: Optional[str] = None
+    stato: str = "restituito"
+
+
 class FleetVehicleUsageLogResponse(BaseModel):
     id: int
     vehicle_id: int

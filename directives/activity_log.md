@@ -301,3 +301,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato su Collaudo e Test.  
 **Verifiche eseguite:** `py_compile` dei nuovi modelli, schemi, router e migration; `npm run build`; smoke test end-to-end via `FastAPI TestClient` con creazione gruppo, bulk insurance, revisione, assegnazione, usage log, alert `sinistro` e verifica comunicazioni; promozione su VPS con `alembic upgrade head` fino a `008_fleet_ops_comms`; controllo servizio `calabriaverde-test` attivo; `GET https://smart-cv.it/api/fleet/groups` non autenticato `403` a conferma delle route pubblicate; `GET https://smart-cv.it/test/fleet/anagrafica/` `200`.  
 **Note utili:** i canali SMS, WhatsApp e push non sono ancora integrati con gateway esterni; il sistema pero' e' gia' predisposto con destinatari, registro ufficiale delle comunicazioni e strutture dati per agganciare i canali successivi senza rifare il modulo.  
+
+## 2026-05-15 01:15:00 - Miglioramento UX operativo modulo mezzi
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** corretto il disallineamento tra funzionalita' presenti e visibilita' reale in pagina del modulo mezzi. La dashboard fleet ora espone liste operative per assicurazioni in scadenza o mancanti, revisioni in scadenza o mancanti, mezzi da assegnare e mezzi da restituire con link diretti al fascicolo sul tab corretto. Nel dettaglio mezzo e' stata aggiunta la restituzione esplicita dell'assegnazione attiva e, in fondo alla scheda, un elenco unico delle operazioni del mezzo con apertura del dettaglio riga per riga.  
+**File coinvolti:** `frontend/src/components/fleet/FleetDashboardClientPage.tsx`, `frontend/src/components/fleet/FleetDetailClientPage.tsx`, `frontend/src/lib/api.ts`, `backend/app/api/fleet/router.py`, `backend/app/schemas/fleet.py`, hosting `smart-cv.it/test`, VPS `/opt/calabriaverde-test/backend`.  
+**Esito:** completato su Collaudo e Test.  
+**Verifiche eseguite:** `py_compile` backend fleet, `npm run build`, rebuild Test con `NEXT_PUBLIC_BASE_PATH=/test`, upload frontend su hosting, deploy backend fleet sul VPS con restart `calabriaverde-test` attivo, `GET https://smart-cv.it/api/health` `200`, `GET https://smart-cv.it/test/fleet/` `200`, `GET https://smart-cv.it/test/fleet/anagrafica/` `200`.  
+**Note utili:** la dashboard ora espone le azioni in modo evidente, mentre il fascicolo mezzo concentra anche la restituzione e uno storico operazioni espandibile; il registro comunicazioni complessivo globale resta invece un passo successivo dedicato.  

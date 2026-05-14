@@ -88,6 +88,240 @@ class FleetTeamLinkResponse(BaseModel):
         from_attributes = True
 
 
+class FleetGroupResponse(BaseModel):
+    id: int
+    name: str
+    code: str
+    description: Optional[str] = None
+    scope: str
+    organization_id: Optional[int] = None
+    province_code: Optional[str] = None
+    is_active: bool = True
+    vehicle_count: int = 0
+
+
+class FleetGroupCreate(BaseModel):
+    name: str
+    code: str
+    description: Optional[str] = None
+    scope: str = "operativo"
+    organization_id: Optional[int] = None
+    province_code: Optional[str] = None
+
+
+class FleetBulkGroupMembershipUpdate(BaseModel):
+    vehicle_ids: list[int] = Field(default_factory=list)
+
+
+class FleetVehicleInsuranceRecordResponse(BaseModel):
+    id: int
+    vehicle_id: int
+    group_id: Optional[int] = None
+    source_type: str
+    compagnia: str
+    broker: Optional[str] = None
+    package_name: Optional[str] = None
+    numero_polizza: Optional[str] = None
+    copertura_dal: Optional[date] = None
+    copertura_al: Optional[date] = None
+    data_scadenza: date
+    channels_ready: Optional[list[str]] = None
+    is_current: bool = True
+    note: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class FleetVehicleInsuranceCreate(BaseModel):
+    source_type: str = "manuale"
+    compagnia: str
+    broker: Optional[str] = None
+    package_name: Optional[str] = None
+    numero_polizza: Optional[str] = None
+    copertura_dal: Optional[date] = None
+    copertura_al: Optional[date] = None
+    data_scadenza: date
+    channels_ready: list[str] = Field(default_factory=list)
+    note: Optional[str] = None
+
+
+class FleetBulkInsuranceUpdate(BaseModel):
+    group_id: int
+    source_type: str = "manuale"
+    compagnia: str
+    broker: Optional[str] = None
+    package_name: Optional[str] = None
+    copertura_dal: Optional[date] = None
+    copertura_al: Optional[date] = None
+    data_scadenza: date
+    note: Optional[str] = None
+
+
+class FleetVehicleRevisionCreate(BaseModel):
+    data_revisione: date
+    esito: str = "regolare"
+    km_rilevati: Optional[int] = None
+    note: Optional[str] = None
+    scadenza_revisione: Optional[date] = None
+    scadenza_verifica_sicurezza: Optional[date] = None
+
+
+class FleetBulkRevisionUpdate(BaseModel):
+    group_id: int
+    data_revisione: Optional[date] = None
+    esito: str = "pianificata"
+    note: Optional[str] = None
+    scadenza_revisione: date
+    scadenza_verifica_sicurezza: Optional[date] = None
+
+
+class FleetVehicleAssignmentCreate(BaseModel):
+    employee_id: Optional[int] = None
+    user_id: Optional[int] = None
+    km_iniziali: int
+    assegnato_il: Optional[datetime] = None
+    riconsegnato_il: Optional[datetime] = None
+    documento_assegnazione_numero: Optional[str] = None
+    documento_assegnazione_data: Optional[date] = None
+    documento_restituzione_numero: Optional[str] = None
+    documento_restituzione_data: Optional[date] = None
+    stato: str = "assegnato"
+    note: Optional[str] = None
+
+
+class FleetVehicleUsageLogResponse(BaseModel):
+    id: int
+    vehicle_id: int
+    assignment_id: Optional[int] = None
+    user_id: Optional[int] = None
+    employee_id: Optional[int] = None
+    started_at: datetime
+    ended_at: Optional[datetime] = None
+    km_partenza: int
+    km_rientro: Optional[int] = None
+    note_presa: Optional[str] = None
+    note_rientro: Optional[str] = None
+    issue_flags: list[str] = Field(default_factory=list)
+    actor_display_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class FleetVehicleUsageCreate(BaseModel):
+    assignment_id: Optional[int] = None
+    employee_id: Optional[int] = None
+    user_id: Optional[int] = None
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    km_partenza: int
+    km_rientro: Optional[int] = None
+    note_presa: Optional[str] = None
+    note_rientro: Optional[str] = None
+    issue_flags: list[str] = Field(default_factory=list)
+
+
+class FleetVehicleAlertResponse(BaseModel):
+    id: int
+    vehicle_id: int
+    assignment_id: Optional[int] = None
+    user_id: Optional[int] = None
+    employee_id: Optional[int] = None
+    alert_type: str
+    severity: str
+    status: str
+    title: str
+    description: str
+    location_text: Optional[str] = None
+    latitude: Optional[Decimal] = None
+    longitude: Optional[Decimal] = None
+    province_code: Optional[str] = None
+    event_at: Optional[datetime] = None
+    resolved_at: Optional[datetime] = None
+    actor_display_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class FleetVehicleAlertCreate(BaseModel):
+    assignment_id: Optional[int] = None
+    employee_id: Optional[int] = None
+    user_id: Optional[int] = None
+    alert_type: str = "segnalazione"
+    severity: str = "media"
+    title: str
+    description: str
+    location_text: Optional[str] = None
+    latitude: Optional[Decimal] = None
+    longitude: Optional[Decimal] = None
+    province_code: Optional[str] = None
+    event_at: Optional[datetime] = None
+
+
+class CommunicationTargetResponse(BaseModel):
+    id: int
+    module_scope: str
+    compartment_scope: Optional[str] = None
+    role_label: str
+    province_code: Optional[str] = None
+    organization_id: Optional[int] = None
+    user_id: Optional[int] = None
+    display_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    whatsapp: Optional[str] = None
+    preferred_channels: list[str] = Field(default_factory=list)
+    is_active: bool = True
+    note: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CommunicationTargetCreate(BaseModel):
+    module_scope: str = "fleet"
+    compartment_scope: Optional[str] = "parco_macchine"
+    role_label: str
+    province_code: Optional[str] = None
+    organization_id: Optional[int] = None
+    user_id: Optional[int] = None
+    display_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    whatsapp: Optional[str] = None
+    preferred_channels: list[str] = Field(default_factory=lambda: ["sistema"])
+    is_active: bool = True
+    note: Optional[str] = None
+
+
+class CommunicationRecipientResponse(BaseModel):
+    id: int
+    recipient_label: str
+    channel: str
+    destination: Optional[str] = None
+    delivery_status: str
+
+    class Config:
+        from_attributes = True
+
+
+class CommunicationLogResponse(BaseModel):
+    id: int
+    module_scope: str
+    compartment_scope: Optional[str] = None
+    event_type: str
+    channel: str
+    subject: str
+    message: str
+    related_table: Optional[str] = None
+    related_id: Optional[int] = None
+    status: str
+    created_at: Optional[datetime] = None
+    recipients: list[CommunicationRecipientResponse] = Field(default_factory=list)
+
+
 class FleetVehicleListItem(BaseModel):
     id: int
     targa: str
@@ -138,8 +372,12 @@ class FleetVehicleDetailResponse(BaseModel):
     last_position_at: Optional[datetime] = None
     note: Optional[str] = None
     vehicle_type: Optional[FleetVehicleTypeResponse] = None
+    groups: list[FleetGroupResponse] = Field(default_factory=list)
+    insurance_records: list[FleetVehicleInsuranceRecordResponse] = Field(default_factory=list)
     revisions: list[FleetVehicleRevisionResponse] = Field(default_factory=list)
     assignments: list[FleetVehicleAssignmentResponse] = Field(default_factory=list)
+    usage_logs: list[FleetVehicleUsageLogResponse] = Field(default_factory=list)
+    alerts: list[FleetVehicleAlertResponse] = Field(default_factory=list)
     incidents: list[FleetVehicleIncidentResponse] = Field(default_factory=list)
     documents: list[FleetVehicleDocumentResponse] = Field(default_factory=list)
     team_links: list[FleetTeamLinkResponse] = Field(default_factory=list)

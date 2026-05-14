@@ -148,3 +148,8 @@ Le promozioni da Collaudo a Test devono avvenire con sostituzione pulita dell'am
 ## 2026-05-14 21:55:00 - Aggiornamento decision
 
 Il modulo `Parco Macchine` viene costruito in continuita' con il vecchio database legacy, mantenendo compatibilita' nominale delle tabelle `vehicle_types`, `vehicles`, `vehicle_revisions`, `vehicle_logs` e `aib_team_vehicles`, ed estendendo il modello solo dove serve (`vehicle_incidents`, `vehicle_documents`, campi tracker e dati tecnici aggiuntivi). Questo consente di importare i dati reali esistenti senza riscrivere il patrimonio storico e lascia spazio a evoluzioni future come localizzazione live, sinistri e allegati.
+
+
+## 2026-05-14 23:58:00 - Aggiornamento decision
+
+Il registro delle comunicazioni ufficiali non viene implementato come funzione chiusa del solo modulo `Parco Macchine`, ma come componente trasversale con target, log e destinatari riusabili per altri comparti del gestionale. Nel fleet viene usato subito per alert SOS e sinistri verso responsabili regionali e provinciali, ma la struttura e' intenzionalmente generica cosi' da poter registrare in futuro comunicazioni ufficiali provenienti anche da HR, AIB, magazzino o sale operative senza duplicare modello e logica applicativa.

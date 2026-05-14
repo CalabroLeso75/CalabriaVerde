@@ -6,8 +6,44 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { NoticeBanner } from '@/components/common/NoticeBanner';
 import { SectionLead } from '@/components/common/SectionLead';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
+
+type GroupItem = {
+  id: number;
+  name: string;
+  code: string;
+  scope: string;
+  province_code?: string | null;
+  vehicle_count: number;
+};
+
+type EmployeeOption = {
+  id: number;
+  nome: string;
+  cognome: string;
+  tipo: string;
+};
+
+type CommunicationLog = {
+  id: number;
+  event_type: string;
+  channel: string;
+  subject: string;
+  message: string;
+  status: string;
+  created_at?: string | null;
+  recipients: Array<{
+    id: number;
+    recipient_label: string;
+    channel: string;
+    destination?: string | null;
+    delivery_status: string;
+  }>;
+};
 
 type VehicleDetail = {
   id: number;
@@ -31,7 +67,6 @@ type VehicleDetail = {
   scadenza_revisione?: string | null;
   ultima_revisione?: string | null;
   scadenza_verifica_sicurezza?: string | null;
-  rottamazione_date?: string | null;
   tracker_enabled: boolean;
   note?: string | null;
   vehicle_type?: {
@@ -42,6 +77,20 @@ type VehicleDetail = {
     assicurazione?: string | null;
     tipo_abilitazione?: string | null;
   } | null;
+  groups: GroupItem[];
+  insurance_records: Array<{
+    id: number;
+    compagnia: string;
+    broker?: string | null;
+    package_name?: string | null;
+    numero_polizza?: string | null;
+    copertura_dal?: string | null;
+    copertura_al?: string | null;
+    data_scadenza: string;
+    is_current: boolean;
+    source_type: string;
+    note?: string | null;
+  }>;
   revisions: Array<{
     id: number;
     data_revisione: string;
@@ -63,6 +112,30 @@ type VehicleDetail = {
     note?: string | null;
     employee_display_name?: string | null;
     user_display_name?: string | null;
+  }>;
+  usage_logs: Array<{
+    id: number;
+    assignment_id?: number | null;
+    started_at: string;
+    ended_at?: string | null;
+    km_partenza: number;
+    km_rientro?: number | null;
+    note_presa?: string | null;
+    note_rientro?: string | null;
+    issue_flags: string[];
+    actor_display_name?: string | null;
+  }>;
+  alerts: Array<{
+    id: number;
+    alert_type: string;
+    severity: string;
+    status: string;
+    title: string;
+    description: string;
+    location_text?: string | null;
+    province_code?: string | null;
+    event_at?: string | null;
+    actor_display_name?: string | null;
   }>;
   documents: Array<{
     id: number;
@@ -86,19 +159,53 @@ type VehicleDetail = {
     importo_danno?: string | number | null;
     note?: string | null;
   }>;
-  team_links: Array<{
-    id: number;
-    team_id: number;
-    effective_from?: string | null;
-    effective_to?: string | null;
-  }>;
 };
 
-type FleetTab = 'anagrafica' | 'revisioni' | 'assegnazioni' | 'documenti' | 'sinistri';
+type FleetTab = 'anagrafica' | 'revisioni' | 'assegnazioni' | 'documenti' | 'sinistri' | 'comunicazioni';
 
 function formatDate(value?: string | null) {
   if (!value) return '—';
   return new Date(value).toLocaleDateString('it-IT');
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return '—';
+  return new Date(value).toLocaleString('it-IT');
+}
+
+function TextareaField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  rows = 3,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  rows?: number;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium" style={{ color: 'var(--cv-neutral-700)' }}>
+        {label}
+      </span>
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className="w-full rounded-[var(--cv-radius-md)] border px-3 py-2 text-sm outline-none transition-shadow focus:ring-2"
+        style={{
+          borderColor: 'var(--cv-border-subtle)',
+          background: 'white',
+          color: 'var(--cv-neutral-900)',
+          boxShadow: 'var(--cv-shadow-xs)',
+        }}
+      />
+    </label>
+  );
 }
 
 export default function FleetDetailClientPage() {
@@ -106,25 +213,105 @@ export default function FleetDetailClientPage() {
   const vehicleId = searchParams.get('id');
 
   const [vehicle, setVehicle] = useState<VehicleDetail | null>(null);
+  const [groups, setGroups] = useState<GroupItem[]>([]);
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [communications, setCommunications] = useState<CommunicationLog[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [tab, setTab] = useState<FleetTab>('anagrafica');
+
+  const [groupLinkId, setGroupLinkId] = useState('');
+  const [insuranceForm, setInsuranceForm] = useState({
+    compagnia: '',
+    broker: '',
+    package_name: '',
+    numero_polizza: '',
+    copertura_dal: '',
+    copertura_al: '',
+    data_scadenza: '',
+    note: '',
+  });
+  const [revisionForm, setRevisionForm] = useState({
+    data_revisione: '',
+    esito: 'regolare',
+    km_rilevati: '',
+    scadenza_revisione: '',
+    scadenza_verifica_sicurezza: '',
+    note: '',
+  });
+  const [assignmentForm, setAssignmentForm] = useState({
+    employee_id: '',
+    km_iniziali: '',
+    assegnato_il: '',
+    riconsegnato_il: '',
+    documento_assegnazione_numero: '',
+    note: '',
+    stato: 'assegnato',
+  });
+  const [usageForm, setUsageForm] = useState({
+    assignment_id: '',
+    employee_id: '',
+    km_partenza: '',
+    km_rientro: '',
+    started_at: '',
+    ended_at: '',
+    note_presa: '',
+    note_rientro: '',
+    issue_flags: '',
+  });
+  const [alertForm, setAlertForm] = useState({
+    assignment_id: '',
+    employee_id: '',
+    alert_type: 'sos',
+    severity: 'alta',
+    title: '',
+    description: '',
+    location_text: '',
+    province_code: '',
+  });
+
+  const loadVehicle = async () => {
+    if (!vehicleId) return;
+    const [vehiclePayload, groupItems, employeePayload, communicationPayload] = await Promise.all([
+      api.get<VehicleDetail>(`/fleet/vehicles/${vehicleId}`),
+      api.get<GroupItem[]>('/fleet/groups').catch(() => []),
+      api.get<{ items: EmployeeOption[] }>('/hr/employees?page=1&page_size=100').catch(() => ({ items: [] })),
+      api.get<CommunicationLog[]>(`/fleet/vehicles/${vehicleId}/communications`).catch(() => []),
+    ]);
+    setVehicle(vehiclePayload);
+    setGroups(groupItems);
+    setEmployees(employeePayload.items || []);
+    setCommunications(communicationPayload);
+    setError(null);
+  };
 
   useEffect(() => {
     if (!vehicleId) return;
-    api.get<VehicleDetail>(`/fleet/vehicles/${vehicleId}`)
-      .then((payload) => {
-        setVehicle(payload);
-        setError(null);
-      })
-      .catch((err) => setError(err.message || 'Impossibile caricare il mezzo.'));
+    loadVehicle().catch((err) => setError(err.message || 'Impossibile caricare il mezzo.'));
   }, [vehicleId]);
+
+  const availableGroups = useMemo(
+    () => groups.filter((group) => !vehicle?.groups.some((item) => item.id === group.id)),
+    [groups, vehicle],
+  );
+
+  const employeeOptions = useMemo(
+    () => [{ value: '', label: 'Seleziona operatore' }, ...employees.map((item) => ({ value: String(item.id), label: `${item.cognome} ${item.nome}` }))],
+    [employees],
+  );
+
+  const assignmentOptions = useMemo(
+    () => [{ value: '', label: 'Seleziona assegnazione' }, ...(vehicle?.assignments || []).map((item) => ({ value: String(item.id), label: `${item.employee_display_name || item.user_display_name || 'Operatore'} · ${item.stato}` }))],
+    [vehicle],
+  );
 
   const tabs = useMemo(() => ([
     { id: 'anagrafica', label: 'Anagrafica' },
     { id: 'revisioni', label: 'Coperture e revisioni' },
-    { id: 'assegnazioni', label: 'Assegnazioni' },
+    { id: 'assegnazioni', label: 'Assegnazioni e utilizzi' },
     { id: 'documenti', label: 'Documenti' },
-    { id: 'sinistri', label: 'Sinistri' },
+    { id: 'sinistri', label: 'SOS, alert e sinistri' },
+    { id: 'comunicazioni', label: 'Comunicazioni ufficiali' },
   ]), []);
 
   if (!vehicleId) {
@@ -135,8 +322,8 @@ export default function FleetDetailClientPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <SectionLead
-          description="Scheda completa del mezzo con storico tecnico e operativo."
-          detail={vehicle ? `${vehicle.targa} - ${vehicle.marca} ${vehicle.modello}` : 'Caricamento in corso...'}
+          description="Scheda completa del mezzo con storico tecnico, assegnazioni operative, alert e tracciamento comunicazioni."
+          detail={vehicle ? `${vehicle.targa} · ${vehicle.marca} ${vehicle.modello}` : 'Caricamento in corso...'}
         />
         <Link href="/fleet/anagrafica" className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
           Torna all&apos;anagrafica
@@ -144,6 +331,7 @@ export default function FleetDetailClientPage() {
       </div>
 
       {error && <NoticeBanner title="Errore caricamento" message={error} />}
+      {success && <NoticeBanner title="Operazione completata" message={success} tone="success" />}
 
       {vehicle && (
         <>
@@ -185,7 +373,7 @@ export default function FleetDetailClientPage() {
                   Tracker
                 </p>
                 <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-700)' }}>
-                  {vehicle.tracker_enabled ? 'Attivo' : 'Non attivo'}
+                  {vehicle.tracker_enabled ? 'Attivo' : 'Pronto per attivazione API'}
                 </p>
               </div>
             </div>
@@ -210,87 +398,390 @@ export default function FleetDetailClientPage() {
           </div>
 
           {tab === 'anagrafica' && (
-            <Card padding="md">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <Info label="Immatricolazione" value={formatDate(vehicle.immatricolazione_date)} />
-                <Info label="Telaio" value={vehicle.numero_telaio || '—'} />
-                <Info label="Alimentazione" value={vehicle.alimentazione || '—'} />
-                <Info label="Classe euro" value={vehicle.euro_classe || '—'} />
-                <Info label="Colore" value={vehicle.colore || '—'} />
-                <Info label="Proprieta" value={vehicle.proprieta_tipo || '—'} />
-                <Info label="Patente richiesta" value={vehicle.vehicle_type?.patente || '—'} />
-                <Info label="Abilitazione" value={vehicle.vehicle_type?.tipo_abilitazione || '—'} />
-                <Info label="Note" value={vehicle.note || '—'} />
-              </div>
-            </Card>
+            <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+              <Card padding="md">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <Info label="Immatricolazione" value={formatDate(vehicle.immatricolazione_date)} />
+                  <Info label="Telaio" value={vehicle.numero_telaio || '—'} />
+                  <Info label="Alimentazione" value={vehicle.alimentazione || '—'} />
+                  <Info label="Classe euro" value={vehicle.euro_classe || '—'} />
+                  <Info label="Colore" value={vehicle.colore || '—'} />
+                  <Info label="Proprietà" value={vehicle.proprieta_tipo || '—'} />
+                  <Info label="Patente richiesta" value={vehicle.vehicle_type?.patente || '—'} />
+                  <Info label="Abilitazione" value={vehicle.vehicle_type?.tipo_abilitazione || '—'} />
+                  <Info label="Note" value={vehicle.note || '—'} />
+                </div>
+              </Card>
+
+              <Card padding="md">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">Gruppi operativi</h3>
+                    <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
+                      Un mezzo può appartenere a più gruppi. I rinnovi massivi e le campagne operative usano queste appartenenze.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {vehicle.groups.map((group) => (
+                      <div key={group.id} className="rounded-[var(--cv-radius-md)] border px-3 py-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">{group.name}</p>
+                            <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
+                              {group.code} · {group.scope}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            className="text-xs font-semibold"
+                            style={{ color: 'var(--cv-danger)' }}
+                            onClick={() => {
+                              api.delete(`/fleet/groups/${group.id}/vehicles/${vehicle.id}`)
+                                .then(async () => {
+                                  setSuccess('Mezzo rimosso dal gruppo operativo.');
+                                  await loadVehicle();
+                                })
+                                .catch((err) => setError(err.message || 'Impossibile rimuovere il mezzo dal gruppo.'));
+                            }}
+                          >
+                            Rimuovi
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {vehicle.groups.length === 0 && (
+                      <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessun gruppo assegnato al mezzo.</p>
+                    )}
+                  </div>
+                  <div className="grid gap-3">
+                    <Select
+                      label="Aggiungi a gruppo"
+                      value={groupLinkId}
+                      onChange={(event) => setGroupLinkId(event.target.value)}
+                      options={[
+                        { value: '', label: 'Seleziona gruppo' },
+                        ...availableGroups.map((group) => ({ value: String(group.id), label: `${group.name} (${group.code})` })),
+                      ]}
+                    />
+                    <Button
+                      type="button"
+                      disabled={!groupLinkId}
+                      onClick={() => {
+                        api.post(`/fleet/groups/${groupLinkId}/vehicles/${vehicle.id}`, {})
+                          .then(async () => {
+                            setSuccess('Mezzo aggiunto al gruppo operativo.');
+                            setGroupLinkId('');
+                            await loadVehicle();
+                          })
+                          .catch((err) => setError(err.message || 'Impossibile collegare il gruppo al mezzo.'));
+                      }}
+                    >
+                      Collega gruppo
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </div>
           )}
 
           {tab === 'revisioni' && (
-            <Card padding="md">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <Info label="Compagnia assicurativa" value={vehicle.assicurazione_compagnia || '—'} />
-                <Info label="Polizza" value={vehicle.assicurazione_polizza || '—'} />
-                <Info label="Scadenza assicurazione" value={formatDate(vehicle.scadenza_assicurazione)} />
-                <Info label="Scadenza revisione" value={formatDate(vehicle.scadenza_revisione)} />
-              </div>
-
-              <div className="mt-6 space-y-3">
-                {vehicle.revisions.length === 0 && (
-                  <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessuna revisione registrata.</p>
-                )}
-                {vehicle.revisions.map((revision) => (
-                  <div key={revision.id} className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-sm font-semibold" style={{ color: 'var(--cv-neutral-800)' }}>
-                        Revisione del {formatDate(revision.data_revisione)}
-                      </p>
-                      <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>
-                        {revision.esito}
-                      </span>
+            <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+              <Card padding="md">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold">Coperture assicurative</h3>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <Info label="Compagnia attuale" value={vehicle.assicurazione_compagnia || '—'} />
+                      <Info label="Polizza attuale" value={vehicle.assicurazione_polizza || '—'} />
+                      <Info label="Scadenza assicurazione" value={formatDate(vehicle.scadenza_assicurazione)} />
+                      <Info label="Copertura fino al" value={formatDate(vehicle.assicurazione_copertura)} />
                     </div>
-                    <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                      Km rilevati: {revision.km_rilevati?.toLocaleString('it-IT') || '—'}
-                    </p>
-                    {revision.note && (
-                      <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{revision.note}</p>
-                    )}
                   </div>
-                ))}
-              </div>
-            </Card>
+
+                  <div className="space-y-3">
+                    {vehicle.insurance_records.length === 0 && (
+                      <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessun rinnovo assicurativo registrato nel fascicolo mezzo.</p>
+                    )}
+                    {vehicle.insurance_records.map((record) => (
+                      <div key={record.id} className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold">{record.compagnia}</p>
+                          <span className="text-xs font-semibold" style={{ color: record.is_current ? 'var(--cv-primary-dark)' : 'var(--cv-neutral-500)' }}>
+                            {record.is_current ? 'Corrente' : 'Storico'}
+                          </span>
+                        </div>
+                        <div className="mt-2 grid gap-3 md:grid-cols-2">
+                          <Info label="Pacchetto" value={record.package_name || '—'} />
+                          <Info label="Numero polizza" value={record.numero_polizza || 'Da inserire'} />
+                          <Info label="Copertura dal" value={formatDate(record.copertura_dal)} />
+                          <Info label="Scadenza" value={formatDate(record.data_scadenza)} />
+                        </div>
+                        {record.note ? <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{record.note}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold">Storico revisioni</h3>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <Info label="Ultima revisione" value={formatDate(vehicle.ultima_revisione)} />
+                      <Info label="Scadenza revisione" value={formatDate(vehicle.scadenza_revisione)} />
+                      <Info label="Verifica sicurezza" value={formatDate(vehicle.scadenza_verifica_sicurezza)} />
+                      <Info label="Km attuali" value={vehicle.km_attuali.toLocaleString('it-IT')} />
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      {vehicle.revisions.length === 0 && (
+                        <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessuna revisione registrata.</p>
+                      )}
+                      {vehicle.revisions.map((revision) => (
+                        <div key={revision.id} className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold">Revisione del {formatDate(revision.data_revisione)}</p>
+                            <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>{revision.esito}</span>
+                          </div>
+                          <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
+                            Km rilevati: {revision.km_rilevati?.toLocaleString('it-IT') || '—'}
+                          </p>
+                          {revision.note ? <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{revision.note}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card padding="md">
+                <div className="space-y-6">
+                  <div className="space-y-3 rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                    <h3 className="text-lg font-semibold">Registra assicurazione mezzo</h3>
+                    <Input label="Compagnia" value={insuranceForm.compagnia} onChange={(event) => setInsuranceForm((current) => ({ ...current, compagnia: event.target.value }))} />
+                    <Input label="Broker / agenzia" value={insuranceForm.broker} onChange={(event) => setInsuranceForm((current) => ({ ...current, broker: event.target.value }))} />
+                    <Input label="Pacchetto / convenzione" value={insuranceForm.package_name} onChange={(event) => setInsuranceForm((current) => ({ ...current, package_name: event.target.value }))} />
+                    <Input label="Numero polizza mezzo" value={insuranceForm.numero_polizza} onChange={(event) => setInsuranceForm((current) => ({ ...current, numero_polizza: event.target.value }))} />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Input label="Copertura dal" type="date" value={insuranceForm.copertura_dal} onChange={(event) => setInsuranceForm((current) => ({ ...current, copertura_dal: event.target.value }))} />
+                      <Input label="Copertura al" type="date" value={insuranceForm.copertura_al} onChange={(event) => setInsuranceForm((current) => ({ ...current, copertura_al: event.target.value }))} />
+                    </div>
+                    <Input label="Scadenza assicurazione" type="date" value={insuranceForm.data_scadenza} onChange={(event) => setInsuranceForm((current) => ({ ...current, data_scadenza: event.target.value }))} />
+                    <TextareaField label="Note" value={insuranceForm.note} onChange={(value) => setInsuranceForm((current) => ({ ...current, note: value }))} />
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        api.post(`/fleet/vehicles/${vehicle.id}/insurance`, {
+                          compagnia: insuranceForm.compagnia,
+                          broker: insuranceForm.broker || null,
+                          package_name: insuranceForm.package_name || null,
+                          numero_polizza: insuranceForm.numero_polizza || null,
+                          copertura_dal: insuranceForm.copertura_dal || null,
+                          copertura_al: insuranceForm.copertura_al || null,
+                          data_scadenza: insuranceForm.data_scadenza,
+                          note: insuranceForm.note || null,
+                        })
+                          .then(async () => {
+                            setSuccess('Assicurazione del mezzo aggiornata.');
+                            setInsuranceForm({ compagnia: '', broker: '', package_name: '', numero_polizza: '', copertura_dal: '', copertura_al: '', data_scadenza: '', note: '' });
+                            await loadVehicle();
+                          })
+                          .catch((err) => setError(err.message || 'Impossibile salvare i dati assicurativi.'));
+                      }}
+                    >
+                      Salva assicurazione
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3 rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                    <h3 className="text-lg font-semibold">Registra revisione mezzo</h3>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Input label="Data revisione" type="date" value={revisionForm.data_revisione} onChange={(event) => setRevisionForm((current) => ({ ...current, data_revisione: event.target.value }))} />
+                      <Input label="Km rilevati" type="number" value={revisionForm.km_rilevati} onChange={(event) => setRevisionForm((current) => ({ ...current, km_rilevati: event.target.value }))} />
+                    </div>
+                    <Select
+                      label="Esito"
+                      value={revisionForm.esito}
+                      onChange={(event) => setRevisionForm((current) => ({ ...current, esito: event.target.value }))}
+                      options={[
+                        { value: 'regolare', label: 'Regolare' },
+                        { value: 'con_riserva', label: 'Con riserva' },
+                        { value: 'non_superata', label: 'Non superata' },
+                      ]}
+                    />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Input label="Scadenza revisione" type="date" value={revisionForm.scadenza_revisione} onChange={(event) => setRevisionForm((current) => ({ ...current, scadenza_revisione: event.target.value }))} />
+                      <Input label="Verifica sicurezza" type="date" value={revisionForm.scadenza_verifica_sicurezza} onChange={(event) => setRevisionForm((current) => ({ ...current, scadenza_verifica_sicurezza: event.target.value }))} />
+                    </div>
+                    <TextareaField label="Note" value={revisionForm.note} onChange={(value) => setRevisionForm((current) => ({ ...current, note: value }))} />
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        api.post(`/fleet/vehicles/${vehicle.id}/revision`, {
+                          data_revisione: revisionForm.data_revisione,
+                          esito: revisionForm.esito,
+                          km_rilevati: revisionForm.km_rilevati ? Number(revisionForm.km_rilevati) : null,
+                          scadenza_revisione: revisionForm.scadenza_revisione || null,
+                          scadenza_verifica_sicurezza: revisionForm.scadenza_verifica_sicurezza || null,
+                          note: revisionForm.note || null,
+                        })
+                          .then(async () => {
+                            setSuccess('Revisione del mezzo registrata.');
+                            setRevisionForm({ data_revisione: '', esito: 'regolare', km_rilevati: '', scadenza_revisione: '', scadenza_verifica_sicurezza: '', note: '' });
+                            await loadVehicle();
+                          })
+                          .catch((err) => setError(err.message || 'Impossibile registrare la revisione.'));
+                      }}
+                    >
+                      Salva revisione
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </div>
           )}
 
           {tab === 'assegnazioni' && (
-            <Card padding="md">
-              <div className="space-y-3">
-                {vehicle.assignments.length === 0 && (
-                  <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessuna assegnazione registrata.</p>
-                )}
-                {vehicle.assignments.map((assignment) => (
-                  <div key={assignment.id} className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-sm font-semibold" style={{ color: 'var(--cv-neutral-800)' }}>
-                        {assignment.employee_display_name || assignment.user_display_name || 'Utilizzatore non definito'}
-                      </p>
-                      <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>
-                        {assignment.stato}
-                      </span>
+            <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+              <Card padding="md">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold">Assegnazioni mezzo</h3>
+                    <div className="mt-3 space-y-3">
+                      {vehicle.assignments.length === 0 && <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessuna assegnazione registrata.</p>}
+                      {vehicle.assignments.map((assignment) => (
+                        <div key={assignment.id} className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold">{assignment.employee_display_name || assignment.user_display_name || 'Utilizzatore non definito'}</p>
+                            <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>{assignment.stato}</span>
+                          </div>
+                          <div className="mt-2 grid gap-3 md:grid-cols-2">
+                            <Info label="Assegnato il" value={formatDateTime(assignment.assegnato_il)} />
+                            <Info label="Riconsegnato il" value={formatDateTime(assignment.riconsegnato_il)} />
+                            <Info label="Documento assegnazione" value={assignment.documento_assegnazione_numero || '—'} />
+                            <Info label="Km iniziali" value={assignment.km_iniziali.toLocaleString('it-IT')} />
+                            <Info label="Documento restituzione" value={assignment.documento_restituzione_numero || '—'} />
+                            <Info label="Km finali" value={assignment.km_finali?.toLocaleString('it-IT') || '—'} />
+                          </div>
+                          {assignment.note ? <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{assignment.note}</p> : null}
+                        </div>
+                      ))}
                     </div>
-                    <div className="mt-2 grid gap-3 md:grid-cols-2">
-                      <Info label="Assegnato il" value={formatDate(assignment.assegnato_il)} />
-                      <Info label="Riconsegnato il" value={formatDate(assignment.riconsegnato_il)} />
-                      <Info label="Documento assegnazione" value={assignment.documento_assegnazione_numero || '—'} />
-                      <Info label="Documento restituzione" value={assignment.documento_restituzione_numero || '—'} />
-                      <Info label="Km iniziali" value={assignment.km_iniziali.toLocaleString('it-IT')} />
-                      <Info label="Km finali" value={assignment.km_finali?.toLocaleString('it-IT') || '—'} />
-                    </div>
-                    {assignment.note && (
-                      <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{assignment.note}</p>
-                    )}
                   </div>
-                ))}
-              </div>
-            </Card>
+
+                  <div>
+                    <h3 className="text-lg font-semibold">Utilizzi registrati</h3>
+                    <div className="mt-3 space-y-3">
+                      {vehicle.usage_logs.length === 0 && <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessun utilizzo registrato.</p>}
+                      {vehicle.usage_logs.map((usage) => (
+                        <div key={usage.id} className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold">{usage.actor_display_name || 'Operatore'}</p>
+                            <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>{formatDateTime(usage.started_at)}</span>
+                          </div>
+                          <div className="mt-2 grid gap-3 md:grid-cols-2">
+                            <Info label="Km partenza" value={usage.km_partenza.toLocaleString('it-IT')} />
+                            <Info label="Km rientro" value={usage.km_rientro?.toLocaleString('it-IT') || '—'} />
+                            <Info label="Inizio utilizzo" value={formatDateTime(usage.started_at)} />
+                            <Info label="Fine utilizzo" value={formatDateTime(usage.ended_at)} />
+                          </div>
+                          {usage.note_presa ? <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Presa: {usage.note_presa}</p> : null}
+                          {usage.note_rientro ? <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Rientro: {usage.note_rientro}</p> : null}
+                          {usage.issue_flags.length > 0 ? <p className="mt-1 text-sm" style={{ color: 'var(--cv-warning)' }}>Segnalazioni: {usage.issue_flags.join(', ')}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card padding="md">
+                <div className="space-y-6">
+                  <div className="space-y-3 rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                    <h3 className="text-lg font-semibold">Nuova assegnazione</h3>
+                    <Select label="Operatore" value={assignmentForm.employee_id} onChange={(event) => setAssignmentForm((current) => ({ ...current, employee_id: event.target.value }))} options={employeeOptions} />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Input label="Km iniziali" type="number" value={assignmentForm.km_iniziali} onChange={(event) => setAssignmentForm((current) => ({ ...current, km_iniziali: event.target.value }))} />
+                      <Select
+                        label="Stato assegnazione"
+                        value={assignmentForm.stato}
+                        onChange={(event) => setAssignmentForm((current) => ({ ...current, stato: event.target.value }))}
+                        options={[
+                          { value: 'assegnato', label: 'Assegnato' },
+                          { value: 'temporaneo', label: 'Temporaneo' },
+                          { value: 'indefinito', label: 'Tempo indefinito' },
+                        ]}
+                      />
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Input label="Assegnato il" type="datetime-local" value={assignmentForm.assegnato_il} onChange={(event) => setAssignmentForm((current) => ({ ...current, assegnato_il: event.target.value }))} />
+                      <Input label="Riconsegnato il" type="datetime-local" value={assignmentForm.riconsegnato_il} onChange={(event) => setAssignmentForm((current) => ({ ...current, riconsegnato_il: event.target.value }))} />
+                    </div>
+                    <Input label="Documento assegnazione" value={assignmentForm.documento_assegnazione_numero} onChange={(event) => setAssignmentForm((current) => ({ ...current, documento_assegnazione_numero: event.target.value }))} />
+                    <TextareaField label="Note assegnazione" value={assignmentForm.note} onChange={(value) => setAssignmentForm((current) => ({ ...current, note: value }))} />
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        api.post(`/fleet/vehicles/${vehicle.id}/assignments`, {
+                          employee_id: assignmentForm.employee_id ? Number(assignmentForm.employee_id) : null,
+                          km_iniziali: Number(assignmentForm.km_iniziali),
+                          assegnato_il: assignmentForm.assegnato_il || null,
+                          riconsegnato_il: assignmentForm.riconsegnato_il || null,
+                          documento_assegnazione_numero: assignmentForm.documento_assegnazione_numero || null,
+                          note: assignmentForm.note || null,
+                          stato: assignmentForm.stato,
+                        })
+                          .then(async () => {
+                            setSuccess('Assegnazione del mezzo registrata.');
+                            setAssignmentForm({ employee_id: '', km_iniziali: '', assegnato_il: '', riconsegnato_il: '', documento_assegnazione_numero: '', note: '', stato: 'assegnato' });
+                            await loadVehicle();
+                          })
+                          .catch((err) => setError(err.message || 'Impossibile registrare l’assegnazione.'));
+                      }}
+                    >
+                      Salva assegnazione
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3 rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                    <h3 className="text-lg font-semibold">Registra utilizzo</h3>
+                    <Select label="Assegnazione" value={usageForm.assignment_id} onChange={(event) => setUsageForm((current) => ({ ...current, assignment_id: event.target.value }))} options={assignmentOptions} />
+                    <Select label="Operatore" value={usageForm.employee_id} onChange={(event) => setUsageForm((current) => ({ ...current, employee_id: event.target.value }))} options={employeeOptions} />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Input label="Km partenza" type="number" value={usageForm.km_partenza} onChange={(event) => setUsageForm((current) => ({ ...current, km_partenza: event.target.value }))} />
+                      <Input label="Km rientro" type="number" value={usageForm.km_rientro} onChange={(event) => setUsageForm((current) => ({ ...current, km_rientro: event.target.value }))} />
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Input label="Partenza" type="datetime-local" value={usageForm.started_at} onChange={(event) => setUsageForm((current) => ({ ...current, started_at: event.target.value }))} />
+                      <Input label="Rientro" type="datetime-local" value={usageForm.ended_at} onChange={(event) => setUsageForm((current) => ({ ...current, ended_at: event.target.value }))} />
+                    </div>
+                    <TextareaField label="Note presa mezzo" value={usageForm.note_presa} onChange={(value) => setUsageForm((current) => ({ ...current, note_presa: value }))} />
+                    <TextareaField label="Note rientro mezzo" value={usageForm.note_rientro} onChange={(value) => setUsageForm((current) => ({ ...current, note_rientro: value }))} />
+                    <Input label="Problemi rilevati (separati da virgola)" value={usageForm.issue_flags} onChange={(event) => setUsageForm((current) => ({ ...current, issue_flags: event.target.value }))} placeholder="graffio lato destro, pneumatico posteriore" />
+                    <Button
+                      type="button"
+                      disabled={!usageForm.assignment_id}
+                      onClick={() => {
+                        api.post(`/fleet/assignments/${usageForm.assignment_id}/usage`, {
+                          employee_id: usageForm.employee_id ? Number(usageForm.employee_id) : null,
+                          km_partenza: Number(usageForm.km_partenza),
+                          km_rientro: usageForm.km_rientro ? Number(usageForm.km_rientro) : null,
+                          started_at: usageForm.started_at || null,
+                          ended_at: usageForm.ended_at || null,
+                          note_presa: usageForm.note_presa || null,
+                          note_rientro: usageForm.note_rientro || null,
+                          issue_flags: usageForm.issue_flags ? usageForm.issue_flags.split(',').map((item) => item.trim()).filter(Boolean) : [],
+                        })
+                          .then(async () => {
+                            setSuccess('Utilizzo del mezzo registrato.');
+                            setUsageForm({ assignment_id: '', employee_id: '', km_partenza: '', km_rientro: '', started_at: '', ended_at: '', note_presa: '', note_rientro: '', issue_flags: '' });
+                            await loadVehicle();
+                          })
+                          .catch((err) => setError(err.message || 'Impossibile registrare l’utilizzo.'));
+                      }}
+                    >
+                      Registra utilizzo
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </div>
           )}
 
           {tab === 'documenti' && (
@@ -298,18 +789,14 @@ export default function FleetDetailClientPage() {
               <div className="space-y-3">
                 {vehicle.documents.length === 0 && (
                   <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                    Nessun documento mezzo registrato. Qui dovranno confluire libretto, polizza, certificazioni, verbali e altri allegati.
+                    Nessun documento mezzo registrato. Qui confluiscono libretto, polizza, verbali, allegati di assegnazione e restituzione.
                   </p>
                 )}
                 {vehicle.documents.map((document) => (
                   <div key={document.id} className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-sm font-semibold" style={{ color: 'var(--cv-neutral-800)' }}>
-                        {document.titolo || document.tipo_documento}
-                      </p>
-                      <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>
-                        {document.stato}
-                      </span>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold">{document.titolo || document.tipo_documento}</p>
+                      <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>{document.stato}</span>
                     </div>
                     <div className="mt-2 grid gap-3 md:grid-cols-2">
                       <Info label="Tipo documento" value={document.tipo_documento} />
@@ -317,9 +804,7 @@ export default function FleetDetailClientPage() {
                       <Info label="Data rilascio" value={formatDate(document.data_rilascio)} />
                       <Info label="Scadenza" value={formatDate(document.data_scadenza)} />
                     </div>
-                    {document.note && (
-                      <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{document.note}</p>
-                    )}
+                    {document.note ? <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{document.note}</p> : null}
                   </div>
                 ))}
               </div>
@@ -327,32 +812,146 @@ export default function FleetDetailClientPage() {
           )}
 
           {tab === 'sinistri' && (
+            <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+              <Card padding="md">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold">Alert operativi</h3>
+                    <div className="mt-3 space-y-3">
+                      {vehicle.alerts.length === 0 && <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessun alert registrato per il mezzo.</p>}
+                      {vehicle.alerts.map((alert) => (
+                        <div key={alert.id} className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold">{alert.title}</p>
+                            <span className="text-xs font-semibold" style={{ color: alert.alert_type === 'sos' ? 'var(--cv-danger)' : 'var(--cv-primary-dark)' }}>
+                              {alert.alert_type} · {alert.severity}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{alert.description}</p>
+                          <div className="mt-2 grid gap-3 md:grid-cols-2">
+                            <Info label="Luogo" value={alert.location_text || '—'} />
+                            <Info label="Provincia" value={alert.province_code || '—'} />
+                            <Info label="Momento evento" value={formatDateTime(alert.event_at)} />
+                            <Info label="Operatore" value={alert.actor_display_name || '—'} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold">Sinistri registrati</h3>
+                    <div className="mt-3 space-y-3">
+                      {vehicle.incidents.length === 0 && <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessun sinistro registrato.</p>}
+                      {vehicle.incidents.map((incident) => (
+                        <div key={incident.id} className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold">{incident.tipo || 'Sinistro'}</p>
+                            <span className="text-xs font-semibold" style={{ color: incident.data_chiusura ? 'var(--cv-primary-dark)' : 'var(--cv-danger)' }}>{incident.stato}</span>
+                          </div>
+                          <div className="mt-2 grid gap-3 md:grid-cols-2">
+                            <Info label="Data evento" value={formatDate(incident.data_evento)} />
+                            <Info label="Luogo" value={incident.luogo || '—'} />
+                            <Info label="Numero sinistro" value={incident.numero_sinistro || '—'} />
+                            <Info label="Data chiusura" value={formatDate(incident.data_chiusura)} />
+                          </div>
+                          {incident.descrizione ? <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{incident.descrizione}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card padding="md">
+                <div className="space-y-3 rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                  <h3 className="text-lg font-semibold">Attiva SOS o segnala sinistro</h3>
+                  <Select label="Assegnazione" value={alertForm.assignment_id} onChange={(event) => setAlertForm((current) => ({ ...current, assignment_id: event.target.value }))} options={assignmentOptions} />
+                  <Select label="Operatore" value={alertForm.employee_id} onChange={(event) => setAlertForm((current) => ({ ...current, employee_id: event.target.value }))} options={employeeOptions} />
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Select
+                      label="Tipo alert"
+                      value={alertForm.alert_type}
+                      onChange={(event) => setAlertForm((current) => ({ ...current, alert_type: event.target.value }))}
+                      options={[
+                        { value: 'sos', label: 'SOS' },
+                        { value: 'sinistro', label: 'Sinistro' },
+                        { value: 'segnalazione', label: 'Segnalazione mezzo' },
+                      ]}
+                    />
+                    <Select
+                      label="Gravità"
+                      value={alertForm.severity}
+                      onChange={(event) => setAlertForm((current) => ({ ...current, severity: event.target.value }))}
+                      options={[
+                        { value: 'alta', label: 'Alta' },
+                        { value: 'media', label: 'Media' },
+                        { value: 'bassa', label: 'Bassa' },
+                      ]}
+                    />
+                  </div>
+                  <Input label="Titolo" value={alertForm.title} onChange={(event) => setAlertForm((current) => ({ ...current, title: event.target.value }))} />
+                  <Input label="Luogo / località" value={alertForm.location_text} onChange={(event) => setAlertForm((current) => ({ ...current, location_text: event.target.value }))} />
+                  <Input label="Provincia competente" value={alertForm.province_code} onChange={(event) => setAlertForm((current) => ({ ...current, province_code: event.target.value.toUpperCase() }))} />
+                  <TextareaField label="Descrizione evento" value={alertForm.description} onChange={(value) => setAlertForm((current) => ({ ...current, description: value }))} rows={4} />
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      api.post(`/fleet/vehicles/${vehicle.id}/alerts`, {
+                        assignment_id: alertForm.assignment_id ? Number(alertForm.assignment_id) : null,
+                        employee_id: alertForm.employee_id ? Number(alertForm.employee_id) : null,
+                        alert_type: alertForm.alert_type,
+                        severity: alertForm.severity,
+                        title: alertForm.title,
+                        description: alertForm.description,
+                        location_text: alertForm.location_text || null,
+                        province_code: alertForm.province_code || null,
+                      })
+                        .then(async () => {
+                          setSuccess('Alert registrato e inserito nel registro comunicazioni ufficiali.');
+                          setAlertForm({ assignment_id: '', employee_id: '', alert_type: 'sos', severity: 'alta', title: '', description: '', location_text: '', province_code: '' });
+                          await loadVehicle();
+                        })
+                        .catch((err) => setError(err.message || 'Impossibile registrare l’alert operativo.'));
+                    }}
+                  >
+                    Invia alert operativo
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {tab === 'comunicazioni' && (
             <Card padding="md">
               <div className="space-y-3">
-                {vehicle.incidents.length === 0 && (
+                {communications.length === 0 && (
                   <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                    Nessun sinistro registrato per questo mezzo.
+                    Nessuna comunicazione ufficiale registrata per questo mezzo.
                   </p>
                 )}
-                {vehicle.incidents.map((incident) => (
-                  <div key={incident.id} className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-sm font-semibold" style={{ color: 'var(--cv-neutral-800)' }}>
-                        {incident.tipo || 'Sinistro'}
-                      </p>
-                      <span className="text-xs font-semibold" style={{ color: incident.data_chiusura ? 'var(--cv-primary-dark)' : 'var(--cv-danger)' }}>
-                        {incident.stato}
-                      </span>
+                {communications.map((item) => (
+                  <div key={item.id} className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">{item.subject}</p>
+                        <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
+                          {item.event_type} · {item.channel} · {formatDateTime(item.created_at)}
+                        </p>
+                      </div>
+                      <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>{item.status}</span>
                     </div>
-                    <div className="mt-2 grid gap-3 md:grid-cols-2">
-                      <Info label="Data evento" value={formatDate(incident.data_evento)} />
-                      <Info label="Data chiusura" value={formatDate(incident.data_chiusura)} />
-                      <Info label="Luogo" value={incident.luogo || '—'} />
-                      <Info label="Numero sinistro" value={incident.numero_sinistro || '—'} />
+                    <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-700)' }}>{item.message}</p>
+                    <div className="mt-3 space-y-2">
+                      {item.recipients.map((recipient) => (
+                        <div key={recipient.id} className="rounded-[var(--cv-radius-sm)] border px-3 py-2 text-sm" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                          <span className="font-medium">{recipient.recipient_label}</span>
+                          <span style={{ color: 'var(--cv-neutral-600)' }}> · {recipient.channel}</span>
+                          {recipient.destination ? <span style={{ color: 'var(--cv-neutral-600)' }}> · {recipient.destination}</span> : null}
+                          <span style={{ color: 'var(--cv-neutral-600)' }}> · {recipient.delivery_status}</span>
+                        </div>
+                      ))}
                     </div>
-                    {incident.descrizione && (
-                      <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{incident.descrizione}</p>
-                    )}
                   </div>
                 ))}
               </div>

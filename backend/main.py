@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.models import organization, user, employee, contract_type, geography, fleet  # noqa: F401
+from app.models import organization, user, employee, contract_type, geography, fleet, communications  # noqa: F401
 from app.api.auth.router import router as auth_router
 from app.api.users.router import router as users_router
 from app.api.hr.router import router as hr_router

@@ -82,6 +82,15 @@ class ApiClient {
       throw new ApiError(response.status, detail);
     }
 
+    if (response.status === 204 || response.status === 205) {
+      return undefined as T;
+    }
+
+    const contentLength = response.headers.get('content-length');
+    if (contentLength === '0') {
+      return undefined as T;
+    }
+
     return response.json();
   }
 

@@ -30,11 +30,19 @@ TABLES = [
     "geo_calabria_toponyms",
     "vehicle_types",
     "vehicles",
+    "fleet_groups",
+    "fleet_group_members",
+    "vehicle_insurance_records",
     "vehicle_revisions",
     "vehicle_logs",
+    "vehicle_usage_logs",
+    "vehicle_alerts",
     "vehicle_incidents",
     "vehicle_documents",
     "aib_team_vehicles",
+    "communication_targets",
+    "communication_logs",
+    "communication_recipients",
 ]
 
 ROOT_DIR = Path(__file__).resolve().parents[2]

@@ -13,6 +13,7 @@ Estende la base storica con sinistri e documenti dedicati al mezzo.
 """
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Column,
     Date,
@@ -93,6 +94,12 @@ class Vehicle(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
 
     vehicle_type = relationship("VehicleType", back_populates="vehicles")
+    groups = relationship(
+        "FleetGroupMember",
+        back_populates="vehicle",
+        cascade="all, delete-orphan",
+        order_by="FleetGroupMember.id.asc()",
+    )
     revisions = relationship(
         "VehicleRevision",
         back_populates="vehicle",
@@ -122,6 +129,24 @@ class Vehicle(Base):
         back_populates="vehicle",
         cascade="all, delete-orphan",
         order_by="desc(AibTeamVehicle.effective_from)",
+    )
+    insurance_records = relationship(
+        "VehicleInsuranceRecord",
+        back_populates="vehicle",
+        cascade="all, delete-orphan",
+        order_by="desc(VehicleInsuranceRecord.data_scadenza)",
+    )
+    usage_logs = relationship(
+        "VehicleUsageLog",
+        back_populates="vehicle",
+        cascade="all, delete-orphan",
+        order_by="desc(VehicleUsageLog.started_at)",
+    )
+    alerts = relationship(
+        "VehicleAlert",
+        back_populates="vehicle",
+        cascade="all, delete-orphan",
+        order_by="desc(VehicleAlert.created_at)",
     )
 
 
@@ -221,3 +246,118 @@ class AibTeamVehicle(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
 
     vehicle = relationship("Vehicle", back_populates="team_links")
+
+
+class FleetGroup(Base):
+    __tablename__ = "fleet_groups"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(150), nullable=False, unique=True)
+    code = Column(String(50), nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+    scope = Column(String(50), nullable=False, default="operativo")
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True)
+    province_code = Column(String(10), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    organization = relationship("Organization")
+    members = relationship(
+        "FleetGroupMember",
+        back_populates="group",
+        cascade="all, delete-orphan",
+        order_by="FleetGroupMember.id.asc()",
+    )
+
+
+class FleetGroupMember(Base):
+    __tablename__ = "fleet_group_members"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    group_id = Column(Integer, ForeignKey("fleet_groups.id", ondelete="CASCADE"), nullable=False, index=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+
+    group = relationship("FleetGroup", back_populates="members")
+    vehicle = relationship("Vehicle", back_populates="groups")
+
+
+class VehicleInsuranceRecord(Base):
+    __tablename__ = "vehicle_insurance_records"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id", ondelete="CASCADE"), nullable=False, index=True)
+    group_id = Column(Integer, ForeignKey("fleet_groups.id", ondelete="SET NULL"), nullable=True, index=True)
+    source_type = Column(String(30), nullable=False, default="manuale")
+    compagnia = Column(String(255), nullable=False)
+    broker = Column(String(255), nullable=True)
+    package_name = Column(String(255), nullable=True)
+    numero_polizza = Column(String(100), nullable=True)
+    copertura_dal = Column(Date, nullable=True)
+    copertura_al = Column(Date, nullable=True)
+    data_scadenza = Column(Date, nullable=False)
+    channels_ready = Column(JSON, nullable=True)
+    is_current = Column(Boolean, nullable=False, default=True)
+    note = Column(Text, nullable=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    vehicle = relationship("Vehicle", back_populates="insurance_records")
+    group = relationship("FleetGroup")
+    created_by_user = relationship("User", foreign_keys=[created_by_user_id])
+
+
+class VehicleUsageLog(Base):
+    __tablename__ = "vehicle_usage_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id", ondelete="CASCADE"), nullable=False, index=True)
+    assignment_id = Column(Integer, ForeignKey("vehicle_logs.id", ondelete="SET NULL"), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    started_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    km_partenza = Column(Integer, nullable=False)
+    km_rientro = Column(Integer, nullable=True)
+    note_presa = Column(Text, nullable=True)
+    note_rientro = Column(Text, nullable=True)
+    issue_flags = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    vehicle = relationship("Vehicle", back_populates="usage_logs")
+    assignment = relationship("VehicleAssignment")
+    user = relationship("User", foreign_keys=[user_id])
+    employee = relationship("Employee", foreign_keys=[employee_id])
+
+
+class VehicleAlert(Base):
+    __tablename__ = "vehicle_alerts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id", ondelete="CASCADE"), nullable=False, index=True)
+    assignment_id = Column(Integer, ForeignKey("vehicle_logs.id", ondelete="SET NULL"), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    alert_type = Column(String(50), nullable=False, default="segnalazione")
+    severity = Column(String(50), nullable=False, default="media")
+    status = Column(String(50), nullable=False, default="aperto")
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    location_text = Column(String(255), nullable=True)
+    latitude = Column(Numeric(10, 7), nullable=True)
+    longitude = Column(Numeric(10, 7), nullable=True)
+    province_code = Column(String(10), nullable=True)
+    event_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    vehicle = relationship("Vehicle", back_populates="alerts")
+    assignment = relationship("VehicleAssignment")
+    user = relationship("User", foreign_keys=[user_id])
+    employee = relationship("Employee", foreign_keys=[employee_id])

@@ -65,3 +65,7 @@ Nessun obiettivo sospeso o bloccato registrato.
 ## 2026-05-14 22:50:00 - Aggiornamento objective
 
 **OBJ-007 - Attivazione Parco Macchine** **Stato:** attivo. **Priorita:** alta. **Avanzamento:** modulo promosso anche su Test pubblico con migration `007_fleet_module`, bundle dati aggiornato e route API fleet verificate in autenticazione reale (`summary`, lista, dettaglio). Runtime locale stabilizzato facendo puntare Collaudo/Test locali all'API pubblica Test, eliminando il `Failed to fetch` causato dal backend locale instabile. **Prossimi passi:** introdurre CRUD pieno del fascicolo mezzo, documenti di assegnazione/restituzione, sinistri operativi e successiva integrazione della mappa con localizzazione live via API dedicate.
+
+## 2026-05-14 23:58:00 - Aggiornamento objective
+
+**OBJ-007 - Attivazione Parco Macchine** **Stato:** attivo. **Priorita:** alta. **Avanzamento:** il fascicolo mezzo e' diventato operativo con gruppi di mezzi, rinnovi massivi di assicurazione e revisione, assegnazioni multiple, registri di utilizzo con km e note, alert SOS e sinistri, e registro ufficiale delle comunicazioni verso responsabili regionali e provinciali. La migration `008_fleet_ops_comms` e' stata promossa su Test e il backend pubblico e' allineato. **Prossimi passi:** aggiungere upload reale dei documenti di assegnazione e restituzione e dei sinistri, integrare gateway SMS/WhatsApp e notifiche push, collegare le API di tracking live per km e posizione, completare l'interfaccia impostazioni per i destinatari e i comparti delle comunicazioni ufficiali.

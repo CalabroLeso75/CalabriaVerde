@@ -8,6 +8,11 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
+import { MetricCard } from '@/components/common/MetricCard';
+import { NoticeBanner } from '@/components/common/NoticeBanner';
+import { PaginationBar } from '@/components/common/PaginationBar';
+import { SectionLead } from '@/components/common/SectionLead';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 interface Employee {
   id: number;
@@ -76,19 +81,6 @@ function avatarColor(id: number): string {
   return colors[id % colors.length];
 }
 
-function KpiCard({ label, value, accent }: { label: string; value: number | string; accent?: string }) {
-  return (
-    <Card padding="sm">
-      <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--cv-neutral-500)' }}>
-        {label}
-      </p>
-      <p className="text-3xl font-bold mt-1" style={{ color: accent || 'var(--cv-primary)' }}>
-        {typeof value === 'number' ? value.toLocaleString('it-IT') : value}
-      </p>
-    </Card>
-  );
-}
-
 interface HrRegistryPageProps {
   scope: 'all' | 'interno' | 'esterno';
   subtitle: string;
@@ -100,13 +92,13 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
   const [filterStato, setFilterStato] = useState('');
   const [filterContratto, setFilterContratto] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebouncedValue(searchInput, 400);
 
   const PAGE_SIZE = 25;
   const fixedTipo = scope === 'all' ? '' : scope;
@@ -123,7 +115,7 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
     setError('');
     try {
       const params = new URLSearchParams();
-      if (search) params.set('search', search);
+      if (debouncedSearch) params.set('search', debouncedSearch);
       if (filterStato) params.set('stato', filterStato);
       if (fixedTipo) params.set('tipo', fixedTipo);
       if (filterContratto) params.set('tipo_contratto', filterContratto);
@@ -139,7 +131,7 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
     } finally {
       setLoading(false);
     }
-  }, [search, filterStato, filterContratto, fixedTipo, page]);
+  }, [debouncedSearch, filterStato, filterContratto, fixedTipo, page]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -148,18 +140,9 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
     return () => window.clearTimeout(timer);
   }, [fetchEmployees]);
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setPage(1);
-      setSearch(searchInput);
-    }, 400);
-    return () => clearTimeout(t);
-  }, [searchInput]);
-
   const resetFilters = () => {
     setPage(1);
     setSearchInput('');
-    setSearch('');
     setFilterStato('');
     setFilterContratto('');
   };
@@ -172,14 +155,10 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-            {subtitle}
-          </p>
-          <p className="mt-1 text-sm font-medium" style={{ color: 'var(--cv-neutral-700)' }}>
-            {total > 0 ? `${total.toLocaleString('it-IT')} record in elenco` : 'Caricamento anagrafica in corso...'}
-          </p>
-        </div>
+        <SectionLead
+          description={subtitle}
+          detail={total > 0 ? `${total.toLocaleString('it-IT')} record in elenco` : 'Caricamento anagrafica in corso...'}
+        />
         <div className="flex flex-wrap gap-2">
           <Link href="/hr/interna"><Button variant={scope === 'interno' ? 'primary' : 'outline'} size="sm">Anagrafica interna</Button></Link>
           <Link href="/hr/esterna"><Button variant={scope === 'esterno' ? 'primary' : 'outline'} size="sm">Anagrafica esterna</Button></Link>
@@ -189,14 +168,14 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
 
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         <div className="col-span-2 sm:col-span-1">
-          <KpiCard label="Perimetro" value={statsLoading ? '...' : (scopeTotal ?? 0)} />
+          <MetricCard label="Perimetro" value={statsLoading ? '...' : (scopeTotal ?? 0)} />
         </div>
-        <KpiCard label="Interni" value={statsLoading ? '...' : (stats?.interni ?? 0)} accent="var(--cv-primary)" />
-        <KpiCard label="Esterni" value={statsLoading ? '...' : (stats?.esterni ?? 0)} accent="var(--cv-info)" />
-        <KpiCard label="In servizio" value={statsLoading ? '...' : (stats?.in_servizio ?? 0)} accent="var(--cv-success)" />
-        <KpiCard label="Cessati" value={statsLoading ? '...' : (stats?.cessati ?? 0)} accent="var(--cv-danger)" />
-        <KpiCard label="AIB qual." value={statsLoading ? '...' : (stats?.aib_qualificati ?? 0)} accent="#CC8400" />
-        <KpiCard label="DOS" value={statsLoading ? '...' : (stats?.dos ?? 0)} accent="#9B59B6" />
+        <MetricCard label="Interni" value={statsLoading ? '...' : (stats?.interni ?? 0)} accent="var(--cv-primary)" />
+        <MetricCard label="Esterni" value={statsLoading ? '...' : (stats?.esterni ?? 0)} accent="var(--cv-info)" />
+        <MetricCard label="In servizio" value={statsLoading ? '...' : (stats?.in_servizio ?? 0)} accent="var(--cv-success)" />
+        <MetricCard label="Cessati" value={statsLoading ? '...' : (stats?.cessati ?? 0)} accent="var(--cv-danger)" />
+        <MetricCard label="AIB qual." value={statsLoading ? '...' : (stats?.aib_qualificati ?? 0)} accent="#CC8400" />
+        <MetricCard label="DOS" value={statsLoading ? '...' : (stats?.dos ?? 0)} accent="#9B59B6" />
       </div>
 
       <Card padding="sm">
@@ -207,7 +186,10 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
               label=""
               placeholder="Cerca per nome, cognome, CF, email, matricola..."
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={(e) => {
+                setPage(1);
+                setSearchInput(e.target.value);
+              }}
             />
           </div>
           <Select
@@ -250,14 +232,7 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
         </div>
       </Card>
 
-      {error && (
-        <div className="flex items-start gap-3 p-4 rounded-lg border" style={{ background: '#CC334408', borderColor: '#CC334440', color: 'var(--cv-danger)' }} role="alert">
-          <div>
-            <p className="font-semibold text-sm">Errore caricamento</p>
-            <p className="text-xs mt-0.5">{error}</p>
-          </div>
-        </div>
-      )}
+      {error && <NoticeBanner title="Errore caricamento" message={error} tone="error" />}
 
       <Card padding="none">
         <div className="overflow-x-auto">
@@ -347,22 +322,13 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
         </div>
 
         {!loading && employees.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3" style={{ borderTop: '1px solid var(--cv-neutral-200)', background: 'var(--cv-neutral-50)' }}>
-            <p className="text-xs" style={{ color: 'var(--cv-neutral-500)' }}>
-              Mostrando {((page - 1) * PAGE_SIZE) + 1}-{Math.min(page * PAGE_SIZE, total)} di {total.toLocaleString('it-IT')} record
-            </p>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
-                Prec
-              </Button>
-              <span className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
-                Pag. {page} / {totalPages}
-              </span>
-              <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
-                Succ
-              </Button>
-            </div>
-          </div>
+          <PaginationBar
+            label={`Mostrando ${((page - 1) * PAGE_SIZE) + 1}-${Math.min(page * PAGE_SIZE, total)} di ${total.toLocaleString('it-IT')} record`}
+            page={page}
+            pages={totalPages}
+            onPrev={() => setPage((p) => Math.max(1, p - 1))}
+            onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+          />
         )}
       </Card>
     </div>

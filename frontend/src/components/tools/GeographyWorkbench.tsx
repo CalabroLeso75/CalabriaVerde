@@ -6,6 +6,10 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { MetricCard } from '@/components/common/MetricCard';
+import { NoticeBanner } from '@/components/common/NoticeBanner';
+import { PaginationBar } from '@/components/common/PaginationBar';
+import { SectionLead } from '@/components/common/SectionLead';
 
 type Summary = {
   countries: number;
@@ -37,19 +41,6 @@ const DATASET_OPTIONS: { value: DatasetKey; label: string }[] = [
   { value: 'municipality-boundaries', label: 'Confini comuni' },
   { value: 'toponyms', label: 'Toponimi Calabria' },
 ];
-
-function StatCard({ label, value }: { label: string; value: number | string }) {
-  return (
-    <Card padding="sm">
-      <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--cv-neutral-500)' }}>
-        {label}
-      </p>
-      <p className="text-3xl font-bold mt-1" style={{ color: 'var(--cv-primary)' }}>
-        {typeof value === 'number' ? value.toLocaleString('it-IT') : value}
-      </p>
-    </Card>
-  );
-}
 
 export default function GeographyWorkbench() {
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -245,23 +236,19 @@ export default function GeographyWorkbench() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-          Modulo geografico multiuso per anagrafiche territoriali, confini amministrativi e toponimi.
-        </p>
-        <p className="mt-1 text-sm font-medium" style={{ color: 'var(--cv-neutral-700)' }}>
-          Dataset attivo: {DATASET_OPTIONS.find((item) => item.value === dataset)?.label}
-        </p>
-      </div>
+      <SectionLead
+        description="Modulo geografico multiuso per anagrafiche territoriali, confini amministrativi e toponimi."
+        detail={`Dataset attivo: ${DATASET_OPTIONS.find((item) => item.value === dataset)?.label}`}
+      />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-        <StatCard label="Stati" value={summary?.countries ?? '...'} />
-        <StatCard label="Regioni" value={summary?.regions ?? '...'} />
-        <StatCard label="Province" value={summary?.provinces ?? '...'} />
-        <StatCard label="Comuni" value={summary?.municipalities ?? '...'} />
-        <StatCard label="Confini prov." value={summary?.province_boundaries ?? '...'} />
-        <StatCard label="Confini com." value={summary?.municipality_boundaries ?? '...'} />
-        <StatCard label="Toponimi" value={summary?.calabria_toponyms ?? '...'} />
+        <MetricCard label="Stati" value={summary?.countries ?? '...'} />
+        <MetricCard label="Regioni" value={summary?.regions ?? '...'} />
+        <MetricCard label="Province" value={summary?.provinces ?? '...'} />
+        <MetricCard label="Comuni" value={summary?.municipalities ?? '...'} />
+        <MetricCard label="Confini prov." value={summary?.province_boundaries ?? '...'} />
+        <MetricCard label="Confini com." value={summary?.municipality_boundaries ?? '...'} />
+        <MetricCard label="Toponimi" value={summary?.calabria_toponyms ?? '...'} />
       </div>
 
       <Card padding="sm">
@@ -304,12 +291,7 @@ export default function GeographyWorkbench() {
         </div>
       </Card>
 
-      {error && (
-        <div className="p-4 rounded-lg border" style={{ background: '#CC334408', borderColor: '#CC334440', color: 'var(--cv-danger)' }}>
-          <p className="font-semibold text-sm">Errore caricamento</p>
-          <p className="text-xs mt-0.5">{error}</p>
-        </div>
-      )}
+      {error && <NoticeBanner title="Errore caricamento" message={error} tone="error" />}
 
       <Card padding="none">
         <div className="overflow-x-auto">
@@ -346,16 +328,13 @@ export default function GeographyWorkbench() {
           </table>
         </div>
         {(dataset === 'municipalities' || dataset === 'province-boundaries' || dataset === 'municipality-boundaries' || dataset === 'toponyms') && !loading && rows.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3" style={{ borderTop: '1px solid var(--cv-neutral-200)', background: 'var(--cv-neutral-50)' }}>
-            <p className="text-xs" style={{ color: 'var(--cv-neutral-500)' }}>
-              Totale {total.toLocaleString('it-IT')} record
-            </p>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prec</Button>
-              <span className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>Pag. {page} / {pages}</span>
-              <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))}>Succ</Button>
-            </div>
-          </div>
+          <PaginationBar
+            label={`Totale ${total.toLocaleString('it-IT')} record`}
+            page={page}
+            pages={pages}
+            onPrev={() => setPage((p) => Math.max(1, p - 1))}
+            onNext={() => setPage((p) => Math.min(pages, p + 1))}
+          />
         )}
       </Card>
     </div>

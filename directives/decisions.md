@@ -123,3 +123,8 @@ Per supportare i contratti del personale senza rompere l'import anagrafico, il g
 ## 2026-05-11 16:13:49 - Aggiornamento decision
 
 La gestione dei contratti di sistema viene introdotta come modulo amministrativo separato (contract_type_definitions + contract_type_attachments) e non come semplice enum nel dipendente, cosi' si possono governare metadati, note e allegati ufficiali CCNL/integrativi senza irrigidire il fascicolo personale. Le migration 002 e 003 sono state applicate nel collaudo locale dopo autorizzazione esplicita, insieme al seed iniziale di Funzioni Locali e Idraulico-Forestale.
+
+
+## 2026-05-14 16:36:00 - Aggiornamento decision
+
+Le procedure riusabili non devono restare annidate nei moduli verticali: da oggi si estraggono in cartelle comuni dedicate. Per il frontend i mattoni condivisi vivono in `frontend/src/components/common/` e `frontend/src/hooks/`; per gli script di import/export e promozione dati vivono in `backend/execution/common/`. Questa scelta riduce duplicazioni tra HR, Strumenti, amministrazione e script di deploy dati, e diventa regola di riferimento per le prossime estensioni.

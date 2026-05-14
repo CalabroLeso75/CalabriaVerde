@@ -10,40 +10,14 @@ Output:
 from __future__ import annotations
 
 import argparse
-import json
-import os
-from datetime import date, datetime, time
 from pathlib import Path
-from typing import Any
 
-import pymysql
+from common.bundle import write_json
+from common.db import connect_mysql, env_value
 
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = ROOT / ".tmp" / "project_completion" / "collaudo" / "import_personale_esterno" / "source_bundle"
-
-
-def env(name: str, default: str) -> str:
-    return os.getenv(name, default)
-
-
-def connect() -> pymysql.Connection:
-    return pymysql.connect(
-        host=env("IMPORT_EXT_SRC_HOST", "localhost"),
-        port=int(env("IMPORT_EXT_SRC_PORT", "3306")),
-        user=env("IMPORT_EXT_SRC_USER", "root"),
-        password=env("IMPORT_EXT_SRC_PASSWORD", ""),
-        database=env("IMPORT_EXT_SRC_DB", "gestionale_cv"),
-        charset="utf8mb4",
-        cursorclass=pymysql.cursors.DictCursor,
-        autocommit=True,
-    )
-
-
-def json_default(value: Any) -> Any:
-    if isinstance(value, (datetime, date, time)):
-        return value.isoformat()
-    raise TypeError(f"Unsupported type: {type(value)!r}")
 
 
 def main() -> int:
@@ -54,7 +28,19 @@ def main() -> int:
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    with connect() as conn, conn.cursor() as cur:
+    with connect_mysql(
+        host_env="IMPORT_EXT_SRC_HOST",
+        port_env="IMPORT_EXT_SRC_PORT",
+        user_env="IMPORT_EXT_SRC_USER",
+        password_env="IMPORT_EXT_SRC_PASSWORD",
+        database_env="IMPORT_EXT_SRC_DB",
+        default_host="localhost",
+        default_port=3306,
+        default_user="root",
+        default_password="",
+        default_database="gestionale_cv",
+        autocommit=True,
+    ) as conn, conn.cursor() as cur:
         cur.execute(
             """
             SELECT
@@ -135,17 +121,14 @@ def main() -> int:
         "external_employees.json": employees,
         "organizations.json": organizations,
         "manifest.json": {
-            "source_db": env("IMPORT_EXT_SRC_DB", "gestionale_cv"),
+            "source_db": env_value("IMPORT_EXT_SRC_DB", "gestionale_cv"),
             "employees": len(employees),
             "organizations": len(organizations),
         },
     }
 
     for filename, payload in payloads.items():
-        (output_dir / filename).write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2, default=json_default),
-            encoding="utf-8",
-        )
+        write_json(output_dir / filename, payload)
 
     print(f"Bundle esterni esportato in: {output_dir.resolve()}")
     print(f"Organizzazioni: {len(organizations)} | Esterni: {len(employees)}")

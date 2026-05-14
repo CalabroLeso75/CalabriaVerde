@@ -4,12 +4,11 @@ Importa un bundle JSON nel database FastAPI dell'ambiente Test.
 from __future__ import annotations
 
 import argparse
-import json
-import os
 from pathlib import Path
 from typing import Any
 
-import pymysql
+from common.bundle import load_json
+from common.db import connect_mysql
 
 
 TABLES = [
@@ -36,27 +35,26 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT = ROOT_DIR / ".tmp" / "project_completion" / "test" / "db_bundle"
 
 
-def connect() -> pymysql.connections.Connection:
-    return pymysql.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        port=int(os.getenv("DB_PORT", "3306")),
-        user=os.getenv("DB_USER", "root"),
-        password=os.getenv("DB_PASSWORD", ""),
-        database=os.getenv("DB_NAME", "gestionale_cv_test"),
-        charset="utf8mb4",
-        cursorclass=pymysql.cursors.DictCursor,
-        autocommit=False,
-    )
-
-
 def import_bundle(input_dir: Path) -> None:
     manifest_path = input_dir / "manifest.json"
     if not manifest_path.exists():
         raise FileNotFoundError(f"Manifest non trovato: {manifest_path}")
 
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = load_json(manifest_path)
 
-    with connect() as conn:
+    with connect_mysql(
+        host_env="DB_HOST",
+        port_env="DB_PORT",
+        user_env="DB_USER",
+        password_env="DB_PASSWORD",
+        database_env="DB_NAME",
+        default_host="localhost",
+        default_port=3306,
+        default_user="root",
+        default_password="",
+        default_database="gestionale_cv_test",
+        autocommit=False,
+    ) as conn:
         with conn.cursor() as cur:
             cur.execute("SET FOREIGN_KEY_CHECKS=0")
             for table in reversed(TABLES):
@@ -68,7 +66,7 @@ def import_bundle(input_dir: Path) -> None:
                     continue
 
                 payload_path = input_dir / table_info["file"]
-                rows: list[dict[str, Any]] = json.loads(payload_path.read_text(encoding="utf-8"))
+                rows: list[dict[str, Any]] = load_json(payload_path)
                 if not rows:
                     continue
 

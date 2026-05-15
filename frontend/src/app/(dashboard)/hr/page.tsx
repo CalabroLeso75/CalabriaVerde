@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
+import { withAppBasePath } from '@/lib/app-path';
 
 const sections = [
   {
@@ -27,7 +28,7 @@ export default function HrHomePage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {sections.map((section) => (
-          <Link key={section.href} href={section.href} className="block">
+          <Link key={section.href} href={withAppBasePath(section.href)} className="block">
             <Card padding="md" className="h-full transition-transform hover:-translate-y-0.5">
               <div className="space-y-3">
                 <div className="w-10 h-1 rounded-full" style={{ background: section.accent }} />

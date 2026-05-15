@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 
 import { Card, CardHeader } from '@/components/ui/Card';
+import { withAppBasePath } from '@/lib/app-path';
 
 const stats = [
   {
@@ -179,7 +180,7 @@ export default function DashboardPage() {
               {quickLinks.map((link) => (
                 <Link
                   key={link.label}
-                  href={link.href}
+                  href={withAppBasePath(link.href)}
                   className="group flex items-center gap-3 rounded-[var(--cv-radius-md)] border px-4 py-3 transition-all hover:bg-[var(--cv-neutral-50)]"
                   style={{ borderColor: 'var(--cv-border-subtle)' }}
                 >

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { withAppBasePath } from '@/lib/app-path';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/test';
 const logoSrc = `${basePath}/assets/logo-calabriaverde.png`;
@@ -179,7 +180,7 @@ export function Sidebar() {
               return (
                 <li key={item.href}>
                   <Link
-                    href={item.href}
+                    href={withAppBasePath(item.href)}
                     className={`
                       flex items-center gap-3 px-3 py-2.5 rounded-[var(--cv-radius-md)]
                       transition-all duration-200 group
@@ -214,7 +215,7 @@ export function Sidebar() {
                         return (
                           <li key={child.href}>
                             <Link
-                              href={child.href}
+                              href={withAppBasePath(child.href)}
                               className={`
                                 flex items-center gap-3 px-3 py-2 rounded-[var(--cv-radius-sm)] text-sm transition-all duration-200
                                 ${childActive

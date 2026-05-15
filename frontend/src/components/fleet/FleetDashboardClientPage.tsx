@@ -8,6 +8,7 @@ import { NoticeBanner } from '@/components/common/NoticeBanner';
 import { SectionLead } from '@/components/common/SectionLead';
 import { Card } from '@/components/ui/Card';
 import { api } from '@/lib/api';
+import { withAppBasePath } from '@/lib/app-path';
 
 type FleetSummary = {
   total_vehicles: number;
@@ -163,7 +164,7 @@ export default function FleetDashboardClientPage() {
                   Da qui apri direttamente il fascicolo del mezzo nella sezione coperture.
                 </p>
               </div>
-              <Link href="/fleet/anagrafica" className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
+              <Link href={withAppBasePath('/fleet/anagrafica')} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
                 Vai all'anagrafica
               </Link>
             </div>
@@ -176,7 +177,7 @@ export default function FleetDashboardClientPage() {
                     <p className="text-sm font-semibold">{vehicle.targa} · {vehicle.marca} {vehicle.modello}</p>
                     <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>{attentionBadge(vehicle.scadenza_assicurazione)}</p>
                   </div>
-                  <Link href={`/fleet/dettaglio?id=${vehicle.id}&tab=revisioni`} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
+                  <Link href={withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}&tab=revisioni`)} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
                     Aggiorna copertura
                   </Link>
                 </div>
@@ -194,7 +195,7 @@ export default function FleetDashboardClientPage() {
                   Qui trovi subito i mezzi senza revisione o con revisione da aggiornare.
                 </p>
               </div>
-              <Link href="/fleet/anagrafica" className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
+              <Link href={withAppBasePath('/fleet/anagrafica')} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
                 Vai all'anagrafica
               </Link>
             </div>
@@ -207,7 +208,7 @@ export default function FleetDashboardClientPage() {
                     <p className="text-sm font-semibold">{vehicle.targa} · {vehicle.marca} {vehicle.modello}</p>
                     <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>{attentionBadge(vehicle.scadenza_revisione)}</p>
                   </div>
-                  <Link href={`/fleet/dettaglio?id=${vehicle.id}&tab=revisioni`} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
+                  <Link href={withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}&tab=revisioni`)} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
                     Aggiorna revisione
                   </Link>
                 </div>
@@ -234,7 +235,7 @@ export default function FleetDashboardClientPage() {
                     <p className="text-sm font-semibold">{vehicle.targa} · {vehicle.marca} {vehicle.modello}</p>
                     <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>{vehicle.stato || 'Stato non definito'}</p>
                   </div>
-                  <Link href={`/fleet/dettaglio?id=${vehicle.id}&tab=assegnazioni`} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
+                  <Link href={withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}&tab=assegnazioni`)} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
                     Assegna mezzo
                   </Link>
                 </div>
@@ -259,7 +260,7 @@ export default function FleetDashboardClientPage() {
                     <p className="text-sm font-semibold">{vehicle.targa} · {vehicle.marca} {vehicle.modello}</p>
                     <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>In carico a {vehicle.current_assignee}</p>
                   </div>
-                  <Link href={`/fleet/dettaglio?id=${vehicle.id}&tab=assegnazioni`} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
+                  <Link href={withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}&tab=assegnazioni`)} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
                     Restituisci mezzo
                   </Link>
                 </div>
@@ -271,7 +272,7 @@ export default function FleetDashboardClientPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {sections.map((section) => (
-          <Link key={section.href + section.title} href={section.href} className="block">
+          <Link key={section.href + section.title} href={withAppBasePath(section.href)} className="block">
             <Card padding="md" className="h-full transition-transform hover:-translate-y-0.5">
               <div className="space-y-3">
                 <div className="h-1 w-10 rounded-full" style={{ background: section.accent }} />

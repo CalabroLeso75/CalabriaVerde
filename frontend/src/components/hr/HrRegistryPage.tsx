@@ -13,6 +13,7 @@ import { NoticeBanner } from '@/components/common/NoticeBanner';
 import { PaginationBar } from '@/components/common/PaginationBar';
 import { SectionLead } from '@/components/common/SectionLead';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { withAppBasePath } from '@/lib/app-path';
 
 interface Employee {
   id: number;
@@ -160,8 +161,8 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
           detail={total > 0 ? `${total.toLocaleString('it-IT')} record in elenco` : 'Caricamento anagrafica in corso...'}
         />
         <div className="flex flex-wrap gap-2">
-          <Link href="/hr/interna"><Button variant={scope === 'interno' ? 'primary' : 'outline'} size="sm">Anagrafica interna</Button></Link>
-          <Link href="/hr/esterna"><Button variant={scope === 'esterno' ? 'primary' : 'outline'} size="sm">Anagrafica esterna</Button></Link>
+          <Link href={withAppBasePath('/hr/interna')}><Button variant={scope === 'interno' ? 'primary' : 'outline'} size="sm">Anagrafica interna</Button></Link>
+          <Link href={withAppBasePath('/hr/esterna')}><Button variant={scope === 'esterno' ? 'primary' : 'outline'} size="sm">Anagrafica esterna</Button></Link>
           <Button>+ Nuovo dipendente</Button>
         </div>
       </div>
@@ -310,7 +311,7 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Link href={`/hr/dettaglio?id=${emp.id}`}>
+                      <Link href={withAppBasePath(`/hr/dettaglio?id=${emp.id}`)}>
                         <Button variant="ghost" size="sm">Fascicolo</Button>
                       </Link>
                     </td>

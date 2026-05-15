@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
+import { withAppBasePath } from '@/lib/app-path';
 
 type GroupItem = {
   id: number;
@@ -481,7 +482,7 @@ export default function FleetDetailClientPage() {
           description="Scheda completa del mezzo con storico tecnico, assegnazioni operative, alert e tracciamento comunicazioni."
           detail={vehicle ? `${vehicle.targa} · ${vehicle.marca} ${vehicle.modello}` : 'Caricamento in corso...'}
         />
-        <Link href="/fleet/anagrafica" className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
+        <Link href={withAppBasePath('/fleet/anagrafica')} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
           Torna all&apos;anagrafica
         </Link>
       </div>

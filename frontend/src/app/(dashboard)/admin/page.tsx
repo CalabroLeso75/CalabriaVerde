@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { withAppBasePath } from '@/lib/app-path';
 
 const adminSections = [
   {
@@ -94,7 +95,7 @@ export default function AdminPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {adminSections.map((section) => (
-          <Link key={section.href} href={section.href} className="block group">
+          <Link key={section.href} href={withAppBasePath(section.href)} className="block group">
             <Card hover className="h-full">
               <div className="flex items-start gap-4">
                 <div

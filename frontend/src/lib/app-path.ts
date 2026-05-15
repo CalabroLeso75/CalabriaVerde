@@ -11,14 +11,25 @@ export function getAppBasePath() {
 export function withAppBasePath(path: string) {
   const basePath = getAppBasePath();
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const [pathWithoutHash, hash = ''] = normalizedPath.split('#');
+  const [pathname, query = ''] = pathWithoutHash.split('?');
+
+  let normalizedPathname = pathname;
+  const looksLikeAsset = /\.[a-zA-Z0-9]+$/.test(pathname);
+
+  if (!looksLikeAsset && pathname !== '/' && !pathname.endsWith('/')) {
+    normalizedPathname = `${pathname}/`;
+  }
+
+  const rebuiltPath = `${normalizedPathname}${query ? `?${query}` : ''}${hash ? `#${hash}` : ''}`;
 
   if (!basePath) {
-    return normalizedPath;
+    return rebuiltPath;
   }
 
-  if (normalizedPath === basePath || normalizedPath.startsWith(`${basePath}/`)) {
-    return normalizedPath;
+  if (rebuiltPath === basePath || rebuiltPath.startsWith(`${basePath}/`)) {
+    return rebuiltPath;
   }
 
-  return `${basePath}${normalizedPath}`.replace(/\/{2,}/g, '/');
+  return `${basePath}${rebuiltPath}`.replace(/\/{2,}/g, '/');
 }

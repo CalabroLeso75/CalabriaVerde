@@ -1,7 +1,9 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Card, CardHeader } from '@/components/ui/Card';
+import { withAppBasePath } from '@/lib/app-path';
 
 /* Statistiche placeholder per la dashboard */
 const stats = [
@@ -155,9 +157,9 @@ export default function DashboardPage() {
                 { label: 'Mappa Squadre', href: '/aib/map', color: 'var(--cv-danger)' },
                 { label: 'Report Magazzino', href: '/warehouse/report', color: 'var(--cv-info)' },
               ].map((link) => (
-                <a
+                <Link
                   key={link.label}
-                  href={link.href}
+                  href={withAppBasePath(link.href)}
                   className="flex items-center gap-3 p-3 rounded-lg border border-[var(--cv-neutral-300)] hover:border-[var(--cv-primary-light)] hover:bg-[var(--cv-primary-lighter)] transition-all group"
                 >
                   <div
@@ -170,7 +172,7 @@ export default function DashboardPage() {
                   <svg className="w-4 h-4 ml-auto text-[var(--cv-neutral-400)] group-hover:text-[var(--cv-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
-                </a>
+                </Link>
               ))}
             </div>
           </Card>

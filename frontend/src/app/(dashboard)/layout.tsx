@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { withAppBasePath } from '@/lib/app-path';
+import { api } from '@/lib/api';
 
 function subscribeAuth(onStoreChange: () => void) {
   const handler = () => onStoreChange();
@@ -33,10 +34,52 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const isAuthenticated = useSyncExternalStore(subscribeAuth, getAuthSnapshot, () => false);
   const [authResolved, setAuthResolved] = useState(false);
+  const [sessionValid, setSessionValid] = useState(false);
 
   useEffect(() => {
     setAuthResolved(true);
   }, []);
+
+  useEffect(() => {
+    if (!authResolved) {
+      return;
+    }
+
+    let alive = true;
+
+    if (!isAuthenticated) {
+      setSessionValid(false);
+      router.replace(withAppBasePath('/login'));
+      return () => {
+        alive = false;
+      };
+    }
+
+    setSessionValid(false);
+
+    api.get('/auth/me', { skipAuthRedirect: true })
+      .then(() => {
+        if (alive) {
+          setSessionValid(true);
+        }
+      })
+      .catch(() => {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          window.dispatchEvent(new Event('auth-state-changed'));
+        }
+
+        if (alive) {
+          setSessionValid(false);
+          router.replace(withAppBasePath('/login'));
+        }
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [authResolved, isAuthenticated, router]);
 
   useEffect(() => {
     if (authResolved && !isAuthenticated) {
@@ -44,7 +87,7 @@ export default function DashboardLayout({
     }
   }, [authResolved, isAuthenticated, pathname, router]);
 
-  if (!authResolved || !isAuthenticated) {
+  if (!authResolved || !isAuthenticated || !sessionValid) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--cv-neutral-100)' }}>
         <div className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>

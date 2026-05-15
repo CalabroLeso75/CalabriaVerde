@@ -37,7 +37,7 @@ export default function DashboardLayout({
   const [sessionValid, setSessionValid] = useState(false);
 
   useEffect(() => {
-    setAuthResolved(true);
+    queueMicrotask(() => setAuthResolved(true));
   }, []);
 
   useEffect(() => {
@@ -48,14 +48,18 @@ export default function DashboardLayout({
     let alive = true;
 
     if (!isAuthenticated) {
-      setSessionValid(false);
+      queueMicrotask(() => {
+        if (alive) setSessionValid(false);
+      });
       router.replace(withAppBasePath('/login'));
       return () => {
         alive = false;
       };
     }
 
-    setSessionValid(false);
+    queueMicrotask(() => {
+      if (alive) setSessionValid(false);
+    });
 
     api.get('/auth/me', { skipAuthRedirect: true })
       .then(() => {

@@ -26,7 +26,9 @@ export default function LoginPage() {
     const token = localStorage.getItem('access_token');
 
     if (!token) {
-      setCheckingSession(false);
+      queueMicrotask(() => {
+        if (alive) setCheckingSession(false);
+      });
       return () => {
         alive = false;
       };

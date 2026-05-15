@@ -9,6 +9,7 @@ import { SectionLead } from '@/components/common/SectionLead';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
 import { withAppBasePath } from '@/lib/app-path';
@@ -164,6 +165,7 @@ type VehicleDetail = {
 
 type FleetTab = 'anagrafica' | 'revisioni' | 'assegnazioni' | 'documenti' | 'sinistri' | 'comunicazioni';
 type VehicleOperationKind = 'assicurazione' | 'revisione' | 'assegnazione' | 'utilizzo' | 'alert' | 'sinistro' | 'comunicazione';
+type ActionModal = 'insurance' | 'revision' | 'assignment' | 'return' | null;
 
 type VehicleOperation = {
   id: string;
@@ -234,6 +236,7 @@ export default function FleetDetailClientPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [tab, setTab] = useState<FleetTab>('anagrafica');
   const [expandedOperationId, setExpandedOperationId] = useState<string | null>(null);
+  const [actionModal, setActionModal] = useState<ActionModal>(null);
 
   const [groupLinkId, setGroupLinkId] = useState('');
   const [insuranceForm, setInsuranceForm] = useState({
@@ -261,6 +264,8 @@ export default function FleetDetailClientPage() {
     riconsegnato_il: '',
     documento_assegnazione_numero: '',
     note: '',
+    note_responsabile: '',
+    note_assegnatario: '',
     stato: 'assegnato',
   });
   const [usageForm, setUsageForm] = useState({
@@ -310,13 +315,15 @@ export default function FleetDetailClientPage() {
 
   useEffect(() => {
     if (!vehicleId) return;
-    loadVehicle().catch((err) => setError(err.message || 'Impossibile caricare il mezzo.'));
+    queueMicrotask(() => {
+      loadVehicle().catch((err) => setError(err.message || 'Impossibile caricare il mezzo.'));
+    });
   }, [vehicleId]);
 
   useEffect(() => {
     if (!requestedTab) return;
     if (['anagrafica', 'revisioni', 'assegnazioni', 'documenti', 'sinistri', 'comunicazioni'].includes(requestedTab)) {
-      setTab(requestedTab);
+      queueMicrotask(() => setTab(requestedTab));
     }
   }, [requestedTab]);
 
@@ -339,6 +346,85 @@ export default function FleetDetailClientPage() {
     () => (vehicle?.assignments || []).filter((item) => !item.riconsegnato_il),
     [vehicle],
   );
+  const isAssigned = activeAssignments.length > 0;
+
+  const submitInsurance = async () => {
+    if (!vehicle) return;
+    await api.post(`/fleet/vehicles/${vehicle.id}/insurance`, {
+      compagnia: insuranceForm.compagnia,
+      broker: insuranceForm.broker || null,
+      package_name: insuranceForm.package_name || null,
+      numero_polizza: insuranceForm.numero_polizza || null,
+      copertura_dal: insuranceForm.copertura_dal || null,
+      copertura_al: insuranceForm.copertura_al || null,
+      data_scadenza: insuranceForm.data_scadenza,
+      note: insuranceForm.note || null,
+    });
+    setSuccess('Assicurazione del mezzo aggiornata.');
+    setActionModal(null);
+    setInsuranceForm({ compagnia: '', broker: '', package_name: '', numero_polizza: '', copertura_dal: '', copertura_al: '', data_scadenza: '', note: '' });
+    await loadVehicle();
+  };
+
+  const submitRevision = async () => {
+    if (!vehicle) return;
+    await api.post(`/fleet/vehicles/${vehicle.id}/revision`, {
+      data_revisione: revisionForm.data_revisione,
+      esito: revisionForm.esito,
+      km_rilevati: revisionForm.km_rilevati ? Number(revisionForm.km_rilevati) : null,
+      scadenza_revisione: revisionForm.scadenza_revisione || null,
+      scadenza_verifica_sicurezza: revisionForm.scadenza_verifica_sicurezza || null,
+      note: revisionForm.note || null,
+    });
+    setSuccess('Revisione del mezzo registrata.');
+    setActionModal(null);
+    setRevisionForm({ data_revisione: '', esito: 'regolare', km_rilevati: '', scadenza_revisione: '', scadenza_verifica_sicurezza: '', note: '' });
+    await loadVehicle();
+  };
+
+  const submitAssignment = async () => {
+    if (!vehicle) return;
+    await api.post(`/fleet/vehicles/${vehicle.id}/assignments`, {
+      employee_id: assignmentForm.employee_id ? Number(assignmentForm.employee_id) : null,
+      km_iniziali: Number(assignmentForm.km_iniziali || vehicle.km_attuali || 0),
+      assegnato_il: assignmentForm.assegnato_il || null,
+      riconsegnato_il: assignmentForm.riconsegnato_il || null,
+      documento_assegnazione_numero: assignmentForm.documento_assegnazione_numero || null,
+      note: assignmentForm.note || null,
+      note_responsabile: assignmentForm.note_responsabile || null,
+      note_assegnatario: assignmentForm.note_assegnatario || null,
+      stato: assignmentForm.stato,
+    });
+    setSuccess('Mezzo assegnato e comunicazione ufficiale registrata.');
+    setActionModal(null);
+    setAssignmentForm({
+      employee_id: '',
+      km_iniziali: '',
+      assegnato_il: '',
+      riconsegnato_il: '',
+      documento_assegnazione_numero: '',
+      note: '',
+      note_responsabile: '',
+      note_assegnatario: '',
+      stato: 'assegnato',
+    });
+    await loadVehicle();
+  };
+
+  const submitReturn = async () => {
+    await api.patch(`/fleet/assignments/${returnForm.assignment_id}/return`, {
+      km_finali: Number(returnForm.km_finali),
+      riconsegnato_il: returnForm.riconsegnato_il || null,
+      documento_restituzione_numero: returnForm.documento_restituzione_numero || null,
+      documento_restituzione_data: returnForm.documento_restituzione_data || null,
+      note: returnForm.note || null,
+      stato: 'restituito',
+    });
+    setSuccess('Restituzione mezzo registrata.');
+    setActionModal(null);
+    setReturnForm({ assignment_id: '', km_finali: '', riconsegnato_il: '', documento_restituzione_numero: '', documento_restituzione_data: '', note: '' });
+    await loadVehicle();
+  };
 
   const operations = useMemo<VehicleOperation[]>(() => {
     if (!vehicle) return [];
@@ -492,6 +578,43 @@ export default function FleetDetailClientPage() {
 
       {vehicle && (
         <>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={() => setActionModal('insurance')}>
+              Aggiungi assicurazione
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setActionModal('revision')}>
+              Aggiungi revisione
+            </Button>
+            {!isAssigned ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setAssignmentForm((current) => ({ ...current, km_iniziali: String(vehicle.km_attuali || 0) }));
+                  setActionModal('assignment');
+                }}
+              >
+                Assegna mezzo
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  const active = activeAssignments[0];
+                  setReturnForm((current) => ({
+                    ...current,
+                    assignment_id: String(active.id),
+                    km_finali: String(vehicle.km_attuali || active.km_iniziali || 0),
+                  }));
+                  setActionModal('return');
+                }}
+              >
+                Restituisci mezzo
+              </Button>
+            )}
+          </div>
+
           <Card padding="md">
             <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr]">
               <div>
@@ -905,7 +1028,7 @@ export default function FleetDetailClientPage() {
                         })
                           .then(async () => {
                             setSuccess('Assegnazione del mezzo registrata.');
-                            setAssignmentForm({ employee_id: '', km_iniziali: '', assegnato_il: '', riconsegnato_il: '', documento_assegnazione_numero: '', note: '', stato: 'assegnato' });
+                            setAssignmentForm({ employee_id: '', km_iniziali: '', assegnato_il: '', riconsegnato_il: '', documento_assegnazione_numero: '', note: '', note_responsabile: '', note_assegnatario: '', stato: 'assegnato' });
                             await loadVehicle();
                           })
                           .catch((err) => setError(err.message || 'Impossibile registrare l’assegnazione.'));
@@ -1179,7 +1302,7 @@ export default function FleetDetailClientPage() {
               <div>
                 <h3 className="text-lg font-semibold">Elenco operazioni del mezzo</h3>
                 <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                  Qui trovi tutta la storia del mezzo. Clicca su una riga per aprire il dettaglio dell'operazione.
+                  Qui trovi tutta la storia del mezzo. Clicca su una riga per aprire il dettaglio dell&apos;operazione.
                 </p>
               </div>
               <div className="space-y-3">
@@ -1241,6 +1364,126 @@ export default function FleetDetailClientPage() {
           </Card>
         </>
       )}
+
+      <Modal
+        isOpen={actionModal === 'insurance'}
+        onClose={() => setActionModal(null)}
+        title="Aggiungi assicurazione"
+        description="Inserisci i dati comuni e il numero polizza specifico del mezzo."
+        size="lg"
+        footer={(
+          <>
+            <Button type="button" variant="outline" onClick={() => setActionModal(null)}>Annulla</Button>
+            <Button type="button" disabled={!insuranceForm.compagnia || !insuranceForm.data_scadenza} onClick={() => submitInsurance().catch((err) => setError(err.message || 'Impossibile salvare i dati assicurativi.'))}>
+              Salva assicurazione
+            </Button>
+          </>
+        )}
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          <Input label="Compagnia" value={insuranceForm.compagnia} onChange={(event) => setInsuranceForm((current) => ({ ...current, compagnia: event.target.value }))} />
+          <Input label="Broker / agenzia" value={insuranceForm.broker} onChange={(event) => setInsuranceForm((current) => ({ ...current, broker: event.target.value }))} />
+          <Input label="Pacchetto / convenzione" value={insuranceForm.package_name} onChange={(event) => setInsuranceForm((current) => ({ ...current, package_name: event.target.value }))} />
+          <Input label="Numero polizza mezzo" value={insuranceForm.numero_polizza} onChange={(event) => setInsuranceForm((current) => ({ ...current, numero_polizza: event.target.value }))} />
+          <Input label="Copertura dal" type="date" value={insuranceForm.copertura_dal} onChange={(event) => setInsuranceForm((current) => ({ ...current, copertura_dal: event.target.value }))} />
+          <Input label="Copertura al" type="date" value={insuranceForm.copertura_al} onChange={(event) => setInsuranceForm((current) => ({ ...current, copertura_al: event.target.value }))} />
+          <Input label="Scadenza assicurazione" type="date" value={insuranceForm.data_scadenza} onChange={(event) => setInsuranceForm((current) => ({ ...current, data_scadenza: event.target.value }))} />
+          <div className="md:col-span-2">
+            <TextareaField label="Note" value={insuranceForm.note} onChange={(value) => setInsuranceForm((current) => ({ ...current, note: value }))} />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={actionModal === 'revision'}
+        onClose={() => setActionModal(null)}
+        title="Aggiungi revisione"
+        description="Registra la revisione del mezzo e aggiorna le scadenze operative."
+        size="lg"
+        footer={(
+          <>
+            <Button type="button" variant="outline" onClick={() => setActionModal(null)}>Annulla</Button>
+            <Button type="button" disabled={!revisionForm.data_revisione} onClick={() => submitRevision().catch((err) => setError(err.message || 'Impossibile salvare la revisione.'))}>
+              Salva revisione
+            </Button>
+          </>
+        )}
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          <Input label="Data revisione" type="date" value={revisionForm.data_revisione} onChange={(event) => setRevisionForm((current) => ({ ...current, data_revisione: event.target.value }))} />
+          <Input label="Km rilevati" type="number" value={revisionForm.km_rilevati} onChange={(event) => setRevisionForm((current) => ({ ...current, km_rilevati: event.target.value }))} />
+          <Input label="Scadenza revisione" type="date" value={revisionForm.scadenza_revisione} onChange={(event) => setRevisionForm((current) => ({ ...current, scadenza_revisione: event.target.value }))} />
+          <Input label="Scadenza verifica sicurezza" type="date" value={revisionForm.scadenza_verifica_sicurezza} onChange={(event) => setRevisionForm((current) => ({ ...current, scadenza_verifica_sicurezza: event.target.value }))} />
+          <Select
+            label="Esito"
+            value={revisionForm.esito}
+            onChange={(event) => setRevisionForm((current) => ({ ...current, esito: event.target.value }))}
+            options={[
+              { value: 'regolare', label: 'Regolare' },
+              { value: 'con_riserva', label: 'Con riserva' },
+              { value: 'non_regolare', label: 'Non regolare' },
+            ]}
+          />
+          <div className="md:col-span-2">
+            <TextareaField label="Note" value={revisionForm.note} onChange={(value) => setRevisionForm((current) => ({ ...current, note: value }))} />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={actionModal === 'assignment'}
+        onClose={() => setActionModal(null)}
+        title="Assegna mezzo"
+        description="Seleziona una persona dall'anagrafica interna. Il sistema registra il verbale nel registro comunicazioni."
+        size="lg"
+        footer={(
+          <>
+            <Button type="button" variant="outline" onClick={() => setActionModal(null)}>Annulla</Button>
+            <Button type="button" disabled={!assignmentForm.employee_id || !assignmentForm.km_iniziali} onClick={() => submitAssignment().catch((err) => setError(err.message || 'Impossibile assegnare il mezzo.'))}>
+              Assegna e registra comunicazione
+            </Button>
+          </>
+        )}
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          <Select label="Assegnatario" value={assignmentForm.employee_id} onChange={(event) => setAssignmentForm((current) => ({ ...current, employee_id: event.target.value }))} options={employeeOptions} />
+          <Input label="Km consegna" type="number" value={assignmentForm.km_iniziali} onChange={(event) => setAssignmentForm((current) => ({ ...current, km_iniziali: event.target.value }))} />
+          <Input label="Data e ora consegna" type="datetime-local" value={assignmentForm.assegnato_il} onChange={(event) => setAssignmentForm((current) => ({ ...current, assegnato_il: event.target.value }))} />
+          <Input label="Scadenza prevista / proroga" type="datetime-local" value={assignmentForm.riconsegnato_il} onChange={(event) => setAssignmentForm((current) => ({ ...current, riconsegnato_il: event.target.value }))} />
+          <Input label="Numero verbale" value={assignmentForm.documento_assegnazione_numero} onChange={(event) => setAssignmentForm((current) => ({ ...current, documento_assegnazione_numero: event.target.value }))} placeholder="Automatico se vuoto" />
+          <div className="md:col-span-2">
+            <TextareaField label="Note responsabile / delegato" value={assignmentForm.note_responsabile} onChange={(value) => setAssignmentForm((current) => ({ ...current, note_responsabile: value }))} />
+          </div>
+          <div className="md:col-span-2">
+            <TextareaField label="Note assegnatario" value={assignmentForm.note_assegnatario} onChange={(value) => setAssignmentForm((current) => ({ ...current, note_assegnatario: value }))} />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={actionModal === 'return'}
+        onClose={() => setActionModal(null)}
+        title="Restituisci mezzo"
+        description="Chiude l'assegnazione attiva e aggiorna i chilometri del mezzo."
+        size="md"
+        footer={(
+          <>
+            <Button type="button" variant="outline" onClick={() => setActionModal(null)}>Annulla</Button>
+            <Button type="button" disabled={!returnForm.assignment_id || !returnForm.km_finali} onClick={() => submitReturn().catch((err) => setError(err.message || 'Impossibile registrare la restituzione.'))}>
+              Registra restituzione
+            </Button>
+          </>
+        )}
+      >
+        <div className="grid gap-3">
+          <Select label="Assegnazione attiva" value={returnForm.assignment_id} onChange={(event) => setReturnForm((current) => ({ ...current, assignment_id: event.target.value }))} options={[{ value: '', label: 'Seleziona assegnazione' }, ...activeAssignments.map((item) => ({ value: String(item.id), label: `${item.employee_display_name || item.user_display_name || 'Operatore'} - ${formatDateTime(item.assegnato_il)}` }))]} />
+          <Input label="Km restituzione" type="number" value={returnForm.km_finali} onChange={(event) => setReturnForm((current) => ({ ...current, km_finali: event.target.value }))} />
+          <Input label="Data restituzione" type="datetime-local" value={returnForm.riconsegnato_il} onChange={(event) => setReturnForm((current) => ({ ...current, riconsegnato_il: event.target.value }))} />
+          <Input label="Numero documento restituzione" value={returnForm.documento_restituzione_numero} onChange={(event) => setReturnForm((current) => ({ ...current, documento_restituzione_numero: event.target.value }))} />
+          <Input label="Data documento" type="date" value={returnForm.documento_restituzione_data} onChange={(event) => setReturnForm((current) => ({ ...current, documento_restituzione_data: event.target.value }))} />
+          <TextareaField label="Note" value={returnForm.note} onChange={(value) => setReturnForm((current) => ({ ...current, note: value }))} />
+        </div>
+      </Modal>
     </div>
   );
 }

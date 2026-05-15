@@ -165,7 +165,7 @@ export default function FleetDashboardClientPage() {
                 </p>
               </div>
               <Link href={withAppBasePath('/fleet/anagrafica')} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
-                Vai all'anagrafica
+                Vai all&apos;anagrafica
               </Link>
             </div>
 
@@ -196,7 +196,7 @@ export default function FleetDashboardClientPage() {
                 </p>
               </div>
               <Link href={withAppBasePath('/fleet/anagrafica')} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
-                Vai all'anagrafica
+                Vai all&apos;anagrafica
               </Link>
             </div>
 
@@ -249,7 +249,7 @@ export default function FleetDashboardClientPage() {
             <div>
               <h3 className="text-lg font-semibold">Mezzi da restituire o chiudere</h3>
               <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                Accedi subito alla restituzione del mezzo o alla chiusura dell'assegnazione attiva.
+                Accedi subito alla restituzione del mezzo o alla chiusura dell&apos;assegnazione attiva.
               </p>
             </div>
             <div className="space-y-3">

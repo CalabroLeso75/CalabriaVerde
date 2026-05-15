@@ -107,6 +107,7 @@ class FleetGroupCreate(BaseModel):
     scope: str = "operativo"
     organization_id: Optional[int] = None
     province_code: Optional[str] = None
+    vehicle_ids: list[int] = Field(default_factory=list)
 
 
 class FleetBulkGroupMembershipUpdate(BaseModel):
@@ -188,6 +189,8 @@ class FleetVehicleAssignmentCreate(BaseModel):
     documento_restituzione_data: Optional[date] = None
     stato: str = "assegnato"
     note: Optional[str] = None
+    note_responsabile: Optional[str] = None
+    note_assegnatario: Optional[str] = None
 
 
 class FleetVehicleAssignmentReturn(BaseModel):

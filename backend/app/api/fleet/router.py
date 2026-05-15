@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.communications import CommunicationLog, CommunicationTarget
+from app.models.communications import CommunicationRecipient
 from app.models.employee import Employee
 from app.models.fleet import (
     AibTeamVehicle,
@@ -177,6 +178,35 @@ def current_user_employee_id(db: Session, current_user: User) -> int | None:
     return employee.id if employee else None
 
 
+def next_official_number(db: Session) -> str:
+    year = datetime.now(timezone.utc).year
+    start = datetime(year, 1, 1, tzinfo=timezone.utc)
+    end = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+    count = db.query(func.count(CommunicationLog.id)).filter(
+        CommunicationLog.module_scope == "fleet",
+        CommunicationLog.created_at >= start,
+        CommunicationLog.created_at < end,
+    ).scalar() or 0
+    return f"{count + 1}/{year}"
+
+
+def employee_channels(employee: Employee | None) -> list[tuple[str, str]]:
+    if not employee:
+        return []
+
+    channels: list[tuple[str, str]] = []
+    email = employee.email_istituzionale or employee.email_personale or employee.pec
+    phone = employee.telefono_lavoro or employee.telefono_personale or employee.telefono_secondario
+
+    if email:
+        channels.append(("email", email))
+    if phone:
+        channels.append(("sms", phone))
+        channels.append(("whatsapp", phone))
+
+    return channels
+
+
 @router.get("/summary", response_model=FleetSummaryResponse)
 async def get_fleet_summary(
     current_user: User = Depends(get_current_user),
@@ -271,8 +301,21 @@ async def create_fleet_group(
         province_code=data.province_code.upper() if data.province_code else None,
     )
     db.add(group)
+    db.flush()
+
+    valid_vehicle_ids = sorted(set(data.vehicle_ids or []))
+    if valid_vehicle_ids:
+        existing_vehicle_ids = {
+            item.id
+            for item in db.query(Vehicle.id).filter(Vehicle.id.in_(valid_vehicle_ids)).all()
+        }
+        for vehicle_id in valid_vehicle_ids:
+            if vehicle_id in existing_vehicle_ids:
+                db.add(FleetGroupMember(group_id=group.id, vehicle_id=vehicle_id))
+
     db.commit()
     db.refresh(group)
+    db.refresh(group, attribute_names=["members"])
     return serialize_group(group)
 
 
@@ -616,6 +659,17 @@ async def create_vehicle_assignment(
 ):
     vehicle = load_vehicle_or_404(db, vehicle_id)
     employee_id = data.employee_id or current_user_employee_id(db, current_user)
+    employee = db.query(Employee).filter(Employee.id == employee_id).first() if employee_id else None
+    assignor_employee_id = current_user_employee_id(db, current_user)
+    official_number = data.documento_assegnazione_numero or next_official_number(db)
+    assignment_notes = "\n".join(
+        part for part in [
+            data.note,
+            f"Note responsabile/delegato: {data.note_responsabile}" if data.note_responsabile else None,
+            f"Note assegnatario: {data.note_assegnatario}" if data.note_assegnatario else None,
+        ]
+        if part
+    )
     assignment = VehicleAssignment(
         vehicle_id=vehicle_id,
         user_id=data.user_id or current_user.id,
@@ -623,14 +677,84 @@ async def create_vehicle_assignment(
         km_iniziali=data.km_iniziali,
         assegnato_il=data.assegnato_il or datetime.now(timezone.utc),
         riconsegnato_il=data.riconsegnato_il,
-        documento_assegnazione_numero=data.documento_assegnazione_numero,
+        documento_assegnazione_numero=official_number,
         documento_assegnazione_data=data.documento_assegnazione_data,
         documento_restituzione_numero=data.documento_restituzione_numero,
         documento_restituzione_data=data.documento_restituzione_data,
         stato=data.stato,
-        note=data.note,
+        note=assignment_notes or None,
     )
     db.add(assignment)
+    db.flush()
+
+    province_scope = vehicle.localizzazione_corrente if isinstance(vehicle.localizzazione_corrente, str) and len(vehicle.localizzazione_corrente) <= 10 else None
+    targets = resolve_targets(db, module_scope="fleet", province_code=province_scope)
+    communication = register_communication(
+        db,
+        module_scope="fleet",
+        compartment_scope="parco_macchine",
+        event_type="assegnazione_mezzo",
+        channel="sistema",
+        subject=f"Assegnazione mezzo {vehicle.targa} - {official_number}",
+        message=(
+            f"Verbale assegnazione {official_number}. Mezzo {vehicle.targa} "
+            f"{vehicle.marca} {vehicle.modello}, km iniziali {data.km_iniziali}. "
+            f"Assegnatario: {actor_display_name(None, employee) or 'non indicato'}."
+        ),
+        related_table="vehicles",
+        related_id=vehicle.id,
+        sender_user_id=current_user.id,
+        sender_employee_id=assignor_employee_id,
+        metadata_json={
+            "official_number": official_number,
+            "document_type": "verbale_assegnazione_mezzo",
+            "assignment_id": assignment.id,
+            "vehicle": {
+                "id": vehicle.id,
+                "targa": vehicle.targa,
+                "marca": vehicle.marca,
+                "modello": vehicle.modello,
+                "tipo": vehicle.tipo,
+                "numero_telaio": vehicle.numero_telaio,
+                "km_attuali": vehicle.km_attuali,
+                "scadenza_assicurazione": str(vehicle.scadenza_assicurazione) if vehicle.scadenza_assicurazione else None,
+                "scadenza_revisione": str(vehicle.scadenza_revisione) if vehicle.scadenza_revisione else None,
+            },
+            "assignee": {
+                "employee_id": employee.id if employee else None,
+                "display_name": actor_display_name(None, employee),
+                "codice_fiscale": employee.codice_fiscale if employee else None,
+                "email": (employee.email_istituzionale or employee.email_personale or employee.pec) if employee else None,
+                "phone": (employee.telefono_lavoro or employee.telefono_personale or employee.telefono_secondario) if employee else None,
+            },
+            "assignor": {
+                "user_id": current_user.id,
+                "display_name": actor_display_name(current_user, None),
+                "employee_id": assignor_employee_id,
+            },
+            "delivery": {
+                "assigned_at": str(assignment.assegnato_il) if assignment.assegnato_il else None,
+                "expected_return_at": str(assignment.riconsegnato_il) if assignment.riconsegnato_il else None,
+                "note_responsabile": data.note_responsabile,
+                "note_assegnatario": data.note_assegnatario,
+                "pdf_status": "da_generare",
+            },
+        },
+        targets=targets,
+    )
+
+    for channel, destination in employee_channels(employee):
+        db.add(
+            CommunicationRecipient(
+                communication_log_id=communication.id,
+                recipient_employee_id=employee.id if employee else None,
+                recipient_label=actor_display_name(None, employee) or "Assegnatario mezzo",
+                channel=channel,
+                destination=destination,
+                delivery_status="registrata",
+            )
+        )
+
     if data.km_iniziali > vehicle.km_attuali:
         vehicle.km_attuali = data.km_iniziali
     db.commit()
@@ -651,7 +775,7 @@ async def create_vehicle_assignment(
         stato=assignment.stato,
         note=assignment.note,
         user_display_name=actor_display_name(current_user, None),
-        employee_display_name=actor_display_name(None, db.query(Employee).filter(Employee.id == assignment.employee_id).first() if assignment.employee_id else None),
+        employee_display_name=actor_display_name(None, employee),
     )
 
 

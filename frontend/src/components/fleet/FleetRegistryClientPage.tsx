@@ -9,6 +9,7 @@ import { SectionLead } from '@/components/common/SectionLead';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { api } from '@/lib/api';
@@ -122,6 +123,11 @@ export default function FleetRegistryClientPage() {
   const [payload, setPayload] = useState<VehicleListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const [insuranceModalGroup, setInsuranceModalGroup] = useState<GroupItem | null>(null);
+  const [revisionModalGroup, setRevisionModalGroup] = useState<GroupItem | null>(null);
+  const [selectedVehicleIds, setSelectedVehicleIds] = useState<number[]>([]);
+  const [groupVehicleSearch, setGroupVehicleSearch] = useState('');
 
   const [groupForm, setGroupForm] = useState({ name: '', code: '', scope: 'operativo', province_code: '', description: '' });
   const [targetForm, setTargetForm] = useState({
@@ -167,7 +173,9 @@ export default function FleetRegistryClientPage() {
   };
 
   useEffect(() => {
-    loadMeta().catch(() => undefined);
+    queueMicrotask(() => {
+      loadMeta().catch(() => undefined);
+    });
   }, []);
 
   useEffect(() => {
@@ -209,6 +217,18 @@ export default function FleetRegistryClientPage() {
     [groups],
   );
 
+  const selectableVehicles = useMemo(() => {
+    const items = payload?.items || [];
+    const term = groupVehicleSearch.trim().toLowerCase();
+    if (!term) return items;
+    return items.filter((vehicle) => (
+      vehicle.targa.toLowerCase().includes(term)
+      || vehicle.marca.toLowerCase().includes(term)
+      || vehicle.modello.toLowerCase().includes(term)
+      || vehicle.tipo.toLowerCase().includes(term)
+    ));
+  }, [groupVehicleSearch, payload]);
+
   const handleCreateGroup = async () => {
     await api.post('/fleet/groups', {
       name: groupForm.name,
@@ -216,9 +236,13 @@ export default function FleetRegistryClientPage() {
       scope: groupForm.scope,
       province_code: groupForm.province_code || null,
       description: groupForm.description || null,
+      vehicle_ids: selectedVehicleIds,
     });
-    setActionMessage('Gruppo mezzi creato correttamente.');
+    setActionMessage(`Gruppo mezzi creato con ${selectedVehicleIds.length} mezzi selezionati.`);
     setGroupForm({ name: '', code: '', scope: 'operativo', province_code: '', description: '' });
+    setSelectedVehicleIds([]);
+    setGroupVehicleSearch('');
+    setGroupModalOpen(false);
     await loadMeta();
   };
 
@@ -271,6 +295,8 @@ export default function FleetRegistryClientPage() {
       data_scadenza: '',
       note: '',
     });
+    setInsuranceModalGroup(null);
+    await loadMeta();
   };
 
   const handleBulkRevision = async () => {
@@ -291,6 +317,8 @@ export default function FleetRegistryClientPage() {
       esito: 'pianificata',
       note: '',
     });
+    setRevisionModalGroup(null);
+    await loadMeta();
   };
 
   return (
@@ -304,6 +332,11 @@ export default function FleetRegistryClientPage() {
       {error && <NoticeBanner title="Errore caricamento" message={error} />}
 
       <Card padding="md">
+        <div className="mb-4 flex flex-wrap gap-2">
+          <Button type="button" onClick={() => setGroupModalOpen(true)}>
+            Crea gruppo da selezione
+          </Button>
+        </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <Input
             label="Ricerca"
@@ -376,6 +409,30 @@ export default function FleetRegistryClientPage() {
                     {group.province_code ? (
                       <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>{group.province_code}</span>
                     ) : null}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setBulkInsuranceForm((current) => ({ ...current, group_id: String(group.id) }));
+                        setInsuranceModalGroup(group);
+                      }}
+                    >
+                      Assicurazione
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setBulkRevisionForm((current) => ({ ...current, group_id: String(group.id) }));
+                        setRevisionModalGroup(group);
+                      }}
+                    >
+                      Revisione
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -600,6 +657,133 @@ export default function FleetRegistryClientPage() {
           onNext={() => setPage((current) => Math.min(payload.pages, current + 1))}
         />
       )}
+
+      <Modal
+        isOpen={groupModalOpen}
+        onClose={() => setGroupModalOpen(false)}
+        title="Crea gruppo mezzi"
+        description="Seleziona i mezzi filtrando per targa, marca, modello o tipologia."
+        size="lg"
+        footer={(
+          <>
+            <Button type="button" variant="outline" onClick={() => setGroupModalOpen(false)}>Annulla</Button>
+            <Button
+              type="button"
+              disabled={!groupForm.name || !groupForm.code || selectedVehicleIds.length === 0}
+              onClick={() => handleCreateGroup().catch((err) => setError(err.message || 'Impossibile creare il gruppo.'))}
+            >
+              Crea gruppo
+            </Button>
+          </>
+        )}
+      >
+        <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input label="Nome gruppo" value={groupForm.name} onChange={(event) => setGroupForm((current) => ({ ...current, name: event.target.value }))} />
+            <Input label="Codice gruppo" value={groupForm.code} onChange={(event) => setGroupForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))} />
+            <Select
+              label="Tipo gruppo"
+              value={groupForm.scope}
+              onChange={(event) => setGroupForm((current) => ({ ...current, scope: event.target.value }))}
+              options={[
+                { value: 'operativo', label: 'Operativo' },
+                { value: 'aib', label: 'AIB' },
+                { value: 'provinciale', label: 'Provinciale' },
+                { value: 'speciale', label: 'Speciale' },
+              ]}
+            />
+            <Input label="Provincia" value={groupForm.province_code} onChange={(event) => setGroupForm((current) => ({ ...current, province_code: event.target.value.toUpperCase() }))} placeholder="CS, CZ..." />
+          </div>
+          <TextareaField label="Descrizione" value={groupForm.description} onChange={(value) => setGroupForm((current) => ({ ...current, description: value }))} />
+          <Input label="Cerca mezzi" value={groupVehicleSearch} onChange={(event) => setGroupVehicleSearch(event.target.value)} placeholder="Targa, marca, modello..." />
+          <div className="max-h-72 overflow-y-auto rounded-[var(--cv-radius-md)] border" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+            {selectableVehicles.map((vehicle) => (
+              <label key={vehicle.id} className="flex cursor-pointer items-center gap-3 border-b px-3 py-2 text-sm last:border-b-0" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                <input
+                  type="checkbox"
+                  checked={selectedVehicleIds.includes(vehicle.id)}
+                  onChange={(event) => {
+                    setSelectedVehicleIds((current) => (
+                      event.target.checked
+                        ? [...current, vehicle.id]
+                        : current.filter((id) => id !== vehicle.id)
+                    ));
+                  }}
+                />
+                <span className="font-semibold">{vehicle.targa}</span>
+                <span>{vehicle.marca} {vehicle.modello}</span>
+                <span className="ml-auto text-xs" style={{ color: 'var(--cv-neutral-600)' }}>{vehicle.stato || 'stato non definito'}</span>
+              </label>
+            ))}
+          </div>
+          <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
+            Mezzi selezionati: {selectedVehicleIds.length}
+          </p>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(insuranceModalGroup)}
+        onClose={() => setInsuranceModalGroup(null)}
+        title={`Assicurazione gruppo${insuranceModalGroup ? ` - ${insuranceModalGroup.name}` : ''}`}
+        description="Inserisci solo i dati comuni della polizza. Il numero polizza resta nel fascicolo del singolo mezzo."
+        size="lg"
+        footer={(
+          <>
+            <Button type="button" variant="outline" onClick={() => setInsuranceModalGroup(null)}>Annulla</Button>
+            <Button type="button" onClick={() => handleBulkInsurance().catch((err) => setError(err.message || 'Impossibile registrare il rinnovo assicurativo.'))}>
+              Applica al gruppo
+            </Button>
+          </>
+        )}
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          <Input label="Compagnia" value={bulkInsuranceForm.compagnia} onChange={(event) => setBulkInsuranceForm((current) => ({ ...current, compagnia: event.target.value }))} />
+          <Input label="Broker / agenzia" value={bulkInsuranceForm.broker} onChange={(event) => setBulkInsuranceForm((current) => ({ ...current, broker: event.target.value }))} />
+          <Input label="Pacchetto / convenzione" value={bulkInsuranceForm.package_name} onChange={(event) => setBulkInsuranceForm((current) => ({ ...current, package_name: event.target.value }))} />
+          <Input label="Scadenza" type="date" value={bulkInsuranceForm.data_scadenza} onChange={(event) => setBulkInsuranceForm((current) => ({ ...current, data_scadenza: event.target.value }))} />
+          <Input label="Copertura dal" type="date" value={bulkInsuranceForm.copertura_dal} onChange={(event) => setBulkInsuranceForm((current) => ({ ...current, copertura_dal: event.target.value }))} />
+          <Input label="Copertura al" type="date" value={bulkInsuranceForm.copertura_al} onChange={(event) => setBulkInsuranceForm((current) => ({ ...current, copertura_al: event.target.value }))} />
+          <div className="md:col-span-2">
+            <TextareaField label="Note comuni" value={bulkInsuranceForm.note} onChange={(value) => setBulkInsuranceForm((current) => ({ ...current, note: value }))} />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(revisionModalGroup)}
+        onClose={() => setRevisionModalGroup(null)}
+        title={`Revisione gruppo${revisionModalGroup ? ` - ${revisionModalGroup.name}` : ''}`}
+        description="Registra dati comuni della revisione per tutti i mezzi del gruppo selezionato."
+        size="lg"
+        footer={(
+          <>
+            <Button type="button" variant="outline" onClick={() => setRevisionModalGroup(null)}>Annulla</Button>
+            <Button type="button" onClick={() => handleBulkRevision().catch((err) => setError(err.message || 'Impossibile registrare la revisione di gruppo.'))}>
+              Applica al gruppo
+            </Button>
+          </>
+        )}
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          <Input label="Data revisione" type="date" value={bulkRevisionForm.data_revisione} onChange={(event) => setBulkRevisionForm((current) => ({ ...current, data_revisione: event.target.value }))} />
+          <Input label="Scadenza revisione" type="date" value={bulkRevisionForm.scadenza_revisione} onChange={(event) => setBulkRevisionForm((current) => ({ ...current, scadenza_revisione: event.target.value }))} />
+          <Input label="Scadenza verifica sicurezza" type="date" value={bulkRevisionForm.scadenza_verifica_sicurezza} onChange={(event) => setBulkRevisionForm((current) => ({ ...current, scadenza_verifica_sicurezza: event.target.value }))} />
+          <Select
+            label="Esito / stato"
+            value={bulkRevisionForm.esito}
+            onChange={(event) => setBulkRevisionForm((current) => ({ ...current, esito: event.target.value }))}
+            options={[
+              { value: 'pianificata', label: 'Pianificata' },
+              { value: 'regolare', label: 'Regolare' },
+              { value: 'con_riserva', label: 'Con riserva' },
+            ]}
+          />
+          <div className="md:col-span-2">
+            <TextareaField label="Note comuni" value={bulkRevisionForm.note} onChange={(value) => setBulkRevisionForm((current) => ({ ...current, note: value }))} />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -33,6 +33,7 @@ class FleetVehicleAssignmentResponse(BaseModel):
     vehicle_id: int
     user_id: Optional[int] = None
     employee_id: Optional[int] = None
+    organization_id: Optional[int] = None
     km_iniziali: int
     km_finali: Optional[int] = None
     assegnato_il: Optional[datetime] = None
@@ -45,6 +46,7 @@ class FleetVehicleAssignmentResponse(BaseModel):
     note: Optional[str] = None
     user_display_name: Optional[str] = None
     employee_display_name: Optional[str] = None
+    organization_display_name: Optional[str] = None
 
 
 class FleetVehicleIncidentResponse(BaseModel):
@@ -180,6 +182,7 @@ class FleetBulkRevisionUpdate(BaseModel):
 class FleetVehicleAssignmentCreate(BaseModel):
     employee_id: Optional[int] = None
     user_id: Optional[int] = None
+    organization_id: Optional[int] = None
     km_iniziali: int
     assegnato_il: Optional[datetime] = None
     riconsegnato_il: Optional[datetime] = None
@@ -191,6 +194,11 @@ class FleetVehicleAssignmentCreate(BaseModel):
     note: Optional[str] = None
     note_responsabile: Optional[str] = None
     note_assegnatario: Optional[str] = None
+
+
+class FleetVehicleAssignmentExtensionCreate(BaseModel):
+    riconsegnato_il: datetime
+    note: Optional[str] = None
 
 
 class FleetVehicleAssignmentReturn(BaseModel):
@@ -348,7 +356,17 @@ class FleetVehicleListItem(BaseModel):
     localizzazione_corrente: Optional[str] = None
     vehicle_type_name: Optional[str] = None
     current_assignee: Optional[str] = None
+    current_assignment_unit: Optional[str] = None
+    current_user_name: Optional[str] = None
     open_incidents: int = 0
+
+
+class FleetAssignmentUnitResponse(BaseModel):
+    id: int
+    code: str
+    name: str
+    type: str
+    province: Optional[str] = None
 
 
 class FleetVehicleDetailResponse(BaseModel):

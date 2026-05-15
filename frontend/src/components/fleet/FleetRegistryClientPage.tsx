@@ -53,6 +53,8 @@ type VehicleItem = {
   localizzazione_corrente?: string | null;
   vehicle_type_name?: string | null;
   current_assignee?: string | null;
+  current_assignment_unit?: string | null;
+  current_user_name?: string | null;
   open_incidents: number;
 };
 
@@ -74,6 +76,35 @@ function statusTone(status?: string | null) {
   if (normalized.includes('manca') || normalized.includes('fermo')) return 'var(--cv-danger)';
   if (normalized.includes('manut')) return 'var(--cv-warning)';
   return 'var(--cv-primary-dark)';
+}
+
+function expiryMeta(value?: string | null) {
+  if (!value) return { label: 'Mancante', color: 'var(--cv-danger)' };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(value);
+  expiry.setHours(0, 0, 0, 0);
+  const days = Math.ceil((expiry.getTime() - today.getTime()) / 86400000);
+  if (days < 0) return { label: `${formatDate(value)} - scaduta`, color: 'var(--cv-danger)' };
+  if (days <= 30) return { label: `${formatDate(value)} - entro 30 gg`, color: 'var(--cv-warning)' };
+  return { label: formatDate(value), color: 'var(--cv-primary-dark)' };
+}
+
+function ExpiryBadge({ label, value }: { label: string; value?: string | null }) {
+  const meta = expiryMeta(value);
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>
+        {label}
+      </p>
+      <span
+        className="mt-1 inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+        style={{ background: `${meta.color}14`, color: meta.color }}
+      >
+        {meta.label}
+      </span>
+    </div>
+  );
 }
 
 function TextareaField({
@@ -597,20 +628,22 @@ export default function FleetRegistryClientPage() {
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <ExpiryBadge label="Assicurazione" value={vehicle.scadenza_assicurazione} />
+                <ExpiryBadge label="Revisione" value={vehicle.scadenza_revisione} />
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>
-                    Assicurazione
+                    Assegnato a
                   </p>
                   <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-700)' }}>
-                    {formatDate(vehicle.scadenza_assicurazione)}
+                    {vehicle.current_assignment_unit || vehicle.current_assignee || 'Non assegnato'}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>
-                    Revisione
+                    Utilizzatore corrente
                   </p>
                   <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-700)' }}>
-                    {formatDate(vehicle.scadenza_revisione)}
+                    {vehicle.current_user_name || vehicle.current_assignee || 'Nessun utilizzo attivo'}
                   </p>
                 </div>
                 <div>
@@ -619,14 +652,6 @@ export default function FleetRegistryClientPage() {
                   </p>
                   <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-700)' }}>
                     {vehicle.km_attuali.toLocaleString('it-IT')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>
-                    Utilizzatore attivo
-                  </p>
-                  <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-700)' }}>
-                    {vehicle.current_assignee || 'Non assegnato'}
                   </p>
                 </div>
               </div>

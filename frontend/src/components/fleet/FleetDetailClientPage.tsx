@@ -28,6 +28,15 @@ type EmployeeOption = {
   nome: string;
   cognome: string;
   tipo: string;
+  data_nascita?: string | null;
+};
+
+type AssignmentUnitOption = {
+  id: number;
+  code: string;
+  name: string;
+  type: string;
+  province?: string | null;
 };
 
 type CommunicationLog = {
@@ -114,6 +123,8 @@ type VehicleDetail = {
     note?: string | null;
     employee_display_name?: string | null;
     user_display_name?: string | null;
+    organization_id?: number | null;
+    organization_display_name?: string | null;
   }>;
   usage_logs: Array<{
     id: number;
@@ -165,7 +176,7 @@ type VehicleDetail = {
 
 type FleetTab = 'anagrafica' | 'revisioni' | 'assegnazioni' | 'documenti' | 'sinistri' | 'comunicazioni';
 type VehicleOperationKind = 'assicurazione' | 'revisione' | 'assegnazione' | 'utilizzo' | 'alert' | 'sinistro' | 'comunicazione';
-type ActionModal = 'insurance' | 'revision' | 'assignment' | 'return' | null;
+type ActionModal = 'insurance' | 'revision' | 'assignment' | 'return' | 'extension' | null;
 
 type VehicleOperation = {
   id: string;
@@ -231,6 +242,9 @@ export default function FleetDetailClientPage() {
   const [vehicle, setVehicle] = useState<VehicleDetail | null>(null);
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [assignmentUnits, setAssignmentUnits] = useState<AssignmentUnitOption[]>([]);
+  const [assignmentUnitSearch, setAssignmentUnitSearch] = useState('');
   const [communications, setCommunications] = useState<CommunicationLog[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -259,6 +273,7 @@ export default function FleetDetailClientPage() {
   });
   const [assignmentForm, setAssignmentForm] = useState({
     employee_id: '',
+    organization_id: '',
     km_iniziali: '',
     assegnato_il: '',
     riconsegnato_il: '',
@@ -268,6 +283,8 @@ export default function FleetDetailClientPage() {
     note_assegnatario: '',
     stato: 'assegnato',
   });
+  const [kmConfirmed, setKmConfirmed] = useState(false);
+  const [kmConfirmationNote, setKmConfirmationNote] = useState('');
   const [usageForm, setUsageForm] = useState({
     assignment_id: '',
     employee_id: '',
@@ -297,18 +314,21 @@ export default function FleetDetailClientPage() {
     documento_restituzione_data: '',
     note: '',
   });
+  const [extensionForm, setExtensionForm] = useState({
+    assignment_id: '',
+    riconsegnato_il: '',
+    note: '',
+  });
 
   const loadVehicle = async () => {
     if (!vehicleId) return;
-    const [vehiclePayload, groupItems, employeePayload, communicationPayload] = await Promise.all([
+    const [vehiclePayload, groupItems, communicationPayload] = await Promise.all([
       api.get<VehicleDetail>(`/fleet/vehicles/${vehicleId}`),
       api.get<GroupItem[]>('/fleet/groups').catch(() => []),
-      api.get<{ items: EmployeeOption[] }>('/hr/employees?page=1&page_size=100').catch(() => ({ items: [] })),
       api.get<CommunicationLog[]>(`/fleet/vehicles/${vehicleId}/communications`).catch(() => []),
     ]);
     setVehicle(vehiclePayload);
     setGroups(groupItems);
-    setEmployees(employeePayload.items || []);
     setCommunications(communicationPayload);
     setError(null);
   };
@@ -327,15 +347,76 @@ export default function FleetDetailClientPage() {
     }
   }, [requestedTab]);
 
+  useEffect(() => {
+    if (actionModal !== 'assignment') return;
+    const term = employeeSearch.trim();
+    if (term.length < 2) {
+      queueMicrotask(() => setEmployees([]));
+      return;
+    }
+    let alive = true;
+    const params = new URLSearchParams({ tipo: 'interno', page: '1', page_size: '20', search: term });
+    api.get<{ items: EmployeeOption[] }>(`/hr/employees?${params.toString()}`)
+      .then((response) => {
+        if (alive) setEmployees(response.items || []);
+      })
+      .catch(() => {
+        if (alive) setEmployees([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [actionModal, employeeSearch]);
+
+  useEffect(() => {
+    if (actionModal !== 'assignment') return;
+    let alive = true;
+    const params = new URLSearchParams();
+    if (assignmentUnitSearch.trim()) params.set('search', assignmentUnitSearch.trim());
+    api.get<AssignmentUnitOption[]>(`/fleet/assignment-units?${params.toString()}`)
+      .then((response) => {
+        if (alive) setAssignmentUnits(response);
+      })
+      .catch(() => {
+        if (alive) setAssignmentUnits([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [actionModal, assignmentUnitSearch]);
+
   const availableGroups = useMemo(
     () => groups.filter((group) => !vehicle?.groups.some((item) => item.id === group.id)),
     [groups, vehicle],
   );
 
   const employeeOptions = useMemo(
-    () => [{ value: '', label: 'Seleziona operatore' }, ...employees.map((item) => ({ value: String(item.id), label: `${item.cognome} ${item.nome}` }))],
-    [employees],
+    () => [
+      { value: '', label: employeeSearch.trim().length < 2 ? 'Digita almeno 2 caratteri' : 'Seleziona operatore' },
+      ...employees.map((item) => ({
+        value: String(item.id),
+        label: `${item.cognome} ${item.nome}${item.data_nascita ? ` - nato il ${formatDate(item.data_nascita)}` : ''}`,
+      })),
+    ],
+    [employeeSearch, employees],
   );
+
+  const assignmentUnitOptions = useMemo(
+    () => [
+      { value: '', label: 'Nessun reparto/sede' },
+      ...assignmentUnits.map((item) => ({
+        value: String(item.id),
+        label: `${item.name} (${item.code})${item.province ? ` - ${item.province}` : ''}`,
+      })),
+    ],
+    [assignmentUnits],
+  );
+
+  const kmDelta = useMemo(
+    () => Number(assignmentForm.km_iniziali || vehicle?.km_attuali || 0) - Number(vehicle?.km_attuali || 0),
+    [assignmentForm.km_iniziali, vehicle],
+  );
+  const needsKmConfirmation = actionModal === 'assignment' && kmDelta !== 0;
 
   const assignmentOptions = useMemo(
     () => [{ value: '', label: 'Seleziona assegnazione' }, ...(vehicle?.assignments || []).map((item) => ({ value: String(item.id), label: `${item.employee_display_name || item.user_display_name || 'Operatore'} · ${item.stato}` }))],
@@ -384,13 +465,21 @@ export default function FleetDetailClientPage() {
 
   const submitAssignment = async () => {
     if (!vehicle) return;
+    if (needsKmConfirmation && !kmConfirmed) return;
+    const noteParts = [
+      assignmentForm.note || null,
+      needsKmConfirmation
+        ? `Conferma km contachilometri: scostamento ${Math.abs(kmDelta).toLocaleString('it-IT')} km ${kmDelta > 0 ? 'in piu' : 'in meno'} rispetto all'ultima registrazione. ${kmConfirmationNote || ''}`.trim()
+        : null,
+    ].filter(Boolean);
     await api.post(`/fleet/vehicles/${vehicle.id}/assignments`, {
       employee_id: assignmentForm.employee_id ? Number(assignmentForm.employee_id) : null,
+      organization_id: assignmentForm.organization_id ? Number(assignmentForm.organization_id) : null,
       km_iniziali: Number(assignmentForm.km_iniziali || vehicle.km_attuali || 0),
       assegnato_il: assignmentForm.assegnato_il || null,
       riconsegnato_il: assignmentForm.riconsegnato_il || null,
-      documento_assegnazione_numero: assignmentForm.documento_assegnazione_numero || null,
-      note: assignmentForm.note || null,
+      documento_assegnazione_numero: null,
+      note: noteParts.join('\n') || null,
       note_responsabile: assignmentForm.note_responsabile || null,
       note_assegnatario: assignmentForm.note_assegnatario || null,
       stato: assignmentForm.stato,
@@ -399,6 +488,7 @@ export default function FleetDetailClientPage() {
     setActionModal(null);
     setAssignmentForm({
       employee_id: '',
+      organization_id: '',
       km_iniziali: '',
       assegnato_il: '',
       riconsegnato_il: '',
@@ -408,6 +498,21 @@ export default function FleetDetailClientPage() {
       note_assegnatario: '',
       stato: 'assegnato',
     });
+    setEmployeeSearch('');
+    setAssignmentUnitSearch('');
+    setKmConfirmed(false);
+    setKmConfirmationNote('');
+    await loadVehicle();
+  };
+
+  const submitExtension = async () => {
+    await api.patch(`/fleet/assignments/${extensionForm.assignment_id}/extend`, {
+      riconsegnato_il: extensionForm.riconsegnato_il,
+      note: extensionForm.note || null,
+    });
+    setSuccess('Proroga assegnazione registrata e comunicazione ufficiale creata.');
+    setActionModal(null);
+    setExtensionForm({ assignment_id: '', riconsegnato_il: '', note: '' });
     await loadVehicle();
   };
 
@@ -463,7 +568,7 @@ export default function FleetDetailClientPage() {
     const assignmentOps: VehicleOperation[] = vehicle.assignments.map((assignment) => ({
       id: `assignment-${assignment.id}`,
       kind: 'assegnazione',
-      title: `Assegnazione a ${assignment.employee_display_name || assignment.user_display_name || 'Operatore'}`,
+      title: `Assegnazione a ${assignment.organization_display_name || assignment.employee_display_name || assignment.user_display_name || 'Operatore'}`,
       dateValue: assignment.assegnato_il || '',
       summary: `${assignment.stato} · dal ${formatDateTime(assignment.assegnato_il)}`,
       badge: 'Assegnazione',
@@ -591,6 +696,10 @@ export default function FleetDetailClientPage() {
                 variant="outline"
                 onClick={() => {
                   setAssignmentForm((current) => ({ ...current, km_iniziali: String(vehicle.km_attuali || 0) }));
+                  setEmployeeSearch('');
+                  setAssignmentUnitSearch('');
+                  setKmConfirmed(false);
+                  setKmConfirmationNote('');
                   setActionModal('assignment');
                 }}
               >
@@ -928,19 +1037,22 @@ export default function FleetDetailClientPage() {
                       {vehicle.assignments.map((assignment) => (
                         <div key={assignment.id} className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
                           <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm font-semibold">{assignment.employee_display_name || assignment.user_display_name || 'Utilizzatore non definito'}</p>
+                            <p className="text-sm font-semibold">{assignment.organization_display_name || assignment.employee_display_name || assignment.user_display_name || 'Assegnatario non definito'}</p>
                             <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>{assignment.stato}</span>
                           </div>
                           <div className="mt-2 grid gap-3 md:grid-cols-2">
                             <Info label="Assegnato il" value={formatDateTime(assignment.assegnato_il)} />
                             <Info label="Riconsegnato il" value={formatDateTime(assignment.riconsegnato_il)} />
                             <Info label="Documento assegnazione" value={assignment.documento_assegnazione_numero || '—'} />
+                            <Info label="Assegnatario persona" value={assignment.employee_display_name || '---'} />
+                            <Info label="Assegnatario reparto/sede" value={assignment.organization_display_name || '---'} />
                             <Info label="Km iniziali" value={assignment.km_iniziali.toLocaleString('it-IT')} />
                             <Info label="Documento restituzione" value={assignment.documento_restituzione_numero || '—'} />
                             <Info label="Km finali" value={assignment.km_finali?.toLocaleString('it-IT') || '—'} />
                           </div>
                           {assignment.note ? <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{assignment.note}</p> : null}
                           {!assignment.riconsegnato_il ? (
+                            <>
                             <button
                               type="button"
                               className="mt-3 text-sm font-medium"
@@ -954,10 +1066,27 @@ export default function FleetDetailClientPage() {
                                   documento_restituzione_data: assignment.documento_restituzione_data || '',
                                   note: '',
                                 });
+                                setActionModal('return');
                               }}
                             >
                               Apri restituzione mezzo
                             </button>
+                            <button
+                              type="button"
+                              className="mt-3 ml-4 text-sm font-medium"
+                              style={{ color: 'var(--cv-primary)' }}
+                              onClick={() => {
+                                setExtensionForm({
+                                  assignment_id: String(assignment.id),
+                                  riconsegnato_il: assignment.riconsegnato_il || '',
+                                  note: '',
+                                });
+                                setActionModal('extension');
+                              }}
+                            >
+                              Proroga consegna
+                            </button>
+                            </>
                           ) : null}
                         </div>
                       ))}
@@ -1028,7 +1157,7 @@ export default function FleetDetailClientPage() {
                         })
                           .then(async () => {
                             setSuccess('Assegnazione del mezzo registrata.');
-                            setAssignmentForm({ employee_id: '', km_iniziali: '', assegnato_il: '', riconsegnato_il: '', documento_assegnazione_numero: '', note: '', note_responsabile: '', note_assegnatario: '', stato: 'assegnato' });
+                            setAssignmentForm({ employee_id: '', organization_id: '', km_iniziali: '', assegnato_il: '', riconsegnato_il: '', documento_assegnazione_numero: '', note: '', note_responsabile: '', note_assegnatario: '', stato: 'assegnato' });
                             await loadVehicle();
                           })
                           .catch((err) => setError(err.message || 'Impossibile registrare l’assegnazione.'));
@@ -1439,24 +1568,74 @@ export default function FleetDetailClientPage() {
         footer={(
           <>
             <Button type="button" variant="outline" onClick={() => setActionModal(null)}>Annulla</Button>
-            <Button type="button" disabled={!assignmentForm.employee_id || !assignmentForm.km_iniziali} onClick={() => submitAssignment().catch((err) => setError(err.message || 'Impossibile assegnare il mezzo.'))}>
+            <Button
+              type="button"
+              disabled={(!assignmentForm.employee_id && !assignmentForm.organization_id) || !assignmentForm.km_iniziali || (needsKmConfirmation && !kmConfirmed)}
+              onClick={() => submitAssignment().catch((err) => setError(err.message || 'Impossibile assegnare il mezzo.'))}
+            >
               Assegna e registra comunicazione
             </Button>
           </>
         )}
       >
         <div className="grid gap-3 md:grid-cols-2">
-          <Select label="Assegnatario" value={assignmentForm.employee_id} onChange={(event) => setAssignmentForm((current) => ({ ...current, employee_id: event.target.value }))} options={employeeOptions} />
-          <Input label="Km consegna" type="number" value={assignmentForm.km_iniziali} onChange={(event) => setAssignmentForm((current) => ({ ...current, km_iniziali: event.target.value }))} />
+          <Input label="Cerca personale" value={employeeSearch} onChange={(event) => setEmployeeSearch(event.target.value)} placeholder="Cognome, nome, matricola o codice fiscale..." />
+          <Select label="Assegnatario persona" value={assignmentForm.employee_id} onChange={(event) => setAssignmentForm((current) => ({ ...current, employee_id: event.target.value }))} options={employeeOptions} />
+          <Input label="Cerca reparto o sede" value={assignmentUnitSearch} onChange={(event) => setAssignmentUnitSearch(event.target.value)} placeholder="Distretto, sala operativa, vivaio..." />
+          <Select label="Assegnatario reparto/sede" value={assignmentForm.organization_id} onChange={(event) => setAssignmentForm((current) => ({ ...current, organization_id: event.target.value }))} options={assignmentUnitOptions} />
+          <Input
+            label="Km consegna"
+            type="number"
+            value={assignmentForm.km_iniziali}
+            onChange={(event) => {
+              setKmConfirmed(false);
+              setAssignmentForm((current) => ({ ...current, km_iniziali: event.target.value }));
+            }}
+          />
           <Input label="Data e ora consegna" type="datetime-local" value={assignmentForm.assegnato_il} onChange={(event) => setAssignmentForm((current) => ({ ...current, assegnato_il: event.target.value }))} />
           <Input label="Scadenza prevista / proroga" type="datetime-local" value={assignmentForm.riconsegnato_il} onChange={(event) => setAssignmentForm((current) => ({ ...current, riconsegnato_il: event.target.value }))} />
-          <Input label="Numero verbale" value={assignmentForm.documento_assegnazione_numero} onChange={(event) => setAssignmentForm((current) => ({ ...current, documento_assegnazione_numero: event.target.value }))} placeholder="Automatico se vuoto" />
+          <Input label="Numero verbale" value="Progressivo automatico alla conferma" disabled />
+          {needsKmConfirmation ? (
+            <div className="md:col-span-2 rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-warning)', background: 'rgba(180, 83, 9, 0.06)' }}>
+              <p className="text-sm font-semibold" style={{ color: 'var(--cv-warning)' }}>
+                Stai registrando {Math.abs(kmDelta).toLocaleString('it-IT')} km {kmDelta > 0 ? 'in piu' : 'in meno'} rispetto all&apos;ultima registrazione.
+              </p>
+              <label className="mt-3 flex items-start gap-2 text-sm" style={{ color: 'var(--cv-neutral-700)' }}>
+                <input type="checkbox" checked={kmConfirmed} onChange={(event) => setKmConfirmed(event.target.checked)} className="mt-1" />
+                <span>Confermo che i km inseriti sono esatti e verificati visivamente sul contachilometri.</span>
+              </label>
+              <div className="mt-3">
+                <TextareaField label="Nota verifica km" value={kmConfirmationNote} onChange={setKmConfirmationNote} />
+              </div>
+            </div>
+          ) : null}
           <div className="md:col-span-2">
             <TextareaField label="Note responsabile / delegato" value={assignmentForm.note_responsabile} onChange={(value) => setAssignmentForm((current) => ({ ...current, note_responsabile: value }))} />
           </div>
           <div className="md:col-span-2">
             <TextareaField label="Note assegnatario" value={assignmentForm.note_assegnatario} onChange={(value) => setAssignmentForm((current) => ({ ...current, note_assegnatario: value }))} />
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={actionModal === 'extension'}
+        onClose={() => setActionModal(null)}
+        title="Proroga consegna"
+        description="Aggiorna solo la data prevista di riconsegna. Gli altri dati del verbale restano bloccati."
+        size="md"
+        footer={(
+          <>
+            <Button type="button" variant="outline" onClick={() => setActionModal(null)}>Annulla</Button>
+            <Button type="button" disabled={!extensionForm.assignment_id || !extensionForm.riconsegnato_il} onClick={() => submitExtension().catch((err) => setError(err.message || 'Impossibile registrare la proroga.'))}>
+              Conferma proroga
+            </Button>
+          </>
+        )}
+      >
+        <div className="grid gap-3">
+          <Input label="Nuova data prevista di riconsegna" type="datetime-local" value={extensionForm.riconsegnato_il} onChange={(event) => setExtensionForm((current) => ({ ...current, riconsegnato_il: event.target.value }))} />
+          <TextareaField label="Note proroga" value={extensionForm.note} onChange={(value) => setExtensionForm((current) => ({ ...current, note: value }))} />
         </div>
       </Modal>
 

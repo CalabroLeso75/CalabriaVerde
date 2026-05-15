@@ -343,3 +343,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato con workaround infrastrutturale stabile.  
 **Verifiche eseguite:** `curl -I https://smart-cv.it/test/login/` da hosting `200`; `curl -i https://82-165-198-214.sslip.io/api/health -H 'Origin: https://smart-cv.it'` `200` con header `Access-Control-Allow-Origin`; login API verificato via Python sul VPS con credenziali admin `200`; rebuild locale completato per `/gestionale/collaudo` e `/gestionale/test`; `curl -I http://127.0.0.1:3000/gestionale/collaudo/login/` `200`; `curl -I http://127.0.0.1:3000/gestionale/test/login/` `200`; verifica dei bundle locali con endpoint `https://82-165-198-214.sslip.io/api`.  
 **Note utili:** il dominio `smart-cv.it` continua a pubblicare record DNS esterni (`A 217.160.0.247`, `AAAA 2001:8d8:100f:f000::200`), quindi l'API non puo' tornare su `smart-cv.it/api` finche' i DNS non verranno riallineati o instradati esplicitamente verso il VPS.  
+
+## 2026-05-15 14:10:00 - Rifinitura workflow assegnazione mezzi
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** aggiornato il workflow di assegnazione mezzi con ricerca server-side del personale interno, visualizzazione della data di nascita per evitare omonimie, assegnazione opzionale a reparto/sede aziendale, verbale progressivo automatico non modificabile, conferma obbligatoria quando i km consegna differiscono dall'ultima registrazione, proroga con documento/comunicazione ufficiale e anteprima mezzi con scadenze assicurazione/revisione colorate. La lista mezzi ora distingue assegnatario, reparto/sede e utilizzatore corrente.  
+**File coinvolti:** `backend/app/models/fleet.py`, `backend/app/schemas/fleet.py`, `backend/app/api/fleet/router.py`, `backend/migrations/versions/009_fleet_assignment_units.py`, `frontend/src/components/fleet/FleetDetailClientPage.tsx`, `frontend/src/components/fleet/FleetRegistryClientPage.tsx`.  
+**Esito:** completato in Collaudo locale.  
+**Verifiche eseguite:** migration locale fino a `009_fleet_assignment_units`, `py_compile` backend fleet, smoke API autenticato con `GET /api/fleet/assignment-units`, `GET /api/fleet/vehicles`, `GET /api/fleet/vehicles/1` tutti `200`, `npm run lint` senza errori, `npm run build` OK.  
+**Note utili:** sul DB locale `organizations` non espone ancora tutte le colonne del modello moderno; il router fleet usa `load_only` e query a colonne esplicite per non dipendere da campi non necessari come `pec`.

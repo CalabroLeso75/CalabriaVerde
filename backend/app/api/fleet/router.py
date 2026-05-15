@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, load_only
 
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -23,6 +23,7 @@ from app.models.fleet import (
     VehicleType,
     VehicleUsageLog,
 )
+from app.models.organization import Organization
 from app.models.user import User
 from app.schemas.fleet import (
     CommunicationLogResponse,
@@ -34,9 +35,11 @@ from app.schemas.fleet import (
     FleetGroupCreate,
     FleetGroupResponse,
     FleetSummaryResponse,
+    FleetAssignmentUnitResponse,
     FleetVehicleAlertCreate,
     FleetVehicleAlertResponse,
     FleetVehicleAssignmentCreate,
+    FleetVehicleAssignmentExtensionCreate,
     FleetVehicleAssignmentReturn,
     FleetVehicleAssignmentResponse,
     FleetVehicleDetailResponse,
@@ -63,6 +66,12 @@ def assignment_display_name(assignment: VehicleAssignment) -> str | None:
         if getattr(assignment.user, "employee", None):
             return f"{assignment.user.employee.cognome} {assignment.user.employee.nome}"
         return assignment.user.email
+    return None
+
+
+def assignment_unit_name(assignment: VehicleAssignment) -> str | None:
+    if assignment.organization:
+        return f"{assignment.organization.name} ({assignment.organization.code})"
     return None
 
 
@@ -435,6 +444,44 @@ async def create_communication_target(
     )
 
 
+@router.get("/assignment-units", response_model=list[FleetAssignmentUnitResponse])
+async def list_assignment_units(
+    search: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del current_user
+    query = db.query(
+        Organization.id,
+        Organization.code,
+        Organization.name,
+        Organization.type,
+        Organization.province,
+    ).filter(Organization.is_active == True)  # noqa: E712
+    if search:
+        term = f"%{search}%"
+        query = query.filter(
+            or_(
+                Organization.code.ilike(term),
+                Organization.name.ilike(term),
+                Organization.city.ilike(term),
+                Organization.province.ilike(term),
+            )
+        )
+
+    items = query.order_by(Organization.type.asc(), Organization.name.asc()).limit(100).all()
+    return [
+        FleetAssignmentUnitResponse(
+            id=item.id,
+            code=item.code,
+            name=item.name,
+            type=item.type,
+            province=item.province,
+        )
+        for item in items
+    ]
+
+
 @router.get("/vehicles", response_model=FleetVehicleListResponse)
 async def list_vehicles(
     search: str | None = Query(default=None),
@@ -450,6 +497,11 @@ async def list_vehicles(
         joinedload(Vehicle.vehicle_type),
         joinedload(Vehicle.assignments).joinedload(VehicleAssignment.user),
         joinedload(Vehicle.assignments).joinedload(VehicleAssignment.employee),
+        joinedload(Vehicle.assignments)
+        .joinedload(VehicleAssignment.organization)
+        .load_only(Organization.id, Organization.code, Organization.name, Organization.type, Organization.province),
+        joinedload(Vehicle.usage_logs).joinedload(VehicleUsageLog.user),
+        joinedload(Vehicle.usage_logs).joinedload(VehicleUsageLog.employee),
         joinedload(Vehicle.incidents),
     )
 
@@ -479,6 +531,7 @@ async def list_vehicles(
     payload: list[FleetVehicleListItem] = []
     for item in items:
         active_assignment = next((a for a in item.assignments if a.riconsegnato_il is None), None)
+        active_usage = next((u for u in item.usage_logs if u.ended_at is None), None)
         open_incidents = sum(1 for incident in item.incidents if incident.data_chiusura is None)
         payload.append(
             FleetVehicleListItem(
@@ -495,6 +548,8 @@ async def list_vehicles(
                 localizzazione_corrente=item.localizzazione_corrente,
                 vehicle_type_name=item.vehicle_type.name if item.vehicle_type else None,
                 current_assignee=assignment_display_name(active_assignment) if active_assignment else None,
+                current_assignment_unit=assignment_unit_name(active_assignment) if active_assignment else None,
+                current_user_name=actor_display_name(active_usage.user, active_usage.employee) if active_usage else None,
                 open_incidents=open_incidents,
             )
         )
@@ -660,8 +715,16 @@ async def create_vehicle_assignment(
     vehicle = load_vehicle_or_404(db, vehicle_id)
     employee_id = data.employee_id or current_user_employee_id(db, current_user)
     employee = db.query(Employee).filter(Employee.id == employee_id).first() if employee_id else None
+    organization = (
+        db.query(Organization.id, Organization.code, Organization.name, Organization.type, Organization.province)
+        .filter(Organization.id == data.organization_id)
+        .first()
+        if data.organization_id else None
+    )
+    if data.organization_id and not organization:
+        raise HTTPException(status_code=404, detail="Reparto o sede di assegnazione non trovato")
     assignor_employee_id = current_user_employee_id(db, current_user)
-    official_number = data.documento_assegnazione_numero or next_official_number(db)
+    official_number = next_official_number(db)
     assignment_notes = "\n".join(
         part for part in [
             data.note,
@@ -674,6 +737,7 @@ async def create_vehicle_assignment(
         vehicle_id=vehicle_id,
         user_id=data.user_id or current_user.id,
         employee_id=employee_id,
+        organization_id=organization.id if organization else None,
         km_iniziali=data.km_iniziali,
         assegnato_il=data.assegnato_il or datetime.now(timezone.utc),
         riconsegnato_il=data.riconsegnato_il,
@@ -727,6 +791,12 @@ async def create_vehicle_assignment(
                 "email": (employee.email_istituzionale or employee.email_personale or employee.pec) if employee else None,
                 "phone": (employee.telefono_lavoro or employee.telefono_personale or employee.telefono_secondario) if employee else None,
             },
+            "assignment_unit": {
+                "organization_id": organization.id if organization else None,
+                "display_name": f"{organization.name} ({organization.code})" if organization else None,
+                "type": organization.type if organization else None,
+                "province": organization.province if organization else None,
+            },
             "assignor": {
                 "user_id": current_user.id,
                 "display_name": actor_display_name(current_user, None),
@@ -764,6 +834,7 @@ async def create_vehicle_assignment(
         vehicle_id=assignment.vehicle_id,
         user_id=assignment.user_id,
         employee_id=assignment.employee_id,
+        organization_id=assignment.organization_id,
         km_iniziali=assignment.km_iniziali,
         km_finali=assignment.km_finali,
         assegnato_il=assignment.assegnato_il,
@@ -776,6 +847,7 @@ async def create_vehicle_assignment(
         note=assignment.note,
         user_display_name=actor_display_name(current_user, None),
         employee_display_name=actor_display_name(None, employee),
+        organization_display_name=f"{organization.name} ({organization.code})" if organization else None,
     )
 
 
@@ -788,7 +860,13 @@ async def return_vehicle_assignment(
 ):
     assignment = (
         db.query(VehicleAssignment)
-        .options(joinedload(VehicleAssignment.user), joinedload(VehicleAssignment.employee))
+        .options(
+            joinedload(VehicleAssignment.user),
+            joinedload(VehicleAssignment.employee),
+            joinedload(VehicleAssignment.organization).load_only(
+                Organization.id, Organization.code, Organization.name, Organization.type, Organization.province
+            ),
+        )
         .filter(VehicleAssignment.id == assignment_id)
         .first()
     )
@@ -817,6 +895,7 @@ async def return_vehicle_assignment(
         vehicle_id=assignment.vehicle_id,
         user_id=assignment.user_id,
         employee_id=assignment.employee_id,
+        organization_id=assignment.organization_id,
         km_iniziali=assignment.km_iniziali,
         km_finali=assignment.km_finali,
         assegnato_il=assignment.assegnato_il,
@@ -829,6 +908,104 @@ async def return_vehicle_assignment(
         note=assignment.note,
         user_display_name=actor_display_name(assignment.user or current_user, None),
         employee_display_name=actor_display_name(None, employee),
+        organization_display_name=assignment_unit_name(assignment),
+    )
+
+
+@router.patch("/assignments/{assignment_id}/extend", response_model=FleetVehicleAssignmentResponse)
+async def extend_vehicle_assignment(
+    assignment_id: int,
+    data: FleetVehicleAssignmentExtensionCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    assignment = (
+        db.query(VehicleAssignment)
+        .options(
+            joinedload(VehicleAssignment.user),
+            joinedload(VehicleAssignment.employee),
+            joinedload(VehicleAssignment.organization).load_only(
+                Organization.id, Organization.code, Organization.name, Organization.type, Organization.province
+            ),
+        )
+        .filter(VehicleAssignment.id == assignment_id)
+        .first()
+    )
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assegnazione mezzo non trovata")
+    vehicle = load_vehicle_or_404(db, assignment.vehicle_id)
+    old_due = assignment.riconsegnato_il
+    assignment.riconsegnato_il = data.riconsegnato_il
+    extension_note = (
+        f"Proroga consegna da {old_due.isoformat() if old_due else 'data non indicata'} "
+        f"a {data.riconsegnato_il.isoformat()}."
+    )
+    if data.note:
+        extension_note = f"{extension_note} Note proroga: {data.note}"
+    assignment.note = "\n".join([part for part in [assignment.note, extension_note] if part]).strip() or assignment.note
+
+    official_number = next_official_number(db)
+    employee = assignment.employee
+    targets = resolve_targets(db, module_scope="fleet", province_code=None)
+    communication = register_communication(
+        db,
+        module_scope="fleet",
+        compartment_scope="parco_macchine",
+        event_type="proroga_assegnazione_mezzo",
+        channel="sistema",
+        subject=f"Proroga assegnazione mezzo {vehicle.targa} - {official_number}",
+        message=(
+            f"Documento proroga {official_number}. Mezzo {vehicle.targa} {vehicle.marca} {vehicle.modello}. "
+            f"Nuova data prevista di riconsegna: {data.riconsegnato_il.isoformat()}."
+        ),
+        related_table="vehicles",
+        related_id=vehicle.id,
+        sender_user_id=current_user.id,
+        sender_employee_id=current_user_employee_id(db, current_user),
+        metadata_json={
+            "official_number": official_number,
+            "document_type": "verbale_proroga_assegnazione_mezzo",
+            "assignment_id": assignment.id,
+            "old_expected_return_at": old_due.isoformat() if old_due else None,
+            "new_expected_return_at": data.riconsegnato_il.isoformat(),
+            "note": data.note,
+        },
+        targets=targets,
+    )
+
+    for channel, destination in employee_channels(employee):
+        db.add(
+            CommunicationRecipient(
+                communication_log_id=communication.id,
+                recipient_employee_id=employee.id if employee else None,
+                recipient_label=actor_display_name(None, employee) or "Assegnatario mezzo",
+                channel=channel,
+                destination=destination,
+                delivery_status="registrata",
+            )
+        )
+
+    db.commit()
+    db.refresh(assignment)
+    return FleetVehicleAssignmentResponse(
+        id=assignment.id,
+        vehicle_id=assignment.vehicle_id,
+        user_id=assignment.user_id,
+        employee_id=assignment.employee_id,
+        organization_id=assignment.organization_id,
+        km_iniziali=assignment.km_iniziali,
+        km_finali=assignment.km_finali,
+        assegnato_il=assignment.assegnato_il,
+        riconsegnato_il=assignment.riconsegnato_il,
+        documento_assegnazione_numero=assignment.documento_assegnazione_numero,
+        documento_assegnazione_data=assignment.documento_assegnazione_data,
+        documento_restituzione_numero=assignment.documento_restituzione_numero,
+        documento_restituzione_data=assignment.documento_restituzione_data,
+        stato=assignment.stato,
+        note=assignment.note,
+        user_display_name=actor_display_name(assignment.user or current_user, None),
+        employee_display_name=actor_display_name(None, employee),
+        organization_display_name=assignment_unit_name(assignment),
     )
 
 
@@ -978,6 +1155,9 @@ async def get_vehicle_detail(
             joinedload(Vehicle.revisions),
             joinedload(Vehicle.assignments).joinedload(VehicleAssignment.user),
             joinedload(Vehicle.assignments).joinedload(VehicleAssignment.employee),
+            joinedload(Vehicle.assignments)
+            .joinedload(VehicleAssignment.organization)
+            .load_only(Organization.id, Organization.code, Organization.name, Organization.type, Organization.province),
             joinedload(Vehicle.usage_logs).joinedload(VehicleUsageLog.user),
             joinedload(Vehicle.usage_logs).joinedload(VehicleUsageLog.employee),
             joinedload(Vehicle.alerts).joinedload(VehicleAlert.user),
@@ -1034,6 +1214,7 @@ async def get_vehicle_detail(
                 vehicle_id=item.vehicle_id,
                 user_id=item.user_id,
                 employee_id=item.employee_id,
+                organization_id=item.organization_id,
                 km_iniziali=item.km_iniziali,
                 km_finali=item.km_finali,
                 assegnato_il=item.assegnato_il,
@@ -1046,6 +1227,7 @@ async def get_vehicle_detail(
                 note=item.note,
                 user_display_name=item.user.email if item.user else None,
                 employee_display_name=assignment_display_name(item),
+                organization_display_name=assignment_unit_name(item),
             )
             for item in vehicle.assignments
         ],

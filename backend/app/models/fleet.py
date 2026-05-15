@@ -172,6 +172,7 @@ class VehicleAssignment(Base):
     vehicle_id = Column(Integer, ForeignKey("vehicles.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     employee_id = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True)
 
     km_iniziali = Column(Integer, nullable=False)
     km_finali = Column(Integer, nullable=True)
@@ -193,6 +194,7 @@ class VehicleAssignment(Base):
     vehicle = relationship("Vehicle", back_populates="assignments")
     user = relationship("User", foreign_keys=[user_id])
     employee = relationship("Employee", foreign_keys=[employee_id])
+    organization = relationship("Organization", foreign_keys=[organization_id])
 
 
 class VehicleIncident(Base):

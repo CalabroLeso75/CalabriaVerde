@@ -13,4 +13,5 @@ foreach ($service in $services) {
 Write-Host ""
 Write-Host ("Collaudo: http://127.0.0.1:{0}/gestionale/collaudo/login/" -f $Script:FrontendPort)
 Write-Host ("Test:      http://127.0.0.1:{0}/gestionale/test/login/" -f $Script:FrontendPort)
-Write-Host "API:       https://smart-cv.it/api"
+Write-Host ("API Test:  {0}" -f $Script:TestApiUrl)
+Write-Host ("API Coll.: {0}" -f $Script:TestApiUrl)

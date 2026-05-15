@@ -11,6 +11,7 @@ $Script:FrontendPort = 3000
 $Script:PythonExe = Join-Path $Script:ProjectRoot "backend\venv\Scripts\python.exe"
 $Script:FrontendDir = Join-Path $Script:ProjectRoot "frontend"
 $Script:BackendDir = Join-Path $Script:ProjectRoot "backend"
+$Script:TestApiUrl = "https://82-165-198-214.sslip.io/api"
 
 function Initialize-LocalRuntime {
     foreach ($path in @($Script:RuntimeRoot, $Script:PidRoot, $Script:LogRoot, $Script:SiteRoot)) {
@@ -147,7 +148,7 @@ function Build-FrontendVariant {
             Remove-Item -LiteralPath "out" -Recurse -Force
         }
 
-        $env:NEXT_PUBLIC_API_URL = "https://smart-cv.it/api"
+        $env:NEXT_PUBLIC_API_URL = $Script:TestApiUrl
         $env:NEXT_PUBLIC_BASE_PATH = $BasePath
         $env:NEXT_PUBLIC_APP_NAME = "Gestionale Calabria Verde"
         $env:NEXT_PUBLIC_APP_VERSION = "1.0.0"
@@ -191,10 +192,30 @@ function Start-BackendLocal {
     $env:APP_ENV = "development"
     $env:APP_DEBUG = "true"
 
+    $wrapperPath = Join-Path $Script:RuntimeRoot "backend-local-wrapper.ps1"
+    $backendCommand = @'
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Set-Location '__BACKEND_DIR__'
+$env:DB_HOST='localhost'
+$env:DB_PORT='3306'
+$env:DB_NAME='gestionale_cv'
+$env:DB_USER='root'
+$env:DB_PASSWORD=''
+$env:LOCAL_DB_NO_PASSWORD='true'
+$env:APP_ENV='development'
+$env:APP_DEBUG='true'
+& '__PYTHON_EXE__' -m uvicorn main:app --host 127.0.0.1 --port __BACKEND_PORT__
+'@
+    $backendCommand = $backendCommand.Replace('__BACKEND_DIR__', $Script:BackendDir)
+    $backendCommand = $backendCommand.Replace('__PYTHON_EXE__', $Script:PythonExe)
+    $backendCommand = $backendCommand.Replace('__BACKEND_PORT__', [string]$Script:BackendPort)
+    Set-Content -LiteralPath $wrapperPath -Value $backendCommand -Encoding ascii
+
     Start-ManagedProcess `
         -Name "backend-local" `
-        -FilePath $Script:PythonExe `
-        -ArgumentList @("-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "$($Script:BackendPort)") `
+        -FilePath "powershell.exe" `
+        -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $wrapperPath) `
         -WorkingDirectory $Script:BackendDir | Out-Null
 
     if (-not (Wait-ForPort -Port $Script:BackendPort)) {
@@ -221,7 +242,31 @@ function Start-FrontendStaticHost {
 
 function Start-CollaudoOnly {
     Prepare-SiteRoot
-    Build-FrontendVariant -BasePath "/gestionale/collaudo" -TargetFolder "gestionale\collaudo"
+    Push-Location $Script:FrontendDir
+    try {
+        if (Test-Path "out") {
+            Remove-Item -LiteralPath "out" -Recurse -Force
+        }
+
+        $env:NEXT_PUBLIC_API_URL = $Script:TestApiUrl
+        $env:NEXT_PUBLIC_BASE_PATH = "/gestionale/collaudo"
+        $env:NEXT_PUBLIC_APP_NAME = "Gestionale Calabria Verde"
+        $env:NEXT_PUBLIC_APP_VERSION = "1.0.0"
+
+        & npm.cmd run build
+        if ($LASTEXITCODE -ne 0) {
+            throw "Build frontend non riuscita per /gestionale/collaudo"
+        }
+
+        $targetPath = Join-Path $Script:SiteRoot "gestionale\collaudo"
+        if (Test-Path $targetPath) {
+            Remove-Item -LiteralPath $targetPath -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+        Copy-Item -Path (Join-Path $Script:FrontendDir "out\*") -Destination $targetPath -Recurse -Force
+    } finally {
+        Pop-Location
+    }
     Start-FrontendStaticHost
 }
 
@@ -233,7 +278,32 @@ function Start-TestOnly {
 
 function Start-AllLocal {
     Prepare-SiteRoot
-    Build-FrontendVariant -BasePath "/gestionale/collaudo" -TargetFolder "gestionale\collaudo"
+    Push-Location $Script:FrontendDir
+    try {
+        if (Test-Path "out") {
+            Remove-Item -LiteralPath "out" -Recurse -Force
+        }
+
+        $env:NEXT_PUBLIC_API_URL = $Script:TestApiUrl
+        $env:NEXT_PUBLIC_BASE_PATH = "/gestionale/collaudo"
+        $env:NEXT_PUBLIC_APP_NAME = "Gestionale Calabria Verde"
+        $env:NEXT_PUBLIC_APP_VERSION = "1.0.0"
+
+        & npm.cmd run build
+        if ($LASTEXITCODE -ne 0) {
+            throw "Build frontend non riuscita per /gestionale/collaudo"
+        }
+
+        $collaudoTarget = Join-Path $Script:SiteRoot "gestionale\collaudo"
+        if (Test-Path $collaudoTarget) {
+            Remove-Item -LiteralPath $collaudoTarget -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path $collaudoTarget -Force | Out-Null
+        Copy-Item -Path (Join-Path $Script:FrontendDir "out\*") -Destination $collaudoTarget -Recurse -Force
+    } finally {
+        Pop-Location
+    }
+
     Build-FrontendVariant -BasePath "/gestionale/test" -TargetFolder "gestionale\test"
     Start-FrontendStaticHost
 }
@@ -247,6 +317,7 @@ function Show-LocalEndpoints {
     Write-Host ("  http://127.0.0.1:{0}/gestionale/test/login/" -f $Script:FrontendPort)
     Write-Host ""
     Write-Host "API usata dal frontend locale:"
-    Write-Host "  https://smart-cv.it/api"
+    Write-Host ("  Collaudo: {0}" -f $Script:TestApiUrl)
+    Write-Host ("  Test:      {0}" -f $Script:TestApiUrl)
     Write-Host ""
 }

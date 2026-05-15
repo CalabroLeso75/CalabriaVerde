@@ -321,3 +321,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato su Collaudo locale e ripubblicato su Test.  
 **Verifiche eseguite:** `npm run build` frontend; rebuild statico locale per `/gestionale/collaudo` e `/gestionale/test`; `curl -I http://127.0.0.1:3000/gestionale/collaudo/login/` `200`; `curl -I http://127.0.0.1:3000/gestionale/test/login/` `200`; controllo del contenuto generato locale con presenza del cleanup `navigator.serviceWorker.getRegistrations()`; rebuild `NEXT_PUBLIC_BASE_PATH=/test`, upload frontend su hosting e verifica server-side del file `login/index.html` pubblicato su `smart-cv.it/test`.  
 **Note utili:** il browser che aveva gia' un vecchio service worker puo' richiedere un primo caricamento della nuova login per completare l'unregister, ma dalla build pubblicata in poi il frontend non registra piu' nuove cache attive.  
+
+## 2026-05-15 02:24:00 - Ripristino accesso Test con endpoint HTTPS stabile
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-003 - Deploy e integrazione ambienti Test/Produzione  
+**Azione svolta:** individuato il disallineamento DNS che impediva al frontend pubblico di raggiungere l'API sul VPS (`smart-cv.it` risolve verso hosting esterno, non verso il VPS), predisposto un endpoint HTTPS stabile sul VPS `https://82-165-198-214.sslip.io/api`, emesso certificato Let's Encrypt dedicato, aggiornato nginx sul VPS, ricostruita la build pubblica `smart-cv.it/test` puntandola al nuovo endpoint e riallineati anche gli script del runtime locale per usare lo stesso backend stabile sia su `/gestionale/test` sia su `/gestionale/collaudo`.  
+**File coinvolti:** `scripts/local/Common.ps1`, `scripts/local/Status.ps1`, `frontend/out`, hosting `smart-cv.it/test`, configurazione nginx e certbot sul VPS.  
+**Esito:** completato con workaround infrastrutturale stabile.  
+**Verifiche eseguite:** `curl -I https://smart-cv.it/test/login/` da hosting `200`; `curl -i https://82-165-198-214.sslip.io/api/health -H 'Origin: https://smart-cv.it'` `200` con header `Access-Control-Allow-Origin`; login API verificato via Python sul VPS con credenziali admin `200`; rebuild locale completato per `/gestionale/collaudo` e `/gestionale/test`; `curl -I http://127.0.0.1:3000/gestionale/collaudo/login/` `200`; `curl -I http://127.0.0.1:3000/gestionale/test/login/` `200`; verifica dei bundle locali con endpoint `https://82-165-198-214.sslip.io/api`.  
+**Note utili:** il dominio `smart-cv.it` continua a pubblicare record DNS esterni (`A 217.160.0.247`, `AAAA 2001:8d8:100f:f000::200`), quindi l'API non puo' tornare su `smart-cv.it/api` finche' i DNS non verranno riallineati o instradati esplicitamente verso il VPS.  

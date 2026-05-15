@@ -9,7 +9,6 @@ export function getAppBasePath() {
 }
 
 export function withAppBasePath(path: string) {
-  const basePath = getAppBasePath();
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const [pathWithoutHash, hash = ''] = normalizedPath.split('#');
   const [pathname, query = ''] = pathWithoutHash.split('?');
@@ -23,13 +22,5 @@ export function withAppBasePath(path: string) {
 
   const rebuiltPath = `${normalizedPathname}${query ? `?${query}` : ''}${hash ? `#${hash}` : ''}`;
 
-  if (!basePath) {
-    return rebuiltPath;
-  }
-
-  if (rebuiltPath === basePath || rebuiltPath.startsWith(`${basePath}/`)) {
-    return rebuiltPath;
-  }
-
-  return `${basePath}${rebuiltPath}`.replace(/\/{2,}/g, '/');
+  return rebuiltPath;
 }

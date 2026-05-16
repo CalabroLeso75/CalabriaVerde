@@ -16,10 +16,13 @@ from app.models.fleet import (
     Vehicle,
     VehicleAlert,
     VehicleAssignment,
+    VehicleBrand,
     VehicleDocument,
     VehicleIncident,
     VehicleInsuranceRecord,
+    VehicleModel,
     VehicleRevision,
+    VehicleTrim,
     VehicleType,
     VehicleUsageLog,
 )
@@ -36,6 +39,9 @@ from app.schemas.fleet import (
     FleetGroupResponse,
     FleetSummaryResponse,
     FleetAssignmentUnitResponse,
+    FleetPhysicalVehicleCreate,
+    FleetPhysicalVehicleCreateResponse,
+    FleetVehicleBrandResponse,
     FleetVehicleAlertCreate,
     FleetVehicleAlertResponse,
     FleetVehicleAssignmentCreate,
@@ -49,12 +55,16 @@ from app.schemas.fleet import (
     FleetVehicleInsuranceRecordResponse,
     FleetVehicleListItem,
     FleetVehicleListResponse,
+    FleetVehicleModelResponse,
     FleetVehicleRevisionCreate,
     FleetVehicleRevisionResponse,
+    FleetVehicleTrimCreate,
+    FleetVehicleTrimResponse,
     FleetVehicleUsageCreate,
     FleetVehicleUsageLogResponse,
 )
 from app.services.communication_log import register_communication, resolve_targets
+from app.services.fleet_catalog import FleetCatalogService, PhysicalVehicleSpec, TrimSpec
 
 router = APIRouter()
 
@@ -273,6 +283,126 @@ async def list_vehicle_types(
         }
         for item in items
     ]
+
+
+@router.get("/catalog/brands", response_model=list[FleetVehicleBrandResponse])
+async def list_vehicle_brands(
+    search: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del current_user
+    query = db.query(VehicleBrand)
+    if search:
+        term = f"%{search.strip()}%"
+        query = query.filter(or_(VehicleBrand.name.ilike(term), VehicleBrand.normalized_name.ilike(term)))
+    return query.order_by(VehicleBrand.name.asc()).limit(100).all()
+
+
+@router.get("/catalog/models", response_model=list[FleetVehicleModelResponse])
+async def list_vehicle_models(
+    brand_id: int | None = Query(default=None),
+    search: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del current_user
+    query = db.query(VehicleModel).options(joinedload(VehicleModel.brand))
+    if brand_id:
+        query = query.filter(VehicleModel.brand_id == brand_id)
+    if search:
+        term = f"%{search.strip()}%"
+        query = query.filter(or_(VehicleModel.name.ilike(term), VehicleModel.normalized_name.ilike(term)))
+    return query.order_by(VehicleModel.name.asc()).limit(100).all()
+
+
+@router.get("/catalog/trims", response_model=list[FleetVehicleTrimResponse])
+async def list_vehicle_trims(
+    search: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del current_user
+    return FleetCatalogService(db).search_trims(search, limit=100)
+
+
+@router.post("/catalog/trims", response_model=FleetVehicleTrimResponse, status_code=status.HTTP_201_CREATED)
+async def create_vehicle_trim(
+    data: FleetVehicleTrimCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del current_user
+    try:
+        trim = FleetCatalogService(db).get_or_create_trim(
+            TrimSpec(
+                brand_name=data.brand_name,
+                model_name=data.model_name,
+                vehicle_category=data.vehicle_category,
+                production_year=data.production_year,
+                engine_type=data.engine_type,
+                displacement_cc=data.displacement_cc,
+                horsepower_hp=data.horsepower_hp,
+                source=data.source,
+            )
+        )
+        db.commit()
+        return trim
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/catalog/vehicles", response_model=FleetPhysicalVehicleCreateResponse, status_code=status.HTTP_201_CREATED)
+async def create_physical_vehicle(
+    data: FleetPhysicalVehicleCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del current_user
+    trim_spec = None
+    if data.trim:
+        trim_spec = TrimSpec(
+            brand_name=data.trim.brand_name,
+            model_name=data.trim.model_name,
+            vehicle_category=data.trim.vehicle_category,
+            production_year=data.trim.production_year,
+            engine_type=data.trim.engine_type,
+            displacement_cc=data.trim.displacement_cc,
+            horsepower_hp=data.trim.horsepower_hp,
+            source=data.trim.source,
+        )
+    try:
+        vehicle, created_from = FleetCatalogService(db).create_physical_vehicle(
+            PhysicalVehicleSpec(
+                license_plate=data.license_plate,
+                vin_code=data.vin_code,
+                status=data.status,
+                trim_id=data.trim_id,
+                trim=trim_spec,
+                allow_external_lookup=data.allow_external_lookup,
+                km_attuali=data.km_attuali,
+                organization_id=data.organization_id,
+                vehicle_type_id=data.vehicle_type_id,
+                color=data.color,
+                ownership_type=data.ownership_type,
+                note=data.note,
+            )
+        )
+        db.commit()
+        db.refresh(vehicle)
+        trim = db.query(VehicleTrim).options(joinedload(VehicleTrim.model).joinedload(VehicleModel.brand)).filter(VehicleTrim.id == vehicle.trim_id).first()
+        return FleetPhysicalVehicleCreateResponse(
+            id=vehicle.id,
+            license_plate=vehicle.targa,
+            trim_id=vehicle.trim_id,
+            brand_name=trim.model.brand.name if trim and trim.model and trim.model.brand else vehicle.marca,
+            model_name=trim.model.name if trim and trim.model else vehicle.modello,
+            created_from=created_from,
+        )
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/groups", response_model=list[FleetGroupResponse])
@@ -536,6 +666,7 @@ async def list_vehicles(
         payload.append(
             FleetVehicleListItem(
                 id=item.id,
+                trim_id=item.trim_id,
                 targa=item.targa,
                 marca=item.marca,
                 modello=item.modello,
@@ -1174,6 +1305,7 @@ async def get_vehicle_detail(
 
     return FleetVehicleDetailResponse(
         id=vehicle.id,
+        trim_id=vehicle.trim_id,
         vehicle_type_id=vehicle.vehicle_type_id,
         organization_id=vehicle.organization_id,
         targa=vehicle.targa,

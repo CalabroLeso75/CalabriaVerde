@@ -18,11 +18,13 @@ from sqlalchemy import (
     Column,
     Date,
     DateTime,
+    Enum,
     ForeignKey,
     Integer,
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -48,10 +50,77 @@ class VehicleType(Base):
     vehicles = relationship("Vehicle", back_populates="vehicle_type")
 
 
+class VehicleBrand(Base):
+    __tablename__ = "vehicle_brands"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(120), nullable=False, unique=True)
+    normalized_name = Column(String(120), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    models = relationship("VehicleModel", back_populates="brand", cascade="all, delete-orphan")
+
+
+class VehicleModel(Base):
+    __tablename__ = "vehicle_models"
+    __table_args__ = (
+        UniqueConstraint("brand_id", "normalized_name", name="uq_vehicle_models_brand_normalized"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    brand_id = Column(Integer, ForeignKey("vehicle_brands.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(160), nullable=False)
+    normalized_name = Column(String(160), nullable=False, index=True)
+    vehicle_category = Column(
+        Enum("Car", "Light_Commercial", "Heavy_Duty", "Motorcycle", name="vehicle_category"),
+        nullable=False,
+        default="Car",
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    brand = relationship("VehicleBrand", back_populates="models")
+    trims = relationship("VehicleTrim", back_populates="model", cascade="all, delete-orphan")
+
+
+class VehicleTrim(Base):
+    __tablename__ = "vehicle_trims"
+    __table_args__ = (
+        UniqueConstraint(
+            "model_id",
+            "production_year",
+            "engine_type",
+            "displacement_cc",
+            "horsepower_hp",
+            name="uq_vehicle_trims_specs",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    model_id = Column(Integer, ForeignKey("vehicle_models.id", ondelete="CASCADE"), nullable=False, index=True)
+    production_year = Column(Integer, nullable=True)
+    engine_type = Column(
+        Enum("Diesel", "Petrol", "Electric", "Hybrid", "Plug-in", "CNG", name="vehicle_engine_type"),
+        nullable=False,
+        default="Diesel",
+    )
+    displacement_cc = Column(Integer, nullable=True)
+    horsepower_hp = Column(Integer, nullable=True)
+    source = Column(String(50), nullable=False, default="manuale")
+    raw_payload = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    model = relationship("VehicleModel", back_populates="trims")
+    vehicles = relationship("Vehicle", back_populates="trim")
+
+
 class Vehicle(Base):
     __tablename__ = "vehicles"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    trim_id = Column(Integer, ForeignKey("vehicle_trims.id", ondelete="RESTRICT"), nullable=False, index=True)
     vehicle_type_id = Column(Integer, ForeignKey("vehicle_types.id", ondelete="SET NULL"), nullable=True)
     organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True)
 
@@ -93,6 +162,7 @@ class Vehicle(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
 
+    trim = relationship("VehicleTrim", back_populates="vehicles")
     vehicle_type = relationship("VehicleType", back_populates="vehicles")
     groups = relationship(
         "FleetGroupMember",

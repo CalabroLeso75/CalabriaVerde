@@ -76,6 +76,98 @@ def parse_int(value: Any, default: int | None = 0) -> int | None:
         return default
 
 
+def normalize_catalog_key(value: Any) -> str:
+    text = clean(value) or ""
+    return " ".join(text.replace("-", " ").replace("_", " ").lower().split())
+
+
+def map_category(value: Any) -> str:
+    normalized = normalize_catalog_key(value)
+    if "moto" in normalized:
+        return "Motorcycle"
+    if "camion" in normalized or "autocarro" in normalized:
+        return "Heavy_Duty"
+    if "pickup" in normalized or "furg" in normalized:
+        return "Light_Commercial"
+    return "Car"
+
+
+def map_engine(value: Any) -> str:
+    normalized = normalize_catalog_key(value)
+    if "benz" in normalized:
+        return "Petrol"
+    if "elet" in normalized:
+        return "Electric"
+    if "plug" in normalized:
+        return "Plug-in"
+    if "ibrid" in normalized:
+        return "Hybrid"
+    if "metano" in normalized or "cng" in normalized:
+        return "CNG"
+    return "Diesel"
+
+
+def get_or_create_catalog_trim(cur: pymysql.cursors.DictCursor, row: dict[str, Any]) -> int:
+    brand_name = clean(row.get("marca"), 120) or "Marca non definita"
+    model_name = clean(row.get("modello"), 160) or "Modello non definito"
+    normalized_brand = normalize_catalog_key(brand_name)
+    normalized_model = normalize_catalog_key(model_name)
+    category = map_category(row.get("tipo"))
+    engine_type = map_engine(row.get("alimentazione"))
+    year = parse_int(row.get("immatricolazione_anno"), None)
+
+    cur.execute("SELECT id FROM vehicle_brands WHERE normalized_name=%s", (normalized_brand,))
+    brand = cur.fetchone()
+    if brand:
+        brand_id = int(brand["id"])
+    else:
+        cur.execute(
+            "INSERT INTO vehicle_brands (name, normalized_name, created_at, updated_at) VALUES (%s, %s, NOW(), NOW())",
+            (brand_name, normalized_brand),
+        )
+        brand_id = int(cur.lastrowid)
+
+    cur.execute(
+        "SELECT id FROM vehicle_models WHERE brand_id=%s AND normalized_name=%s",
+        (brand_id, normalized_model),
+    )
+    model = cur.fetchone()
+    if model:
+        model_id = int(model["id"])
+    else:
+        cur.execute(
+            """
+            INSERT INTO vehicle_models (brand_id, name, normalized_name, vehicle_category, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, NOW(), NOW())
+            """,
+            (brand_id, model_name, normalized_model, category),
+        )
+        model_id = int(cur.lastrowid)
+
+    cur.execute(
+        """
+        SELECT id FROM vehicle_trims
+        WHERE model_id=%s
+          AND ((production_year IS NULL AND %s IS NULL) OR production_year=%s)
+          AND engine_type=%s
+          AND displacement_cc IS NULL
+          AND horsepower_hp IS NULL
+        """,
+        (model_id, year, year, engine_type),
+    )
+    trim = cur.fetchone()
+    if trim:
+        return int(trim["id"])
+    cur.execute(
+        """
+        INSERT INTO vehicle_trims (model_id, production_year, engine_type, source, created_at, updated_at)
+        VALUES (%s, %s, %s, 'legacy_import', NOW(), NOW())
+        """,
+        (model_id, year, engine_type),
+    )
+    return int(cur.lastrowid)
+
+
 def write_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -207,11 +299,16 @@ def main() -> int:
             cur.execute("DELETE FROM vehicle_logs")
             cur.execute("DELETE FROM vehicle_revisions")
             cur.execute("DELETE FROM vehicles")
+            cur.execute("DELETE FROM vehicle_trims")
+            cur.execute("DELETE FROM vehicle_models")
+            cur.execute("DELETE FROM vehicle_brands")
 
         vehicle_id_map: dict[int, int] = {}
         for row in vehicles:
             legacy_id = int(row["id"])
+            trim_id = get_or_create_catalog_trim(cur, row) if args.apply else -legacy_id
             payload = (
+                trim_id,
                 type_id_map.get(parse_int(row.get("vehicle_type_id")), None),
                 default_org_id,
                 clean(row.get("targa"), 255) or f"LEGACY-{legacy_id}",
@@ -244,14 +341,14 @@ def main() -> int:
                 cur.execute(
                     """
                     INSERT INTO vehicles
-                    (vehicle_type_id, organization_id, targa, marca, modello, tipo, immatricolazione_date,
+                    (trim_id, vehicle_type_id, organization_id, targa, marca, modello, tipo, immatricolazione_date,
                      immatricolazione_mese, immatricolazione_anno, numero_telaio, alimentazione, euro_classe,
                      colore, proprieta_tipo, localizzazione_corrente, assicurazione_compagnia,
                      assicurazione_polizza, scadenza_assicurazione, assicurazione_copertura, scadenza_revisione,
                      ultima_revisione, scadenza_verifica_sicurezza, rottamazione_date, km_attuali, stato,
                      tracker_enabled, note, created_at, updated_at)
                     VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
                     """,
                     payload,
                 )

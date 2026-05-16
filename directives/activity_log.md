@@ -353,3 +353,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato in Collaudo locale.  
 **Verifiche eseguite:** migration locale fino a `009_fleet_assignment_units`, `py_compile` backend fleet, smoke API autenticato con `GET /api/fleet/assignment-units`, `GET /api/fleet/vehicles`, `GET /api/fleet/vehicles/1` tutti `200`, `npm run lint` senza errori, `npm run build` OK.  
 **Note utili:** sul DB locale `organizations` non espone ancora tutte le colonne del modello moderno; il router fleet usa `load_only` e query a colonne esplicite per non dipendere da campi non necessari come `pec`.
+
+## 2026-05-16 10:55:00 - Catalogo tecnico normalizzato Parco Macchine
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** rielaborata l'architettura dati del parco macchine introducendo il catalogo tecnico locale normalizzato per marche, modelli e allestimenti/motori. Ogni mezzo fisico `vehicles` ora ha un `trim_id` obbligatorio verso `vehicle_trims`; la migration effettua il backfill dei 20 mezzi importati creando i record tecnici locali prima di rendere il collegamento obbligatorio. Aggiunto il servizio `FleetCatalogService` con logica `lookup locale -> fallback API VIN opzionale -> salvataggio DB -> creazione mezzo fisico`, normalizzazione anti-duplicati e endpoint catalogo.  
+**File coinvolti:** `backend/app/models/fleet.py`, `backend/app/schemas/fleet.py`, `backend/app/services/fleet_catalog.py`, `backend/app/api/fleet/router.py`, `backend/migrations/versions/010_fleet_vehicle_catalog.py`, `backend/execution/export_test_bundle.py`, `backend/execution/import_test_bundle.py`, `backend/execution/import_fleet_bundle.py`.  
+**Esito:** completato in Collaudo locale.  
+**Verifiche eseguite:** `py_compile` backend/migration/script OK, `alembic upgrade head` locale fino a `010_fleet_vehicle_catalog`, smoke API autenticato su `/api/fleet/catalog/brands`, `/api/fleet/catalog/models`, `/api/fleet/catalog/trims`, `/api/fleet/vehicles`, `/api/fleet/vehicles/1`, verifica DB `vehicles.trim_id IS NULL = 0`, test servizio creazione mezzo in transazione con rollback.  
+**Note utili:** il fallback esterno e' predisposto su NHTSA VIN decoder ma disattivato di default con `FLEET_EXTERNAL_LOOKUP_ENABLED=false`; questo mantiene il comportamento economico richiesto, usando l'API solo se esplicitamente abilitata e se il dato locale manca.

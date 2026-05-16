@@ -17,6 +17,76 @@ class FleetVehicleTypeResponse(BaseModel):
         from_attributes = True
 
 
+class FleetVehicleBrandResponse(BaseModel):
+    id: int
+    name: str
+    normalized_name: str
+
+    class Config:
+        from_attributes = True
+
+
+class FleetVehicleModelResponse(BaseModel):
+    id: int
+    brand_id: int
+    name: str
+    normalized_name: str
+    vehicle_category: str
+    brand: Optional[FleetVehicleBrandResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class FleetVehicleTrimResponse(BaseModel):
+    id: int
+    model_id: int
+    production_year: Optional[int] = None
+    engine_type: str
+    displacement_cc: Optional[int] = None
+    horsepower_hp: Optional[int] = None
+    source: str = "manuale"
+    model: Optional[FleetVehicleModelResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class FleetVehicleTrimCreate(BaseModel):
+    brand_name: str
+    model_name: str
+    vehicle_category: str = "Car"
+    production_year: Optional[int] = None
+    engine_type: str = "Diesel"
+    displacement_cc: Optional[int] = None
+    horsepower_hp: Optional[int] = None
+    source: str = "manuale"
+
+
+class FleetPhysicalVehicleCreate(BaseModel):
+    license_plate: str
+    vin_code: Optional[str] = None
+    status: str = "Active"
+    trim_id: Optional[int] = None
+    trim: Optional[FleetVehicleTrimCreate] = None
+    allow_external_lookup: bool = False
+    km_attuali: int = 0
+    organization_id: Optional[int] = None
+    vehicle_type_id: Optional[int] = None
+    color: Optional[str] = None
+    ownership_type: Optional[str] = None
+    note: Optional[str] = None
+
+
+class FleetPhysicalVehicleCreateResponse(BaseModel):
+    id: int
+    license_plate: str
+    trim_id: int
+    brand_name: str
+    model_name: str
+    created_from: str
+
+
 class FleetVehicleRevisionResponse(BaseModel):
     id: int
     data_revisione: date
@@ -344,6 +414,7 @@ class CommunicationLogResponse(BaseModel):
 
 class FleetVehicleListItem(BaseModel):
     id: int
+    trim_id: int
     targa: str
     marca: str
     modello: str
@@ -371,6 +442,7 @@ class FleetAssignmentUnitResponse(BaseModel):
 
 class FleetVehicleDetailResponse(BaseModel):
     id: int
+    trim_id: int
     vehicle_type_id: Optional[int] = None
     organization_id: Optional[int] = None
     targa: str

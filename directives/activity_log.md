@@ -433,3 +433,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato su Collaudo e Test.  
 **Verifiche eseguite:** `py_compile` backend OK, `npm run lint` senza errori, `npm run build` OK, deploy backend/frontend Test, smoke API autenticato `POST /api/fleet/catalog/import-plates` con targa fittizia OK, cleanup del dato di prova, pagina `https://smart-cv.it/test/fleet/catalogo/` `200`.  
 **Note utili:** usare questo flusso per import massivi economici fino all'attivazione del token TuttoTarghe; l'API resta solo per integrazioni puntuali o aggiornamenti successivi.
+
+## 2026-05-16 15:10:00 - Lookup targa conforme livello execution
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** aggiunto `execution/lookup_targa.py` come adattatore locale per dati targa da fonti convenzionali o provider API autorizzati. Il modulo normalizza targa e campi tecnici da CSV, restituisce uno schema unico e non effettua scraping di portali protetti da CAPTCHA/anti-bot.  
+**File coinvolti:** `execution/lookup_targa.py`, `directives/error_memory.md`, `directives/activity_log.md`.  
+**Esito:** completato in Collaudo locale.  
+**Verifiche eseguite:** da eseguire con CSV reale o fixture.  
+**Note utili:** questo livello execution resta agganciabile al backend senza rischiare blocchi/rotture dovute a scraping non autorizzato.

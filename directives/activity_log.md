@@ -363,3 +363,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato in Collaudo locale.  
 **Verifiche eseguite:** `py_compile` backend/migration/script OK, `alembic upgrade head` locale fino a `010_fleet_vehicle_catalog`, smoke API autenticato su `/api/fleet/catalog/brands`, `/api/fleet/catalog/models`, `/api/fleet/catalog/trims`, `/api/fleet/vehicles`, `/api/fleet/vehicles/1`, verifica DB `vehicles.trim_id IS NULL = 0`, test servizio creazione mezzo in transazione con rollback.  
 **Note utili:** il fallback esterno e' predisposto su NHTSA VIN decoder ma disattivato di default con `FLEET_EXTERNAL_LOOKUP_ENABLED=false`; questo mantiene il comportamento economico richiesto, usando l'API solo se esplicitamente abilitata e se il dato locale manca.
+
+## 2026-05-16 11:35:00 - Frontend catalogo tecnico Parco Macchine
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** aggiunta la pagina frontend `Parco Macchine > Catalogo tecnico` per visualizzare e cercare allestimenti tecnici, creare marca/modello/motore e creare un mezzo fisico collegato obbligatoriamente a un allestimento. Aggiornato il menu laterale e pubblicata la build su Test.  
+**File coinvolti:** `frontend/src/components/fleet/FleetCatalogClientPage.tsx`, `frontend/src/app/(dashboard)/fleet/catalogo/page.tsx`, `frontend/src/components/layout/Sidebar.tsx`, hosting `smart-cv.it/test`, VPS `/opt/calabriaverde-test/backend`.  
+**Esito:** completato su Collaudo e Test.  
+**Verifiche eseguite:** `npm run lint` senza errori, `npm run build` OK con route `/fleet/catalogo`, deploy frontend Test, migration backend Test fino a `010_fleet_vehicle_catalog`, `https://smart-cv.it/test/fleet/catalogo/` `200`, endpoint autenticato `GET https://82-165-198-214.sslip.io/api/fleet/catalog/trims?search=isuzu` `200`.  
+**Note utili:** il catalogo era gia' presente lato backend ma non visibile in UI; da ora la verifica utente passa dalla nuova voce del menu Parco Macchine.

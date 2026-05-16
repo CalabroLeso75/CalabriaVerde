@@ -62,6 +62,11 @@ const navigationItems: NavItem[] = [
         icon: <span className="w-2 h-2 rounded-full bg-current inline-block" />,
       },
       {
+        label: 'Catalogo tecnico',
+        href: '/fleet/catalogo',
+        icon: <span className="w-2 h-2 rounded-full bg-current inline-block" />,
+      },
+      {
         label: 'Mappa mezzi',
         href: '/fleet/mappa',
         icon: <span className="w-2 h-2 rounded-full bg-current inline-block" />,

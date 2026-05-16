@@ -423,3 +423,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato in Collaudo locale, pronto per Test appena disponibile il token.  
 **Verifiche eseguite:** `py_compile` backend OK.  
 **Note utili:** su Test andranno impostati `FLEET_PLATE_PROVIDER=tuttotarghe`, `FLEET_PLATE_API_URL=https://api.tuttotarghe.it/job/jobsync`, `FLEET_PLATE_JOB_TYPES=tecnici` e poi `FLEET_PLATE_API_KEY=<token>`.
+
+## 2026-05-16 14:55:00 - Import economico dati targa
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** aggiunto metodo convenzionale economico per recuperare e inserire dati targa senza chiamate API: import CSV/paste da libretti, Excel, visure manuali o controlli convenzionali. L'import crea mezzo fisico, marca, modello, allestimento, scadenza assicurazione/revisione, record assicurativo e misura gomme default quando presenti.  
+**File coinvolti:** `backend/app/schemas/fleet.py`, `backend/app/api/fleet/router.py`, `frontend/src/components/fleet/FleetCatalogClientPage.tsx`, hosting `smart-cv.it/test`, VPS `/opt/calabriaverde-test/backend`.  
+**Esito:** completato su Collaudo e Test.  
+**Verifiche eseguite:** `py_compile` backend OK, `npm run lint` senza errori, `npm run build` OK, deploy backend/frontend Test, smoke API autenticato `POST /api/fleet/catalog/import-plates` con targa fittizia OK, cleanup del dato di prova, pagina `https://smart-cv.it/test/fleet/catalogo/` `200`.  
+**Note utili:** usare questo flusso per import massivi economici fino all'attivazione del token TuttoTarghe; l'API resta solo per integrazioni puntuali o aggiornamenti successivi.

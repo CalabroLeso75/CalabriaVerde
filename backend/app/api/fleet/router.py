@@ -38,6 +38,8 @@ from app.schemas.fleet import (
     FleetCatalogExternalLookupResponse,
     FleetCatalogImportRequest,
     FleetCatalogImportResponse,
+    FleetCatalogManualPlateImportRequest,
+    FleetCatalogManualPlateImportResponse,
     FleetCatalogProviderStatusResponse,
     FleetBulkInsuranceUpdate,
     FleetBulkRevisionUpdate,
@@ -488,6 +490,86 @@ async def import_catalog_data(
         imported_models=result.imported_models,
         skipped_models=result.skipped_models,
         errors=result.errors,
+    )
+
+
+@router.post("/catalog/import-plates", response_model=FleetCatalogManualPlateImportResponse)
+async def import_conventional_plate_data(
+    data: FleetCatalogManualPlateImportRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del current_user
+    service = FleetCatalogService(db)
+    created_vehicles = 0
+    created_or_reused_trims = 0
+    skipped_existing_plates = 0
+    errors: list[str] = []
+
+    for index, row in enumerate(data.rows, start=1):
+        plate = row.license_plate.strip().upper().replace(" ", "")
+        if not plate:
+            errors.append(f"Riga {index}: targa mancante")
+            continue
+        if db.query(Vehicle.id).filter(Vehicle.targa == plate).first():
+            skipped_existing_plates += 1
+            continue
+        try:
+            tire_fitments = []
+            if row.tire_size:
+                tire_fitments.append(TireFitmentSpec(
+                    tire_size=row.tire_size,
+                    is_default=True,
+                    source=row.source,
+                ))
+            trim = service.get_or_create_trim(TrimSpec(
+                brand_name=row.brand_name,
+                model_name=row.model_name,
+                vehicle_category=row.vehicle_category,
+                commercial_name=row.commercial_name,
+                production_year=row.production_year,
+                engine_type=row.engine_type,
+                displacement_cc=row.displacement_cc,
+                horsepower_hp=row.horsepower_hp,
+                euro_class=row.euro_class,
+                tire_fitments=tuple(tire_fitments),
+                source=row.source,
+            ))
+            created_or_reused_trims += 1
+            vehicle, _ = service.create_physical_vehicle(PhysicalVehicleSpec(
+                license_plate=plate,
+                vin_code=row.vin_code,
+                status="Active",
+                trim_id=trim.id,
+                km_attuali=row.km_attuali,
+                note=row.note,
+            ))
+            vehicle.euro_classe = row.euro_class
+            vehicle.scadenza_revisione = row.revision_due
+            vehicle.scadenza_assicurazione = row.insurance_due
+            vehicle.assicurazione_compagnia = row.insurance_company
+            vehicle.assicurazione_polizza = row.insurance_policy
+            if row.insurance_company and row.insurance_due:
+                db.add(VehicleInsuranceRecord(
+                    vehicle_id=vehicle.id,
+                    source_type=row.source,
+                    compagnia=row.insurance_company,
+                    numero_polizza=row.insurance_policy,
+                    data_scadenza=row.insurance_due,
+                    is_current=True,
+                    note="Import dati convenzionali targa",
+                    created_by_user_id=None,
+                ))
+            created_vehicles += 1
+        except ValueError as exc:
+            errors.append(f"Riga {index} {plate}: {exc}")
+
+    db.commit()
+    return FleetCatalogManualPlateImportResponse(
+        created_vehicles=created_vehicles,
+        created_or_reused_trims=created_or_reused_trims,
+        skipped_existing_plates=skipped_existing_plates,
+        errors=errors,
     )
 
 

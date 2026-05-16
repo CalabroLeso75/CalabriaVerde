@@ -193,6 +193,39 @@ class FleetCatalogImportResponse(BaseModel):
     errors: list[str] = Field(default_factory=list)
 
 
+class FleetCatalogManualPlateRow(BaseModel):
+    license_plate: str
+    vin_code: Optional[str] = None
+    brand_name: str
+    model_name: str
+    vehicle_category: str = "Car"
+    commercial_name: Optional[str] = None
+    production_year: Optional[int] = None
+    engine_type: str = "Diesel"
+    displacement_cc: Optional[int] = None
+    horsepower_hp: Optional[int] = None
+    euro_class: Optional[str] = None
+    tire_size: Optional[str] = None
+    km_attuali: int = 0
+    insurance_company: Optional[str] = None
+    insurance_policy: Optional[str] = None
+    insurance_due: Optional[date] = None
+    revision_due: Optional[date] = None
+    source: str = "import_convenzionale"
+    note: Optional[str] = None
+
+
+class FleetCatalogManualPlateImportRequest(BaseModel):
+    rows: list[FleetCatalogManualPlateRow] = Field(default_factory=list)
+
+
+class FleetCatalogManualPlateImportResponse(BaseModel):
+    created_vehicles: int
+    created_or_reused_trims: int
+    skipped_existing_plates: int
+    errors: list[str] = Field(default_factory=list)
+
+
 class FleetVehicleRevisionResponse(BaseModel):
     id: int
     data_revisione: date

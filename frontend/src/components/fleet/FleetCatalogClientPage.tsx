@@ -114,6 +114,13 @@ type CatalogStats = {
   trims: number;
 };
 
+type ConventionalImportResponse = {
+  created_vehicles: number;
+  created_or_reused_trims: number;
+  skipped_existing_plates: number;
+  errors: string[];
+};
+
 const categoryOptions = [
   { value: 'Car', label: 'Autovettura' },
   { value: 'Light_Commercial', label: 'Commerciale leggero' },
@@ -142,6 +149,25 @@ function trimLabel(trim: VehicleTrim) {
   return `${brand} ${model}${details ? ` - ${details}` : ''}`;
 }
 
+const conventionalCsvTemplate = [
+  'targa;marca;modello;categoria;anno;alimentazione;cilindrata_cc;cavalli_cv;euro;vin;gomme_default;km;scadenza_assicurazione;compagnia;polizza;scadenza_revisione;note',
+  'AB123CD;FIAT;PANDA;Car;2020;Petrol;1242;69;Euro 6;ZFA31200000000000;175/65 R14;45000;2026-12-31;Compagnia;POL123;2027-05-30;Import da libretto',
+].join('\n');
+
+function splitCsvLine(line: string) {
+  return line.split(';').map((value) => value.trim());
+}
+
+function emptyToNull(value: string | undefined) {
+  return value && value.trim() ? value.trim() : null;
+}
+
+function numberOrNull(value: string | undefined) {
+  if (!value || !value.trim()) return null;
+  const parsed = Number(value.replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export default function FleetCatalogClientPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 250);
@@ -154,6 +180,8 @@ export default function FleetCatalogClientPage() {
   const [models, setModels] = useState<VehicleModel[]>([]);
   const [stats, setStats] = useState<CatalogStats>({ brands: 0, models: 0, trims: 0 });
   const [isImporting, setIsImporting] = useState(false);
+  const [conventionalCsv, setConventionalCsv] = useState(conventionalCsvTemplate);
+  const [isConventionalImporting, setIsConventionalImporting] = useState(false);
   const [lookupForm, setLookupForm] = useState({
     lookup_type: 'plate',
     lookup_key: '',
@@ -390,6 +418,74 @@ export default function FleetCatalogClientPage() {
     }
   };
 
+  const importConventionalCsv = async () => {
+    setError(null);
+    setSuccess(null);
+    const lines = conventionalCsv
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const dataLines = lines[0]?.toLowerCase().startsWith('targa;') ? lines.slice(1) : lines;
+    const rows = dataLines.map((line) => {
+      const [
+        licensePlate,
+        brandName,
+        modelName,
+        vehicleCategory,
+        productionYear,
+        engineType,
+        displacementCc,
+        horsepowerHp,
+        euroClass,
+        vinCode,
+        tireSize,
+        kmAttuali,
+        insuranceDue,
+        insuranceCompany,
+        insurancePolicy,
+        revisionDue,
+        note,
+      ] = splitCsvLine(line);
+      return {
+        license_plate: licensePlate,
+        brand_name: brandName,
+        model_name: modelName,
+        vehicle_category: vehicleCategory || 'Car',
+        production_year: numberOrNull(productionYear),
+        engine_type: engineType || 'Diesel',
+        displacement_cc: numberOrNull(displacementCc),
+        horsepower_hp: numberOrNull(horsepowerHp),
+        euro_class: emptyToNull(euroClass),
+        vin_code: emptyToNull(vinCode),
+        tire_size: emptyToNull(tireSize),
+        km_attuali: numberOrNull(kmAttuali) || 0,
+        insurance_due: emptyToNull(insuranceDue),
+        insurance_company: emptyToNull(insuranceCompany),
+        insurance_policy: emptyToNull(insurancePolicy),
+        revision_due: emptyToNull(revisionDue),
+        note: emptyToNull(note),
+        source: 'import_convenzionale',
+      };
+    }).filter((row) => row.license_plate && row.brand_name && row.model_name);
+
+    if (rows.length === 0) {
+      setError('Nessuna riga valida da importare. Servono almeno targa, marca e modello.');
+      return;
+    }
+
+    setIsConventionalImporting(true);
+    try {
+      const response = await api.post<ConventionalImportResponse>('/fleet/catalog/import-plates', { rows });
+      setSuccess(`Import convenzionale completato: ${response.created_vehicles} mezzi creati, ${response.skipped_existing_plates} targhe gia presenti.`);
+      if (response.errors.length > 0) {
+        setError(response.errors.join(' | '));
+      }
+      await Promise.all([loadBrandsAndModels(), loadTrims()]);
+    } finally {
+      setIsConventionalImporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <SectionLead
@@ -508,6 +604,37 @@ export default function FleetCatalogClientPage() {
               </div>
             ))}
           </div>
+        </div>
+      </Card>
+
+      <Card padding="md">
+        <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
+          <div>
+            <h3 className="text-lg font-semibold">Import economico targhe</h3>
+            <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
+              Usa dati da libretto, Excel, visure manuali o controlli convenzionali. Il sistema crea mezzo, marca, modello e allestimento senza chiamate API.
+            </p>
+            <div className="mt-4 space-y-2 text-sm" style={{ color: 'var(--cv-neutral-700)' }}>
+              <p>Formato: separatore punto e virgola.</p>
+              <p>Date: `YYYY-MM-DD`.</p>
+              <p>Campi minimi: targa, marca, modello.</p>
+            </div>
+            <Button
+              type="button"
+              className="mt-4"
+              disabled={isConventionalImporting}
+              onClick={() => importConventionalCsv().catch((err) => setError(err.message || 'Import convenzionale non riuscito.'))}
+            >
+              {isConventionalImporting ? 'Import in corso...' : 'Importa CSV'}
+            </Button>
+          </div>
+          <textarea
+            className="min-h-52 w-full rounded-[var(--cv-radius-md)] border p-3 font-mono text-xs"
+            style={{ borderColor: 'var(--cv-border-subtle)', color: 'var(--cv-neutral-800)' }}
+            value={conventionalCsv}
+            onChange={(event) => setConventionalCsv(event.target.value)}
+            spellCheck={false}
+          />
         </div>
       </Card>
 

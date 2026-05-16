@@ -383,3 +383,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato su Collaudo e Test.  
 **Verifiche eseguite:** `py_compile` backend OK, `npm run lint` senza errori, `npm run build` OK, migration locale `011_fleet_trim_technical_details` applicata, smoke API locale creazione/detail trim tecnico con gomme OK, deploy backend Test e migration Test fino a `011`, `GET https://82-165-198-214.sslip.io/api/fleet/catalog/trims/1` autenticato `200`, file frontend pubblicato verificato su hosting in `/home/www/Gestionale/public/test/fleet/catalogo/index.html`.  
 **Note utili:** i 20 mezzi importati non hanno VIN/telaio valorizzato, quindi non e' possibile arricchirli automaticamente tramite lookup VIN finche' non viene fornita una sorgente dati tecnica o i VIN corretti; il catalogo ora e' pronto a importare e conservare quei dati.
+
+## 2026-05-16 13:20:00 - Provider esterni catalogo mezzi
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** predisposta l'integrazione con piattaforme esterne per popolare il catalogo mezzi senza database proprietario iniziale. Aggiunta configurazione centralizzata per provider targa italiana, VIN NHTSA e Wheel-Size, tabella `vehicle_external_lookups` per audit/cache delle interrogazioni, servizio provider-based con salvataggio automatico del trim trovato nel catalogo locale e UI in `Parco Macchine > Catalogo tecnico` per cercare da targa o VIN.  
+**File coinvolti:** `backend/app/core/config.py`, `backend/app/models/fleet.py`, `backend/app/schemas/fleet.py`, `backend/app/services/fleet_catalog.py`, `backend/app/api/fleet/router.py`, `backend/migrations/versions/012_fleet_external_lookup_cache.py`, `frontend/src/components/fleet/FleetCatalogClientPage.tsx`.  
+**Esito:** completato in Collaudo locale, pronto per attivazione API key/provider scelto.  
+**Verifiche eseguite:** `py_compile` backend OK, `npm run lint` senza errori, `npm run build` OK, migration locale `012_fleet_external_lookup_cache` applicata, smoke service locale provider status e lookup disattivato con log di audit OK e dato di prova rimosso.  
+**Note utili:** il provider targa resta volutamente generico (`FLEET_PLATE_API_URL` + `FLEET_PLATE_API_KEY`) per poter collegare TuttoTarghe/InfoTarga o altro fornitore senza riscrivere il gestionale; finche' `FLEET_EXTERNAL_LOOKUP_ENABLED=false` non partono chiamate esterne.

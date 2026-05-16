@@ -159,6 +159,27 @@ class VehicleTrimTireFitment(Base):
     trim = relationship("VehicleTrim", back_populates="tire_fitments")
 
 
+class VehicleExternalLookup(Base):
+    __tablename__ = "vehicle_external_lookups"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    provider = Column(String(80), nullable=False, index=True)
+    lookup_type = Column(String(40), nullable=False, index=True)
+    lookup_key = Column(String(120), nullable=False, index=True)
+    normalized_lookup_key = Column(String(120), nullable=False, index=True)
+    status = Column(String(40), nullable=False, default="pending")
+    http_status = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id", ondelete="SET NULL"), nullable=True, index=True)
+    trim_id = Column(Integer, ForeignKey("vehicle_trims.id", ondelete="SET NULL"), nullable=True, index=True)
+    raw_payload = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    vehicle = relationship("Vehicle")
+    trim = relationship("VehicleTrim")
+
+
 class Vehicle(Base):
     __tablename__ = "vehicles"
 

@@ -64,6 +64,15 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM_EMAIL: str = ""
 
+    # Parco macchine - provider dati esterni
+    FLEET_EXTERNAL_LOOKUP_ENABLED: bool = False
+    FLEET_PLATE_PROVIDER: str = "none"
+    FLEET_PLATE_API_URL: str = ""
+    FLEET_PLATE_API_KEY: str = ""
+    FLEET_VIN_PROVIDER: str = "nhtsa"
+    WHEEL_SIZE_API_URL: str = "https://api.wheel-size.com/v2"
+    WHEEL_SIZE_API_KEY: str = ""
+
     @field_validator("DEBUG", mode="before")
     @classmethod
     def parse_debug_mode(cls, value):

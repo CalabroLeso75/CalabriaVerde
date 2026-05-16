@@ -8,16 +8,24 @@ il mezzo fisico.
 from __future__ import annotations
 
 import json
-import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
+from urllib.error import HTTPError, URLError
 from urllib.parse import quote
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.fleet import Vehicle, VehicleBrand, VehicleModel, VehicleTrim, VehicleTrimTireFitment
+from app.core.config import settings
+from app.models.fleet import (
+    Vehicle,
+    VehicleBrand,
+    VehicleExternalLookup,
+    VehicleModel,
+    VehicleTrim,
+    VehicleTrimTireFitment,
+)
 
 
 ENGINE_VALUES = {"Diesel", "Petrol", "Electric", "Hybrid", "Plug-in", "CNG"}
@@ -89,6 +97,31 @@ class PhysicalVehicleSpec:
     note: str | None = None
 
 
+@dataclass(frozen=True)
+class ProviderStatus:
+    code: str
+    label: str
+    lookup_type: str
+    enabled: bool
+    configured: bool
+    needs_api_key: bool
+    note: str
+
+
+@dataclass(frozen=True)
+class ExternalLookupResult:
+    provider: str
+    lookup_type: str
+    lookup_key: str
+    status: str
+    trim: TrimSpec | None = None
+    trim_id: int | None = None
+    raw_payload: dict[str, Any] | None = None
+    error_message: str | None = None
+    http_status: int | None = None
+    source_notes: list[str] = field(default_factory=list)
+
+
 def normalize_catalog_key(value: str | None) -> str:
     """Normalizza stringhe catalogo evitando duplicati tipo Mercedes-Benz/mercedes benz."""
     cleaned = (value or "").strip().lower()
@@ -121,6 +154,72 @@ class FleetCatalogService:
                 | (VehicleModel.name.ilike(raw_term))
             )
         return items.order_by(VehicleBrand.name.asc(), VehicleModel.name.asc(), VehicleTrim.production_year.desc()).limit(limit).all()
+
+    def provider_statuses(self) -> list[ProviderStatus]:
+        plate_provider = settings.FLEET_PLATE_PROVIDER.strip().lower()
+        return [
+            ProviderStatus(
+                code=plate_provider or "none",
+                label="Provider targa italiana",
+                lookup_type="plate",
+                enabled=settings.FLEET_EXTERNAL_LOOKUP_ENABLED and plate_provider not in {"", "none"},
+                configured=bool(settings.FLEET_PLATE_API_URL and settings.FLEET_PLATE_API_KEY),
+                needs_api_key=True,
+                note="Usa targa per marca, modello, alimentazione, revisione e assicurazione quando il fornitore lo espone.",
+            ),
+            ProviderStatus(
+                code="nhtsa",
+                label="NHTSA vPIC VIN",
+                lookup_type="vin",
+                enabled=settings.FLEET_EXTERNAL_LOOKUP_ENABLED and settings.FLEET_VIN_PROVIDER.strip().lower() == "nhtsa",
+                configured=True,
+                needs_api_key=False,
+                note="Fallback gratuito da VIN/telaio; copertura migliore per schemi VIN dichiarati dai costruttori.",
+            ),
+            ProviderStatus(
+                code="wheel_size",
+                label="Wheel-Size gomme e cerchi",
+                lookup_type="tires",
+                enabled=settings.FLEET_EXTERNAL_LOOKUP_ENABLED and bool(settings.WHEEL_SIZE_API_KEY),
+                configured=bool(settings.WHEEL_SIZE_API_KEY),
+                needs_api_key=True,
+                note="Fonte specializzata per misure pneumatici e cerchi; si aggancia agli allestimenti gia censiti.",
+            ),
+        ]
+
+    def lookup_external(self, lookup_type: str, lookup_key: str, persist: bool = True) -> ExternalLookupResult:
+        normalized_type = normalize_catalog_key(lookup_type).replace(" ", "_")
+        key = (lookup_key or "").strip().upper()
+        if normalized_type == "plate":
+            result = self._lookup_plate_provider(key)
+        elif normalized_type == "vin":
+            result = self._lookup_vin_provider(key)
+        else:
+            result = ExternalLookupResult(
+                provider="none",
+                lookup_type=normalized_type,
+                lookup_key=key,
+                status="unsupported",
+                error_message="Tipo ricerca non supportato",
+            )
+
+        lookup_log = self._record_external_lookup(result)
+        if persist and result.trim:
+            trim = self.get_or_create_trim(result.trim)
+            lookup_log.trim_id = trim.id
+            result = ExternalLookupResult(
+                provider=result.provider,
+                lookup_type=result.lookup_type,
+                lookup_key=result.lookup_key,
+                status=result.status,
+                trim=result.trim,
+                trim_id=trim.id,
+                raw_payload=result.raw_payload,
+                error_message=result.error_message,
+                http_status=result.http_status,
+                source_notes=[*result.source_notes, f"Allestimento salvato nel catalogo locale con id {trim.id}."],
+            )
+        return result
 
     def get_or_create_trim(self, spec: TrimSpec) -> VehicleTrim:
         brand = self._get_or_create_brand(spec.brand_name)
@@ -172,9 +271,9 @@ class FleetCatalogService:
             return self.get_or_create_trim(spec.trim)
 
         if spec.allow_external_lookup:
-            remote_trim = self._lookup_external_trim(spec)
-            if remote_trim:
-                return self.get_or_create_trim(remote_trim)
+            remote_result = self._lookup_external_trim(spec)
+            if remote_result and remote_result.trim:
+                return self.get_or_create_trim(remote_result.trim)
 
         raise ValueError("Prima crea o seleziona un allestimento tecnico locale per il mezzo")
 
@@ -294,34 +393,147 @@ class FleetCatalogService:
                 source=spec.source,
             ))
 
-    def _lookup_external_trim(self, spec: PhysicalVehicleSpec) -> TrimSpec | None:
-        if os.getenv("FLEET_EXTERNAL_LOOKUP_ENABLED", "false").lower() != "true":
+    def _lookup_external_trim(self, spec: PhysicalVehicleSpec) -> ExternalLookupResult | None:
+        if not settings.FLEET_EXTERNAL_LOOKUP_ENABLED:
             return None
+        plate = self._normalize_license_plate(spec.license_plate)
+        if plate:
+            plate_result = self._lookup_plate_provider(plate)
+            self._record_external_lookup(plate_result)
+            if plate_result.trim:
+                return plate_result
         vin = (spec.vin_code or "").strip().upper()
         if not vin:
             return None
+        vin_result = self._lookup_vin_provider(vin)
+        self._record_external_lookup(vin_result)
+        return vin_result if vin_result.trim else None
+
+    def _lookup_plate_provider(self, plate: str) -> ExternalLookupResult:
+        provider = settings.FLEET_PLATE_PROVIDER.strip().lower() or "none"
+        if not settings.FLEET_EXTERNAL_LOOKUP_ENABLED:
+            return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="disabled", error_message="Ricerca esterna disattivata")
+        if provider in {"", "none"}:
+            return ExternalLookupResult(provider="none", lookup_type="plate", lookup_key=plate, status="not_configured", error_message="Provider targa non configurato")
+        if not settings.FLEET_PLATE_API_URL or not settings.FLEET_PLATE_API_KEY:
+            return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="not_configured", error_message="URL o API key provider targa mancanti")
+
+        url = f"{settings.FLEET_PLATE_API_URL.rstrip('/')}/{quote(plate)}"
+        request = Request(url, headers={"Authorization": f"Bearer {settings.FLEET_PLATE_API_KEY}", "Accept": "application/json"})
+        try:
+            with urlopen(request, timeout=12) as response:  # nosec B310 - endpoint configurato da amministratore
+                payload = json.loads(response.read().decode("utf-8"))
+            trim = self._trim_from_generic_payload(payload, source=f"plate_{provider}")
+            return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="found" if trim else "empty", trim=trim, raw_payload=payload, http_status=200)
+        except HTTPError as exc:
+            return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc), http_status=exc.code)
+        except (URLError, TimeoutError, ValueError) as exc:
+            return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc))
+
+    def _lookup_vin_provider(self, vin: str) -> ExternalLookupResult:
+        if not settings.FLEET_EXTERNAL_LOOKUP_ENABLED:
+            return ExternalLookupResult(provider="nhtsa", lookup_type="vin", lookup_key=vin, status="disabled", error_message="Ricerca esterna disattivata")
+        if settings.FLEET_VIN_PROVIDER.strip().lower() != "nhtsa":
+            return ExternalLookupResult(provider=settings.FLEET_VIN_PROVIDER, lookup_type="vin", lookup_key=vin, status="not_configured", error_message="Provider VIN non supportato")
 
         url = f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{quote(vin)}?format=json"
-        with urlopen(url, timeout=10) as response:  # nosec B310 - endpoint pubblico configurato e usato solo on demand
-            payload = json.loads(response.read().decode("utf-8"))
+        try:
+            with urlopen(url, timeout=10) as response:  # nosec B310 - endpoint pubblico usato solo on demand
+                payload = json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            return ExternalLookupResult(provider="nhtsa", lookup_type="vin", lookup_key=vin, status="error", error_message=str(exc), http_status=exc.code)
+        except (URLError, TimeoutError, ValueError) as exc:
+            return ExternalLookupResult(provider="nhtsa", lookup_type="vin", lookup_key=vin, status="error", error_message=str(exc))
 
         result = (payload.get("Results") or [{}])[0]
         brand = result.get("Make") or ""
         model = result.get("Model") or ""
         if not brand or not model:
-            return None
+            return ExternalLookupResult(provider="nhtsa", lookup_type="vin", lookup_key=vin, status="empty", raw_payload=payload, error_message="VIN senza marca/modello utilizzabili", http_status=200)
 
-        return TrimSpec(
+        trim = TrimSpec(
             brand_name=brand,
             model_name=model,
             vehicle_category=self._map_body_class(result.get("VehicleType")),
+            commercial_name=result.get("Trim") or result.get("Series") or None,
             production_year=self._to_int(result.get("ModelYear")),
             engine_type=self._map_engine(result.get("FuelTypePrimary")),
+            engine_code=result.get("EngineModel") or None,
             displacement_cc=self._liters_to_cc(result.get("DisplacementL")),
             horsepower_hp=self._to_int(result.get("EngineHP")),
+            seats=self._to_int(result.get("SeatRows")),
+            body_style=result.get("BodyClass") or None,
             source="nhtsa_vin",
             raw_payload=result,
         )
+        return ExternalLookupResult(provider="nhtsa", lookup_type="vin", lookup_key=vin, status="found", trim=trim, raw_payload=payload, http_status=200)
+
+    def _trim_from_generic_payload(self, payload: dict[str, Any], source: str) -> TrimSpec | None:
+        data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+        brand = data.get("brand") or data.get("make") or data.get("marca")
+        model = data.get("model") or data.get("modello")
+        if not brand or not model:
+            return None
+        tire_values = data.get("tires") or data.get("tire_fitments") or []
+        tire_specs = []
+        if isinstance(tire_values, list):
+            for item in tire_values:
+                if isinstance(item, dict) and (item.get("tire_size") or item.get("size")):
+                    tire_specs.append(TireFitmentSpec(
+                        tire_size=item.get("tire_size") or item.get("size"),
+                        position=item.get("position") or "both",
+                        rim_size=item.get("rim_size"),
+                        load_index=item.get("load_index"),
+                        speed_rating=item.get("speed_rating"),
+                        pressure_bar=self._to_float(item.get("pressure_bar")),
+                        is_default=bool(item.get("is_default", False)),
+                        notes=item.get("notes"),
+                        source=source,
+                    ))
+        return TrimSpec(
+            brand_name=str(brand),
+            model_name=str(model),
+            vehicle_category=data.get("vehicle_category") or data.get("category") or "Car",
+            commercial_name=data.get("commercial_name") or data.get("trim") or data.get("versione"),
+            production_year=self._to_int(data.get("production_year") or data.get("year") or data.get("anno")),
+            engine_type=self._map_engine(data.get("engine_type") or data.get("fuel") or data.get("alimentazione")),
+            engine_code=data.get("engine_code"),
+            displacement_cc=self._to_int(data.get("displacement_cc") or data.get("cilindrata")),
+            horsepower_hp=self._to_int(data.get("horsepower_hp") or data.get("power_hp") or data.get("cv")),
+            torque_nm=self._to_int(data.get("torque_nm")),
+            transmission=data.get("transmission") or data.get("cambio"),
+            drive_type=data.get("drive_type") or data.get("trazione"),
+            body_style=data.get("body_style") or data.get("carrozzeria"),
+            doors=self._to_int(data.get("doors") or data.get("porte")),
+            seats=self._to_int(data.get("seats") or data.get("posti")),
+            euro_class=data.get("euro_class"),
+            co2_g_km=self._to_int(data.get("co2_g_km")),
+            fuel_consumption_l_100km=self._to_float(data.get("fuel_consumption_l_100km")),
+            wheelbase_mm=self._to_int(data.get("wheelbase_mm")),
+            length_mm=self._to_int(data.get("length_mm")),
+            width_mm=self._to_int(data.get("width_mm")),
+            height_mm=self._to_int(data.get("height_mm")),
+            gross_weight_kg=self._to_int(data.get("gross_weight_kg")),
+            tow_capacity_kg=self._to_int(data.get("tow_capacity_kg")),
+            tire_fitments=tuple(tire_specs),
+            source=source,
+            raw_payload=payload,
+        )
+
+    def _record_external_lookup(self, result: ExternalLookupResult) -> VehicleExternalLookup:
+        item = VehicleExternalLookup(
+            provider=result.provider,
+            lookup_type=result.lookup_type,
+            lookup_key=result.lookup_key,
+            normalized_lookup_key=normalize_catalog_key(result.lookup_key),
+            status=result.status,
+            http_status=result.http_status,
+            error_message=result.error_message,
+            raw_payload=result.raw_payload,
+        )
+        self.db.add(item)
+        self.db.flush()
+        return item
 
     @staticmethod
     def _normalize_license_plate(value: str) -> str:

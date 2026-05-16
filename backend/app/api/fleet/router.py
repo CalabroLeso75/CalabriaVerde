@@ -34,6 +34,9 @@ from app.schemas.fleet import (
     CommunicationRecipientResponse,
     CommunicationTargetCreate,
     CommunicationTargetResponse,
+    FleetCatalogExternalLookupRequest,
+    FleetCatalogExternalLookupResponse,
+    FleetCatalogProviderStatusResponse,
     FleetBulkInsuranceUpdate,
     FleetBulkRevisionUpdate,
     FleetGroupCreate,
@@ -327,6 +330,15 @@ async def list_vehicle_trims(
     return FleetCatalogService(db).search_trims(search, limit=100)
 
 
+@router.get("/catalog/providers", response_model=list[FleetCatalogProviderStatusResponse])
+async def list_catalog_providers(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del current_user
+    return FleetCatalogService(db).provider_statuses()
+
+
 def trim_spec_from_payload(data: FleetVehicleTrimCreate) -> TrimSpec:
     return TrimSpec(
         brand_name=data.brand_name,
@@ -407,6 +419,38 @@ async def create_vehicle_trim(
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/catalog/external-lookup", response_model=FleetCatalogExternalLookupResponse)
+async def lookup_catalog_external_data(
+    data: FleetCatalogExternalLookupRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del current_user
+    result = FleetCatalogService(db).lookup_external(data.lookup_type, data.lookup_key, persist=data.persist)
+    db.commit()
+    trim = None
+    if result.trim_id:
+        trim = (
+            db.query(VehicleTrim)
+            .options(
+                joinedload(VehicleTrim.model).joinedload(VehicleModel.brand),
+                joinedload(VehicleTrim.tire_fitments),
+            )
+            .filter(VehicleTrim.id == result.trim_id)
+            .first()
+        )
+    return FleetCatalogExternalLookupResponse(
+        provider=result.provider,
+        lookup_type=result.lookup_type,
+        lookup_key=result.lookup_key,
+        status=result.status,
+        error_message=result.error_message,
+        http_status=result.http_status,
+        trim=trim,
+        source_notes=result.source_notes,
+    )
 
 
 @router.post("/catalog/vehicles", response_model=FleetPhysicalVehicleCreateResponse, status_code=status.HTTP_201_CREATED)

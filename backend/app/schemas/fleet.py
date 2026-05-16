@@ -152,6 +152,33 @@ class FleetPhysicalVehicleCreateResponse(BaseModel):
     created_from: str
 
 
+class FleetCatalogProviderStatusResponse(BaseModel):
+    code: str
+    label: str
+    lookup_type: str
+    enabled: bool
+    configured: bool
+    needs_api_key: bool
+    note: str
+
+
+class FleetCatalogExternalLookupRequest(BaseModel):
+    lookup_type: str = Field(pattern="^(plate|vin)$")
+    lookup_key: str
+    persist: bool = True
+
+
+class FleetCatalogExternalLookupResponse(BaseModel):
+    provider: str
+    lookup_type: str
+    lookup_key: str
+    status: str
+    error_message: Optional[str] = None
+    http_status: Optional[int] = None
+    trim: Optional[FleetVehicleTrimResponse] = None
+    source_notes: list[str] = Field(default_factory=list)
+
+
 class FleetVehicleRevisionResponse(BaseModel):
     id: int
     data_revisione: date

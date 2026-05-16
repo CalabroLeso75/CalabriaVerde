@@ -66,6 +66,26 @@ type CreateVehicleResponse = {
   created_from: string;
 };
 
+type ProviderStatus = {
+  code: string;
+  label: string;
+  lookup_type: string;
+  enabled: boolean;
+  configured: boolean;
+  needs_api_key: boolean;
+  note: string;
+};
+
+type ExternalLookupResponse = {
+  provider: string;
+  lookup_type: string;
+  lookup_key: string;
+  status: string;
+  error_message?: string | null;
+  trim?: VehicleTrim | null;
+  source_notes: string[];
+};
+
 const categoryOptions = [
   { value: 'Car', label: 'Autovettura' },
   { value: 'Light_Commercial', label: 'Commerciale leggero' },
@@ -101,6 +121,11 @@ export default function FleetCatalogClientPage() {
   const [selectedTrimId, setSelectedTrimId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [providers, setProviders] = useState<ProviderStatus[]>([]);
+  const [lookupForm, setLookupForm] = useState({
+    lookup_type: 'plate',
+    lookup_key: '',
+  });
 
   const [trimForm, setTrimForm] = useState({
     brand_name: '',
@@ -153,9 +178,15 @@ export default function FleetCatalogClientPage() {
     setError(null);
   };
 
+  const loadProviders = async () => {
+    const response = await api.get<ProviderStatus[]>('/fleet/catalog/providers');
+    setProviders(response);
+  };
+
   useEffect(() => {
     queueMicrotask(() => {
       loadTrims().catch((err) => setError(err.message || 'Impossibile caricare il catalogo tecnico.'));
+      loadProviders().catch((err) => setError(err.message || 'Impossibile caricare i provider esterni.'));
     });
   }, [debouncedSearch]);
 
@@ -266,6 +297,22 @@ export default function FleetCatalogClientPage() {
     });
   };
 
+  const lookupExternalData = async () => {
+    setError(null);
+    const response = await api.post<ExternalLookupResponse>('/fleet/catalog/external-lookup', {
+      lookup_type: lookupForm.lookup_type,
+      lookup_key: lookupForm.lookup_key,
+      persist: true,
+    });
+    if (response.trim?.id) {
+      setSelectedTrimId(String(response.trim.id));
+      setSuccess(`Dati trovati da ${response.provider} e salvati nel catalogo locale.`);
+      await loadTrims();
+      return;
+    }
+    setError(response.error_message || `Nessun dato utile dal provider ${response.provider}. Stato: ${response.status}`);
+  };
+
   return (
     <div className="space-y-6">
       <SectionLead
@@ -275,6 +322,55 @@ export default function FleetCatalogClientPage() {
 
       {error && <NoticeBanner title="Errore caricamento" message={error} />}
       {success && <NoticeBanner title="Operazione completata" message={success} tone="success" />}
+
+      <Card padding="md">
+        <div className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
+          <div>
+            <h3 className="text-lg font-semibold">Importa da piattaforme esterne</h3>
+            <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
+              Inserisci targa o VIN. Il dato trovato viene salvato nel catalogo locale e poi riusato dal gestionale.
+            </p>
+            <div className="mt-4 grid gap-3 md:grid-cols-[180px_1fr_auto]">
+              <Select
+                label="Tipo ricerca"
+                value={lookupForm.lookup_type}
+                onChange={(event) => setLookupForm((current) => ({ ...current, lookup_type: event.target.value }))}
+                options={[
+                  { value: 'plate', label: 'Targa' },
+                  { value: 'vin', label: 'VIN / telaio' },
+                ]}
+              />
+              <Input
+                label={lookupForm.lookup_type === 'plate' ? 'Targa' : 'VIN / telaio'}
+                value={lookupForm.lookup_key}
+                onChange={(event) => setLookupForm((current) => ({ ...current, lookup_key: event.target.value.toUpperCase() }))}
+                placeholder={lookupForm.lookup_type === 'plate' ? 'AB123CD' : '17 caratteri VIN'}
+              />
+              <div className="flex items-end">
+                <Button type="button" disabled={!lookupForm.lookup_key} onClick={() => lookupExternalData().catch((err) => setError(err.message || 'Ricerca esterna non riuscita.'))}>
+                  Cerca e salva
+                </Button>
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-2 md:grid-cols-3">
+            {providers.map((provider) => (
+              <div
+                key={`${provider.lookup_type}-${provider.code}`}
+                className="rounded-[var(--cv-radius-md)] border p-3"
+                style={{ borderColor: 'var(--cv-border-subtle)', background: provider.enabled && provider.configured ? 'var(--cv-success-lighter)' : 'white' }}
+              >
+                <p className="text-sm font-semibold" style={{ color: 'var(--cv-neutral-900)' }}>{provider.label}</p>
+                <p className="mt-1 text-xs" style={{ color: 'var(--cv-neutral-600)' }}>{provider.code}</p>
+                <p className="mt-2 text-xs" style={{ color: provider.enabled && provider.configured ? 'var(--cv-success)' : 'var(--cv-warning)' }}>
+                  {provider.enabled && provider.configured ? 'Attivo' : provider.configured ? 'Configurato, non attivo' : 'Da configurare'}
+                </p>
+                <p className="mt-2 text-xs leading-5" style={{ color: 'var(--cv-neutral-600)' }}>{provider.note}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
         <Card padding="md">

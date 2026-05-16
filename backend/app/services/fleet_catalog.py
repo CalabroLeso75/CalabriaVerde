@@ -174,7 +174,7 @@ class FleetCatalogService:
                 enabled=settings.FLEET_EXTERNAL_LOOKUP_ENABLED and plate_provider not in {"", "none"},
                 configured=bool(settings.FLEET_PLATE_API_URL and settings.FLEET_PLATE_API_KEY),
                 needs_api_key=True,
-                note="Usa targa per marca, modello, alimentazione, revisione e assicurazione quando il fornitore lo espone.",
+                note="Usa targa per marca, modello e dati tecnici. Con TuttoTarghe Free usare solo il job tecnici per consumare pochi crediti.",
             ),
             ProviderStatus(
                 code="nhtsa",
@@ -497,6 +497,8 @@ class FleetCatalogService:
             return ExternalLookupResult(provider="none", lookup_type="plate", lookup_key=plate, status="not_configured", error_message="Provider targa non configurato")
         if not settings.FLEET_PLATE_API_URL or not settings.FLEET_PLATE_API_KEY:
             return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="not_configured", error_message="URL o API key provider targa mancanti")
+        if provider == "tuttotarghe":
+            return self._lookup_tuttotarghe_plate(plate)
 
         url = f"{settings.FLEET_PLATE_API_URL.rstrip('/')}/{quote(plate)}"
         request = Request(url, headers={"Authorization": f"Bearer {settings.FLEET_PLATE_API_KEY}", "Accept": "application/json"})
@@ -505,6 +507,43 @@ class FleetCatalogService:
                 payload = json.loads(response.read().decode("utf-8"))
             trim = self._trim_from_generic_payload(payload, source=f"plate_{provider}")
             return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="found" if trim else "empty", trim=trim, raw_payload=payload, http_status=200)
+        except HTTPError as exc:
+            return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc), http_status=exc.code)
+        except (URLError, TimeoutError, ValueError) as exc:
+            return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc))
+
+    def _lookup_tuttotarghe_plate(self, plate: str) -> ExternalLookupResult:
+        provider = "tuttotarghe"
+        job_types = [
+            item.strip()
+            for item in (settings.FLEET_PLATE_JOB_TYPES or "tecnici").split(",")
+            if item.strip()
+        ] or ["tecnici"]
+        payload = {"targhe": [plate], "type": job_types}
+        request = Request(
+            settings.FLEET_PLATE_API_URL,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {settings.FLEET_PLATE_API_KEY}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=15) as response:  # nosec B310 - endpoint configurato da amministratore
+                response_payload = json.loads(response.read().decode("utf-8"))
+            trim = self._trim_from_generic_payload(response_payload, source="plate_tuttotarghe")
+            return ExternalLookupResult(
+                provider=provider,
+                lookup_type="plate",
+                lookup_key=plate,
+                status="found" if trim else "empty",
+                trim=trim,
+                raw_payload=response_payload,
+                http_status=200,
+                source_notes=[f"Job richiesti: {', '.join(job_types)}"],
+            )
         except HTTPError as exc:
             return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc), http_status=exc.code)
         except (URLError, TimeoutError, ValueError) as exc:
@@ -571,12 +610,12 @@ class FleetCatalogService:
         return sorted(set(names))
 
     def _trim_from_generic_payload(self, payload: dict[str, Any], source: str) -> TrimSpec | None:
-        data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
-        brand = data.get("brand") or data.get("make") or data.get("marca")
-        model = data.get("model") or data.get("modello")
+        data = self._extract_vehicle_payload(payload)
+        brand = self._pick_value(data, "brand", "make", "marca", "manufacturer", "costruttore")
+        model = self._pick_value(data, "model", "modello", "vehicle_model", "versione_modello")
         if not brand or not model:
             return None
-        tire_values = data.get("tires") or data.get("tire_fitments") or []
+        tire_values = data.get("tires") or data.get("tire_fitments") or data.get("gomme") or data.get("pneumatici") or []
         tire_specs = []
         if isinstance(tire_values, list):
             for item in tire_values:
@@ -595,32 +634,61 @@ class FleetCatalogService:
         return TrimSpec(
             brand_name=str(brand),
             model_name=str(model),
-            vehicle_category=data.get("vehicle_category") or data.get("category") or "Car",
-            commercial_name=data.get("commercial_name") or data.get("trim") or data.get("versione"),
-            production_year=self._to_int(data.get("production_year") or data.get("year") or data.get("anno")),
-            engine_type=self._map_engine(data.get("engine_type") or data.get("fuel") or data.get("alimentazione")),
-            engine_code=data.get("engine_code"),
-            displacement_cc=self._to_int(data.get("displacement_cc") or data.get("cilindrata")),
-            horsepower_hp=self._to_int(data.get("horsepower_hp") or data.get("power_hp") or data.get("cv")),
-            torque_nm=self._to_int(data.get("torque_nm")),
-            transmission=data.get("transmission") or data.get("cambio"),
-            drive_type=data.get("drive_type") or data.get("trazione"),
-            body_style=data.get("body_style") or data.get("carrozzeria"),
-            doors=self._to_int(data.get("doors") or data.get("porte")),
-            seats=self._to_int(data.get("seats") or data.get("posti")),
-            euro_class=data.get("euro_class"),
-            co2_g_km=self._to_int(data.get("co2_g_km")),
-            fuel_consumption_l_100km=self._to_float(data.get("fuel_consumption_l_100km")),
-            wheelbase_mm=self._to_int(data.get("wheelbase_mm")),
-            length_mm=self._to_int(data.get("length_mm")),
-            width_mm=self._to_int(data.get("width_mm")),
-            height_mm=self._to_int(data.get("height_mm")),
-            gross_weight_kg=self._to_int(data.get("gross_weight_kg")),
-            tow_capacity_kg=self._to_int(data.get("tow_capacity_kg")),
+            vehicle_category=self._pick_value(data, "vehicle_category", "category", "categoria") or "Car",
+            commercial_name=self._pick_value(data, "commercial_name", "trim", "versione", "allestimento"),
+            production_year=self._to_int(self._pick_value(data, "production_year", "year", "anno", "anno_immatricolazione")),
+            engine_type=self._map_engine(self._pick_value(data, "engine_type", "fuel", "alimentazione", "carburante")),
+            engine_code=self._pick_value(data, "engine_code", "codice_motore"),
+            displacement_cc=self._to_int(self._pick_value(data, "displacement_cc", "cilindrata", "engine_size")),
+            horsepower_hp=self._to_int(self._pick_value(data, "horsepower_hp", "power_hp", "cv", "cavalli")),
+            torque_nm=self._to_int(self._pick_value(data, "torque_nm", "coppia")),
+            transmission=self._pick_value(data, "transmission", "cambio"),
+            drive_type=self._pick_value(data, "drive_type", "trazione"),
+            body_style=self._pick_value(data, "body_style", "carrozzeria"),
+            doors=self._to_int(self._pick_value(data, "doors", "porte")),
+            seats=self._to_int(self._pick_value(data, "seats", "posti")),
+            euro_class=self._pick_value(data, "euro_class", "classe_ambientale", "classe_euro"),
+            co2_g_km=self._to_int(self._pick_value(data, "co2_g_km", "co2")),
+            fuel_consumption_l_100km=self._to_float(self._pick_value(data, "fuel_consumption_l_100km", "consumo")),
+            wheelbase_mm=self._to_int(self._pick_value(data, "wheelbase_mm", "passo")),
+            length_mm=self._to_int(self._pick_value(data, "length_mm", "lunghezza")),
+            width_mm=self._to_int(self._pick_value(data, "width_mm", "larghezza")),
+            height_mm=self._to_int(self._pick_value(data, "height_mm", "altezza")),
+            gross_weight_kg=self._to_int(self._pick_value(data, "gross_weight_kg", "massa_complessiva")),
+            tow_capacity_kg=self._to_int(self._pick_value(data, "tow_capacity_kg", "massa_rimorchiabile")),
             tire_fitments=tuple(tire_specs),
             source=source,
             raw_payload=payload,
         )
+
+    def _extract_vehicle_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        candidates: list[Any] = [payload]
+        for key in ("data", "result", "results", "tecnici", "technical", "vehicle", "veicolo"):
+            value = payload.get(key)
+            if value is not None:
+                candidates.append(value)
+        for value in list(candidates):
+            if isinstance(value, list):
+                candidates.extend(value)
+            elif isinstance(value, dict):
+                for nested in value.values():
+                    if isinstance(nested, (dict, list)):
+                        candidates.append(nested)
+        for candidate in candidates:
+            if isinstance(candidate, dict):
+                lowered = {str(key).lower(): value for key, value in candidate.items()}
+                if self._pick_value(lowered, "brand", "make", "marca") and self._pick_value(lowered, "model", "modello"):
+                    return lowered
+        return payload.get("data") if isinstance(payload.get("data"), dict) else payload
+
+    @staticmethod
+    def _pick_value(data: dict[str, Any], *keys: str) -> Any:
+        lowered = {str(key).lower(): value for key, value in data.items()}
+        for key in keys:
+            value = lowered.get(key.lower())
+            if value not in (None, ""):
+                return value
+        return None
 
     def _record_external_lookup(self, result: ExternalLookupResult) -> VehicleExternalLookup:
         item = VehicleExternalLookup(

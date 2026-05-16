@@ -413,3 +413,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato in Collaudo locale, pronto per Test.  
 **Verifiche eseguite:** `npm run lint` senza errori, `npm run build` OK.  
 **Note utili:** l'assenza di API key targa e' uno stato di configurazione, non un errore di caricamento; questa distinzione va mantenuta per tutti i provider esterni.
+
+## 2026-05-16 14:30:00 - Predisposizione TuttoTarghe Free
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** adattato il provider targa al formato reale di TuttoTarghe (`POST /job/jobsync` con Bearer token e body `targhe/type`). Configurato il default per usare il solo job `tecnici`, adatto al piano Free per consumare pochi crediti durante i test. Migliorato il parser dei payload annidati per mappare marca/modello/allestimento/cilindrata/alimentazione/classi ambientali da risposte eterogenee.  
+**File coinvolti:** `backend/app/core/config.py`, `backend/app/services/fleet_catalog.py`.  
+**Esito:** completato in Collaudo locale, pronto per Test appena disponibile il token.  
+**Verifiche eseguite:** `py_compile` backend OK.  
+**Note utili:** su Test andranno impostati `FLEET_PLATE_PROVIDER=tuttotarghe`, `FLEET_PLATE_API_URL=https://api.tuttotarghe.it/job/jobsync`, `FLEET_PLATE_JOB_TYPES=tecnici` e poi `FLEET_PLATE_API_KEY=<token>`.

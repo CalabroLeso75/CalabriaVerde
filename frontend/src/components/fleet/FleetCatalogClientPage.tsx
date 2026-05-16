@@ -242,6 +242,10 @@ export default function FleetCatalogClientPage() {
     [trims],
   );
 
+  const selectedProvider = providers.find((provider) => provider.lookup_type === lookupForm.lookup_type);
+  const selectedProviderReady = Boolean(selectedProvider?.enabled && selectedProvider?.configured);
+  const selectedProviderMissing = Boolean(selectedProvider && !selectedProviderReady);
+
   const createTrim = async () => {
     const response = await api.post<VehicleTrim>('/fleet/catalog/trims', {
       brand_name: trimForm.brand_name,
@@ -343,6 +347,11 @@ export default function FleetCatalogClientPage() {
 
   const lookupExternalData = async () => {
     setError(null);
+    if (!selectedProviderReady) {
+      setSuccess(null);
+      setError(null);
+      return;
+    }
     const response = await api.post<ExternalLookupResponse>('/fleet/catalog/external-lookup', {
       lookup_type: lookupForm.lookup_type,
       lookup_key: lookupForm.lookup_key,
@@ -352,6 +361,11 @@ export default function FleetCatalogClientPage() {
       setSelectedTrimId(String(response.trim.id));
       setSuccess(`Dati trovati da ${response.provider} e salvati nel catalogo locale.`);
       await loadTrims();
+      return;
+    }
+    if (response.status === 'not_configured' || response.status === 'disabled') {
+      setSuccess(null);
+      setError(null);
       return;
     }
     setError(response.error_message || `Nessun dato utile dal provider ${response.provider}. Stato: ${response.status}`);
@@ -458,11 +472,25 @@ export default function FleetCatalogClientPage() {
                 placeholder={lookupForm.lookup_type === 'plate' ? 'AB123CD' : '17 caratteri VIN'}
               />
               <div className="flex items-end">
-                <Button type="button" disabled={!lookupForm.lookup_key} onClick={() => lookupExternalData().catch((err) => setError(err.message || 'Ricerca esterna non riuscita.'))}>
+                <Button type="button" disabled={!lookupForm.lookup_key || !selectedProviderReady} onClick={() => lookupExternalData().catch((err) => setError(err.message || 'Ricerca esterna non riuscita.'))}>
                   Cerca e salva
                 </Button>
               </div>
             </div>
+            {selectedProviderMissing && (
+              <div
+                className="mt-3 rounded-[var(--cv-radius-md)] border px-3 py-2 text-sm"
+                style={{
+                  borderColor: 'var(--cv-warning)',
+                  background: 'var(--cv-warning-lighter)',
+                  color: 'var(--cv-neutral-800)',
+                }}
+              >
+                {lookupForm.lookup_type === 'plate'
+                  ? 'Ricerca da targa non attiva: manca il provider italiano e la relativa API key.'
+                  : 'Ricerca VIN non attiva: abilita il provider nelle impostazioni del backend.'}
+              </div>
+            )}
           </div>
           <div className="grid gap-2 md:grid-cols-3">
             {providers.map((provider) => (

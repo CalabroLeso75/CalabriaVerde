@@ -403,3 +403,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato su Test.  
 **Verifiche eseguite:** `py_compile` backend OK, `npm run lint` senza errori, `npm run build` OK, deploy backend/frontend Test, import NHTSA Test con `12.243` marche e `2.503` modelli importati, `GET /api/fleet/catalog/stats` autenticato OK, pagina `https://smart-cv.it/test/fleet/catalogo/` `200`.  
 **Note utili:** la ricerca da targa richiede ancora una API targa italiana configurata; su Test `FLEET_EXTERNAL_LOOKUP_ENABLED=true` abilita VIN/NHTSA, mentre la targa risponde correttamente `Provider targa non configurato` finche' non viene inserito `FLEET_PLATE_API_URL`/`FLEET_PLATE_API_KEY`.
+
+## 2026-05-16 14:10:00 - Correzione UX provider targa non configurato
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** corretta la pagina `Parco Macchine > Catalogo tecnico` per non mostrare come errore la mancanza del provider targa. La UI ora disabilita `Cerca e salva` quando il provider selezionato non e' pronto e mostra un messaggio informativo dedicato.  
+**File coinvolti:** `frontend/src/components/fleet/FleetCatalogClientPage.tsx`, `directives/error_memory.md`, `directives/activity_log.md`.  
+**Esito:** completato in Collaudo locale, pronto per Test.  
+**Verifiche eseguite:** `npm run lint` senza errori, `npm run build` OK.  
+**Note utili:** l'assenza di API key targa e' uno stato di configurazione, non un errore di caricamento; questa distinzione va mantenuta per tutti i provider esterni.

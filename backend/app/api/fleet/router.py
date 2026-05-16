@@ -23,6 +23,7 @@ from app.models.fleet import (
     VehicleModel,
     VehicleRevision,
     VehicleTrim,
+    VehicleTrimTireFitment,
     VehicleType,
     VehicleUsageLog,
 )
@@ -64,7 +65,7 @@ from app.schemas.fleet import (
     FleetVehicleUsageLogResponse,
 )
 from app.services.communication_log import register_communication, resolve_targets
-from app.services.fleet_catalog import FleetCatalogService, PhysicalVehicleSpec, TrimSpec
+from app.services.fleet_catalog import FleetCatalogService, PhysicalVehicleSpec, TireFitmentSpec, TrimSpec
 
 router = APIRouter()
 
@@ -326,6 +327,71 @@ async def list_vehicle_trims(
     return FleetCatalogService(db).search_trims(search, limit=100)
 
 
+def trim_spec_from_payload(data: FleetVehicleTrimCreate) -> TrimSpec:
+    return TrimSpec(
+        brand_name=data.brand_name,
+        model_name=data.model_name,
+        vehicle_category=data.vehicle_category,
+        commercial_name=data.commercial_name,
+        production_year=data.production_year,
+        engine_type=data.engine_type,
+        engine_code=data.engine_code,
+        displacement_cc=data.displacement_cc,
+        horsepower_hp=data.horsepower_hp,
+        torque_nm=data.torque_nm,
+        transmission=data.transmission,
+        drive_type=data.drive_type,
+        body_style=data.body_style,
+        doors=data.doors,
+        seats=data.seats,
+        euro_class=data.euro_class,
+        co2_g_km=data.co2_g_km,
+        fuel_consumption_l_100km=float(data.fuel_consumption_l_100km) if data.fuel_consumption_l_100km is not None else None,
+        wheelbase_mm=data.wheelbase_mm,
+        length_mm=data.length_mm,
+        width_mm=data.width_mm,
+        height_mm=data.height_mm,
+        gross_weight_kg=data.gross_weight_kg,
+        tow_capacity_kg=data.tow_capacity_kg,
+        tire_fitments=tuple(
+            TireFitmentSpec(
+                position=item.position,
+                tire_size=item.tire_size,
+                rim_size=item.rim_size,
+                load_index=item.load_index,
+                speed_rating=item.speed_rating,
+                pressure_bar=float(item.pressure_bar) if item.pressure_bar is not None else None,
+                is_default=item.is_default,
+                notes=item.notes,
+                source=item.source,
+            )
+            for item in data.tire_fitments
+        ),
+        source=data.source,
+    )
+
+
+@router.get("/catalog/trims/{trim_id}", response_model=FleetVehicleTrimResponse)
+async def get_vehicle_trim(
+    trim_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del current_user
+    item = (
+        db.query(VehicleTrim)
+        .options(
+            joinedload(VehicleTrim.model).joinedload(VehicleModel.brand),
+            joinedload(VehicleTrim.tire_fitments),
+        )
+        .filter(VehicleTrim.id == trim_id)
+        .first()
+    )
+    if not item:
+        raise HTTPException(status_code=404, detail="Allestimento tecnico non trovato")
+    return item
+
+
 @router.post("/catalog/trims", response_model=FleetVehicleTrimResponse, status_code=status.HTTP_201_CREATED)
 async def create_vehicle_trim(
     data: FleetVehicleTrimCreate,
@@ -334,19 +400,9 @@ async def create_vehicle_trim(
 ):
     del current_user
     try:
-        trim = FleetCatalogService(db).get_or_create_trim(
-            TrimSpec(
-                brand_name=data.brand_name,
-                model_name=data.model_name,
-                vehicle_category=data.vehicle_category,
-                production_year=data.production_year,
-                engine_type=data.engine_type,
-                displacement_cc=data.displacement_cc,
-                horsepower_hp=data.horsepower_hp,
-                source=data.source,
-            )
-        )
+        trim = FleetCatalogService(db).get_or_create_trim(trim_spec_from_payload(data))
         db.commit()
+        db.refresh(trim)
         return trim
     except ValueError as exc:
         db.rollback()
@@ -362,16 +418,7 @@ async def create_physical_vehicle(
     del current_user
     trim_spec = None
     if data.trim:
-        trim_spec = TrimSpec(
-            brand_name=data.trim.brand_name,
-            model_name=data.trim.model_name,
-            vehicle_category=data.trim.vehicle_category,
-            production_year=data.trim.production_year,
-            engine_type=data.trim.engine_type,
-            displacement_cc=data.trim.displacement_cc,
-            horsepower_hp=data.trim.horsepower_hp,
-            source=data.trim.source,
-        )
+        trim_spec = trim_spec_from_payload(data.trim)
     try:
         vehicle, created_from = FleetCatalogService(db).create_physical_vehicle(
             PhysicalVehicleSpec(

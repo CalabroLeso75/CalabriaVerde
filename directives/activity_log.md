@@ -373,3 +373,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato su Collaudo e Test.  
 **Verifiche eseguite:** `npm run lint` senza errori, `npm run build` OK con route `/fleet/catalogo`, deploy frontend Test, migration backend Test fino a `010_fleet_vehicle_catalog`, `https://smart-cv.it/test/fleet/catalogo/` `200`, endpoint autenticato `GET https://82-165-198-214.sslip.io/api/fleet/catalog/trims?search=isuzu` `200`.  
 **Note utili:** il catalogo era gia' presente lato backend ma non visibile in UI; da ora la verifica utente passa dalla nuova voce del menu Parco Macchine.
+
+## 2026-05-16 12:35:00 - Estensione dati tecnici e gomme catalogo mezzi
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** esteso il catalogo tecnico mezzi con campi dettagliati per motore, codice motore, coppia, cambio, trazione, carrozzeria, porte, posti, classe euro, CO2, consumi, dimensioni, massa, traino e tabella dedicata alle misure gomme del trim, inclusa misura default e note per misure alternative. Aggiornata la pagina `Parco Macchine > Catalogo tecnico` per compilare e visualizzare questi dati.  
+**File coinvolti:** `backend/app/models/fleet.py`, `backend/app/schemas/fleet.py`, `backend/app/services/fleet_catalog.py`, `backend/app/api/fleet/router.py`, `backend/migrations/versions/011_fleet_trim_technical_details.py`, `frontend/src/components/fleet/FleetCatalogClientPage.tsx`, hosting `smart-cv.it/test`, VPS `/opt/calabriaverde-test/backend`.  
+**Esito:** completato su Collaudo e Test.  
+**Verifiche eseguite:** `py_compile` backend OK, `npm run lint` senza errori, `npm run build` OK, migration locale `011_fleet_trim_technical_details` applicata, smoke API locale creazione/detail trim tecnico con gomme OK, deploy backend Test e migration Test fino a `011`, `GET https://82-165-198-214.sslip.io/api/fleet/catalog/trims/1` autenticato `200`, file frontend pubblicato verificato su hosting in `/home/www/Gestionale/public/test/fleet/catalogo/index.html`.  
+**Note utili:** i 20 mezzi importati non hanno VIN/telaio valorizzato, quindi non e' possibile arricchirli automaticamente tramite lookup VIN finche' non viene fornita una sorgente dati tecnica o i VIN corretti; il catalogo ora e' pronto a importare e conservare quei dati.

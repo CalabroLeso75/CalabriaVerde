@@ -17,7 +17,7 @@ from urllib.request import urlopen
 
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.fleet import Vehicle, VehicleBrand, VehicleModel, VehicleTrim
+from app.models.fleet import Vehicle, VehicleBrand, VehicleModel, VehicleTrim, VehicleTrimTireFitment
 
 
 ENGINE_VALUES = {"Diesel", "Petrol", "Electric", "Hybrid", "Plug-in", "CNG"}
@@ -30,14 +30,45 @@ STATUS_MAP = {
 
 
 @dataclass(frozen=True)
+class TireFitmentSpec:
+    tire_size: str
+    position: str = "both"
+    rim_size: str | None = None
+    load_index: str | None = None
+    speed_rating: str | None = None
+    pressure_bar: float | None = None
+    is_default: bool = False
+    notes: str | None = None
+    source: str = "manuale"
+
+
+@dataclass(frozen=True)
 class TrimSpec:
     brand_name: str
     model_name: str
     vehicle_category: str = "Car"
+    commercial_name: str | None = None
     production_year: int | None = None
     engine_type: str = "Diesel"
+    engine_code: str | None = None
     displacement_cc: int | None = None
     horsepower_hp: int | None = None
+    torque_nm: int | None = None
+    transmission: str | None = None
+    drive_type: str | None = None
+    body_style: str | None = None
+    doors: int | None = None
+    seats: int | None = None
+    euro_class: str | None = None
+    co2_g_km: int | None = None
+    fuel_consumption_l_100km: float | None = None
+    wheelbase_mm: int | None = None
+    length_mm: int | None = None
+    width_mm: int | None = None
+    height_mm: int | None = None
+    gross_weight_kg: int | None = None
+    tow_capacity_kg: int | None = None
+    tire_fitments: tuple[TireFitmentSpec, ...] = ()
     source: str = "manuale"
     raw_payload: dict[str, Any] | None = None
 
@@ -73,7 +104,10 @@ class FleetCatalogService:
     def search_trims(self, query: str | None = None, limit: int = 50) -> list[VehicleTrim]:
         items = (
             self.db.query(VehicleTrim)
-            .options(joinedload(VehicleTrim.model).joinedload(VehicleModel.brand))
+            .options(
+                joinedload(VehicleTrim.model).joinedload(VehicleModel.brand),
+                joinedload(VehicleTrim.tire_fitments),
+            )
             .join(VehicleTrim.model)
             .join(VehicleModel.brand)
         )
@@ -193,20 +227,72 @@ class FleetCatalogService:
             .first()
         )
         if trim:
+            self._sync_tire_fitments(trim, spec.tire_fitments)
             return trim
         trim = VehicleTrim(
             model_id=model.id,
+            commercial_name=spec.commercial_name,
             production_year=spec.production_year,
             engine_type=engine_type,
+            engine_code=spec.engine_code,
             displacement_cc=spec.displacement_cc,
             horsepower_hp=spec.horsepower_hp,
+            torque_nm=spec.torque_nm,
+            transmission=spec.transmission,
+            drive_type=spec.drive_type,
+            body_style=spec.body_style,
+            doors=spec.doors,
+            seats=spec.seats,
+            euro_class=spec.euro_class,
+            co2_g_km=spec.co2_g_km,
+            fuel_consumption_l_100km=spec.fuel_consumption_l_100km,
+            wheelbase_mm=spec.wheelbase_mm,
+            length_mm=spec.length_mm,
+            width_mm=spec.width_mm,
+            height_mm=spec.height_mm,
+            gross_weight_kg=spec.gross_weight_kg,
+            tow_capacity_kg=spec.tow_capacity_kg,
             source=spec.source,
             raw_payload=spec.raw_payload,
         )
         self.db.add(trim)
         self.db.flush()
+        self._sync_tire_fitments(trim, spec.tire_fitments)
         self.db.refresh(trim, attribute_names=["model"])
         return trim
+
+    def _sync_tire_fitments(self, trim: VehicleTrim, tire_specs: tuple[TireFitmentSpec, ...]) -> None:
+        existing = {
+            (item.position, item.tire_size, item.rim_size or ""): item
+            for item in getattr(trim, "tire_fitments", [])
+        }
+        for spec in tire_specs:
+            tire_size = " ".join((spec.tire_size or "").strip().split())
+            if not tire_size:
+                continue
+            position = spec.position if spec.position in {"front", "rear", "both"} else "both"
+            key = (position, tire_size, spec.rim_size or "")
+            item = existing.get(key)
+            if item:
+                item.load_index = spec.load_index
+                item.speed_rating = spec.speed_rating
+                item.pressure_bar = spec.pressure_bar
+                item.is_default = spec.is_default
+                item.notes = spec.notes
+                item.source = spec.source
+                continue
+            self.db.add(VehicleTrimTireFitment(
+                trim_id=trim.id,
+                position=position,
+                tire_size=tire_size,
+                rim_size=spec.rim_size,
+                load_index=spec.load_index,
+                speed_rating=spec.speed_rating,
+                pressure_bar=spec.pressure_bar,
+                is_default=spec.is_default,
+                notes=spec.notes,
+                source=spec.source,
+            ))
 
     def _lookup_external_trim(self, spec: PhysicalVehicleSpec) -> TrimSpec | None:
         if os.getenv("FLEET_EXTERNAL_LOOKUP_ENABLED", "false").lower() != "true":

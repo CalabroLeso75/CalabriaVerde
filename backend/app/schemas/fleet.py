@@ -38,15 +38,62 @@ class FleetVehicleModelResponse(BaseModel):
         from_attributes = True
 
 
+class FleetVehicleTireFitmentResponse(BaseModel):
+    id: int
+    trim_id: int
+    position: str
+    tire_size: str
+    rim_size: Optional[str] = None
+    load_index: Optional[str] = None
+    speed_rating: Optional[str] = None
+    pressure_bar: Optional[Decimal] = None
+    is_default: bool = False
+    notes: Optional[str] = None
+    source: str = "manuale"
+
+    class Config:
+        from_attributes = True
+
+
+class FleetVehicleTireFitmentCreate(BaseModel):
+    position: str = "both"
+    tire_size: str
+    rim_size: Optional[str] = None
+    load_index: Optional[str] = None
+    speed_rating: Optional[str] = None
+    pressure_bar: Optional[Decimal] = None
+    is_default: bool = False
+    notes: Optional[str] = None
+    source: str = "manuale"
+
+
 class FleetVehicleTrimResponse(BaseModel):
     id: int
     model_id: int
+    commercial_name: Optional[str] = None
     production_year: Optional[int] = None
     engine_type: str
+    engine_code: Optional[str] = None
     displacement_cc: Optional[int] = None
     horsepower_hp: Optional[int] = None
+    torque_nm: Optional[int] = None
+    transmission: Optional[str] = None
+    drive_type: Optional[str] = None
+    body_style: Optional[str] = None
+    doors: Optional[int] = None
+    seats: Optional[int] = None
+    euro_class: Optional[str] = None
+    co2_g_km: Optional[int] = None
+    fuel_consumption_l_100km: Optional[Decimal] = None
+    wheelbase_mm: Optional[int] = None
+    length_mm: Optional[int] = None
+    width_mm: Optional[int] = None
+    height_mm: Optional[int] = None
+    gross_weight_kg: Optional[int] = None
+    tow_capacity_kg: Optional[int] = None
     source: str = "manuale"
     model: Optional[FleetVehicleModelResponse] = None
+    tire_fitments: list[FleetVehicleTireFitmentResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -56,10 +103,28 @@ class FleetVehicleTrimCreate(BaseModel):
     brand_name: str
     model_name: str
     vehicle_category: str = "Car"
+    commercial_name: Optional[str] = None
     production_year: Optional[int] = None
     engine_type: str = "Diesel"
+    engine_code: Optional[str] = None
     displacement_cc: Optional[int] = None
     horsepower_hp: Optional[int] = None
+    torque_nm: Optional[int] = None
+    transmission: Optional[str] = None
+    drive_type: Optional[str] = None
+    body_style: Optional[str] = None
+    doors: Optional[int] = None
+    seats: Optional[int] = None
+    euro_class: Optional[str] = None
+    co2_g_km: Optional[int] = None
+    fuel_consumption_l_100km: Optional[Decimal] = None
+    wheelbase_mm: Optional[int] = None
+    length_mm: Optional[int] = None
+    width_mm: Optional[int] = None
+    height_mm: Optional[int] = None
+    gross_weight_kg: Optional[int] = None
+    tow_capacity_kg: Optional[int] = None
+    tire_fitments: list[FleetVehicleTireFitmentCreate] = Field(default_factory=list)
     source: str = "manuale"
 
 

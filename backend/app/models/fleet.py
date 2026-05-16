@@ -99,14 +99,31 @@ class VehicleTrim(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     model_id = Column(Integer, ForeignKey("vehicle_models.id", ondelete="CASCADE"), nullable=False, index=True)
+    commercial_name = Column(String(180), nullable=True)
     production_year = Column(Integer, nullable=True)
     engine_type = Column(
         Enum("Diesel", "Petrol", "Electric", "Hybrid", "Plug-in", "CNG", name="vehicle_engine_type"),
         nullable=False,
         default="Diesel",
     )
+    engine_code = Column(String(80), nullable=True)
     displacement_cc = Column(Integer, nullable=True)
     horsepower_hp = Column(Integer, nullable=True)
+    torque_nm = Column(Integer, nullable=True)
+    transmission = Column(String(80), nullable=True)
+    drive_type = Column(String(80), nullable=True)
+    body_style = Column(String(120), nullable=True)
+    doors = Column(Integer, nullable=True)
+    seats = Column(Integer, nullable=True)
+    euro_class = Column(String(30), nullable=True)
+    co2_g_km = Column(Integer, nullable=True)
+    fuel_consumption_l_100km = Column(Numeric(5, 2), nullable=True)
+    wheelbase_mm = Column(Integer, nullable=True)
+    length_mm = Column(Integer, nullable=True)
+    width_mm = Column(Integer, nullable=True)
+    height_mm = Column(Integer, nullable=True)
+    gross_weight_kg = Column(Integer, nullable=True)
+    tow_capacity_kg = Column(Integer, nullable=True)
     source = Column(String(50), nullable=False, default="manuale")
     raw_payload = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
@@ -114,6 +131,32 @@ class VehicleTrim(Base):
 
     model = relationship("VehicleModel", back_populates="trims")
     vehicles = relationship("Vehicle", back_populates="trim")
+    tire_fitments = relationship(
+        "VehicleTrimTireFitment",
+        back_populates="trim",
+        cascade="all, delete-orphan",
+        order_by="desc(VehicleTrimTireFitment.is_default)",
+    )
+
+
+class VehicleTrimTireFitment(Base):
+    __tablename__ = "vehicle_trim_tire_fitments"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    trim_id = Column(Integer, ForeignKey("vehicle_trims.id", ondelete="CASCADE"), nullable=False, index=True)
+    position = Column(Enum("front", "rear", "both", name="vehicle_tire_position"), nullable=False, default="both")
+    tire_size = Column(String(60), nullable=False)
+    rim_size = Column(String(60), nullable=True)
+    load_index = Column(String(20), nullable=True)
+    speed_rating = Column(String(20), nullable=True)
+    pressure_bar = Column(Numeric(4, 2), nullable=True)
+    is_default = Column(Boolean, nullable=False, default=False)
+    notes = Column(Text, nullable=True)
+    source = Column(String(50), nullable=False, default="manuale")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    trim = relationship("VehicleTrim", back_populates="tire_fitments")
 
 
 class Vehicle(Base):

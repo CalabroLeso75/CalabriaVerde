@@ -13,11 +13,39 @@ import { api } from '@/lib/api';
 
 type VehicleTrim = {
   id: number;
+  commercial_name?: string | null;
   production_year?: number | null;
   engine_type: string;
+  engine_code?: string | null;
   displacement_cc?: number | null;
   horsepower_hp?: number | null;
+  torque_nm?: number | null;
+  transmission?: string | null;
+  drive_type?: string | null;
+  body_style?: string | null;
+  doors?: number | null;
+  seats?: number | null;
+  euro_class?: string | null;
+  co2_g_km?: number | null;
+  fuel_consumption_l_100km?: string | number | null;
+  wheelbase_mm?: number | null;
+  length_mm?: number | null;
+  width_mm?: number | null;
+  height_mm?: number | null;
+  gross_weight_kg?: number | null;
+  tow_capacity_kg?: number | null;
   source: string;
+  tire_fitments: Array<{
+    id: number;
+    position: string;
+    tire_size: string;
+    rim_size?: string | null;
+    load_index?: string | null;
+    speed_rating?: string | null;
+    pressure_bar?: string | number | null;
+    is_default: boolean;
+    notes?: string | null;
+  }>;
   model?: {
     id: number;
     name: string;
@@ -78,10 +106,33 @@ export default function FleetCatalogClientPage() {
     brand_name: '',
     model_name: '',
     vehicle_category: 'Light_Commercial',
+    commercial_name: '',
     production_year: '',
     engine_type: 'Diesel',
+    engine_code: '',
     displacement_cc: '',
     horsepower_hp: '',
+    torque_nm: '',
+    transmission: '',
+    drive_type: '',
+    body_style: '',
+    doors: '',
+    seats: '',
+    euro_class: '',
+    co2_g_km: '',
+    fuel_consumption_l_100km: '',
+    wheelbase_mm: '',
+    length_mm: '',
+    width_mm: '',
+    height_mm: '',
+    gross_weight_kg: '',
+    tow_capacity_kg: '',
+    tire_size: '',
+    rim_size: '',
+    load_index: '',
+    speed_rating: '',
+    pressure_bar: '',
+    tire_notes: '',
   });
 
   const [vehicleForm, setVehicleForm] = useState({
@@ -121,10 +172,38 @@ export default function FleetCatalogClientPage() {
       brand_name: trimForm.brand_name,
       model_name: trimForm.model_name,
       vehicle_category: trimForm.vehicle_category,
+      commercial_name: trimForm.commercial_name || null,
       production_year: trimForm.production_year ? Number(trimForm.production_year) : null,
       engine_type: trimForm.engine_type,
+      engine_code: trimForm.engine_code || null,
       displacement_cc: trimForm.displacement_cc ? Number(trimForm.displacement_cc) : null,
       horsepower_hp: trimForm.horsepower_hp ? Number(trimForm.horsepower_hp) : null,
+      torque_nm: trimForm.torque_nm ? Number(trimForm.torque_nm) : null,
+      transmission: trimForm.transmission || null,
+      drive_type: trimForm.drive_type || null,
+      body_style: trimForm.body_style || null,
+      doors: trimForm.doors ? Number(trimForm.doors) : null,
+      seats: trimForm.seats ? Number(trimForm.seats) : null,
+      euro_class: trimForm.euro_class || null,
+      co2_g_km: trimForm.co2_g_km ? Number(trimForm.co2_g_km) : null,
+      fuel_consumption_l_100km: trimForm.fuel_consumption_l_100km ? Number(trimForm.fuel_consumption_l_100km) : null,
+      wheelbase_mm: trimForm.wheelbase_mm ? Number(trimForm.wheelbase_mm) : null,
+      length_mm: trimForm.length_mm ? Number(trimForm.length_mm) : null,
+      width_mm: trimForm.width_mm ? Number(trimForm.width_mm) : null,
+      height_mm: trimForm.height_mm ? Number(trimForm.height_mm) : null,
+      gross_weight_kg: trimForm.gross_weight_kg ? Number(trimForm.gross_weight_kg) : null,
+      tow_capacity_kg: trimForm.tow_capacity_kg ? Number(trimForm.tow_capacity_kg) : null,
+      tire_fitments: trimForm.tire_size ? [{
+        position: 'both',
+        tire_size: trimForm.tire_size,
+        rim_size: trimForm.rim_size || null,
+        load_index: trimForm.load_index || null,
+        speed_rating: trimForm.speed_rating || null,
+        pressure_bar: trimForm.pressure_bar ? Number(trimForm.pressure_bar) : null,
+        is_default: true,
+        notes: trimForm.tire_notes || null,
+        source: 'manuale',
+      }] : [],
       source: 'manuale',
     });
     setSuccess('Allestimento tecnico salvato nel catalogo locale.');
@@ -133,10 +212,33 @@ export default function FleetCatalogClientPage() {
       brand_name: '',
       model_name: '',
       vehicle_category: 'Light_Commercial',
+      commercial_name: '',
       production_year: '',
       engine_type: 'Diesel',
+      engine_code: '',
       displacement_cc: '',
       horsepower_hp: '',
+      torque_nm: '',
+      transmission: '',
+      drive_type: '',
+      body_style: '',
+      doors: '',
+      seats: '',
+      euro_class: '',
+      co2_g_km: '',
+      fuel_consumption_l_100km: '',
+      wheelbase_mm: '',
+      length_mm: '',
+      width_mm: '',
+      height_mm: '',
+      gross_weight_kg: '',
+      tow_capacity_kg: '',
+      tire_size: '',
+      rim_size: '',
+      load_index: '',
+      speed_rating: '',
+      pressure_bar: '',
+      tire_notes: '',
     });
     await loadTrims();
   };
@@ -200,6 +302,14 @@ export default function FleetCatalogClientPage() {
                   <p className="mt-1 text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
                     Categoria {trim.model?.vehicle_category || 'n.d.'} - Fonte {trim.source}
                   </p>
+                  <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2" style={{ color: 'var(--cv-neutral-600)' }}>
+                    <span>Motore: {trim.engine_code || trim.engine_type}</span>
+                    <span>Coppia: {trim.torque_nm ? `${trim.torque_nm} Nm` : 'n.d.'}</span>
+                    <span>Cambio: {trim.transmission || 'n.d.'}</span>
+                    <span>Euro: {trim.euro_class || 'n.d.'}</span>
+                    <span>Dimensioni: {[trim.length_mm, trim.width_mm, trim.height_mm].filter(Boolean).join(' x ') || 'n.d.'}</span>
+                    <span>Gomme: {trim.tire_fitments?.find((item) => item.is_default)?.tire_size || trim.tire_fitments?.[0]?.tire_size || 'n.d.'}</span>
+                  </div>
                 </button>
               ))}
               {trims.length === 0 && (
@@ -220,11 +330,34 @@ export default function FleetCatalogClientPage() {
             <div className="grid gap-3 md:grid-cols-2">
               <Input label="Marca" value={trimForm.brand_name} onChange={(event) => setTrimForm((current) => ({ ...current, brand_name: event.target.value }))} />
               <Input label="Modello" value={trimForm.model_name} onChange={(event) => setTrimForm((current) => ({ ...current, model_name: event.target.value }))} />
+              <Input label="Allestimento commerciale" value={trimForm.commercial_name} onChange={(event) => setTrimForm((current) => ({ ...current, commercial_name: event.target.value }))} />
               <Select label="Categoria" value={trimForm.vehicle_category} onChange={(event) => setTrimForm((current) => ({ ...current, vehicle_category: event.target.value }))} options={categoryOptions} />
               <Input label="Anno produzione" type="number" value={trimForm.production_year} onChange={(event) => setTrimForm((current) => ({ ...current, production_year: event.target.value }))} />
               <Select label="Alimentazione" value={trimForm.engine_type} onChange={(event) => setTrimForm((current) => ({ ...current, engine_type: event.target.value }))} options={engineOptions} />
+              <Input label="Codice motore" value={trimForm.engine_code} onChange={(event) => setTrimForm((current) => ({ ...current, engine_code: event.target.value }))} />
               <Input label="Cilindrata cc" type="number" value={trimForm.displacement_cc} onChange={(event) => setTrimForm((current) => ({ ...current, displacement_cc: event.target.value }))} />
               <Input label="Cavalli CV" type="number" value={trimForm.horsepower_hp} onChange={(event) => setTrimForm((current) => ({ ...current, horsepower_hp: event.target.value }))} />
+              <Input label="Coppia Nm" type="number" value={trimForm.torque_nm} onChange={(event) => setTrimForm((current) => ({ ...current, torque_nm: event.target.value }))} />
+              <Input label="Cambio" value={trimForm.transmission} onChange={(event) => setTrimForm((current) => ({ ...current, transmission: event.target.value }))} />
+              <Input label="Trazione" value={trimForm.drive_type} onChange={(event) => setTrimForm((current) => ({ ...current, drive_type: event.target.value }))} />
+              <Input label="Carrozzeria" value={trimForm.body_style} onChange={(event) => setTrimForm((current) => ({ ...current, body_style: event.target.value }))} />
+              <Input label="Porte" type="number" value={trimForm.doors} onChange={(event) => setTrimForm((current) => ({ ...current, doors: event.target.value }))} />
+              <Input label="Posti" type="number" value={trimForm.seats} onChange={(event) => setTrimForm((current) => ({ ...current, seats: event.target.value }))} />
+              <Input label="Classe euro" value={trimForm.euro_class} onChange={(event) => setTrimForm((current) => ({ ...current, euro_class: event.target.value }))} />
+              <Input label="CO2 g/km" type="number" value={trimForm.co2_g_km} onChange={(event) => setTrimForm((current) => ({ ...current, co2_g_km: event.target.value }))} />
+              <Input label="Consumo l/100km" type="number" step="0.01" value={trimForm.fuel_consumption_l_100km} onChange={(event) => setTrimForm((current) => ({ ...current, fuel_consumption_l_100km: event.target.value }))} />
+              <Input label="Passo mm" type="number" value={trimForm.wheelbase_mm} onChange={(event) => setTrimForm((current) => ({ ...current, wheelbase_mm: event.target.value }))} />
+              <Input label="Lunghezza mm" type="number" value={trimForm.length_mm} onChange={(event) => setTrimForm((current) => ({ ...current, length_mm: event.target.value }))} />
+              <Input label="Larghezza mm" type="number" value={trimForm.width_mm} onChange={(event) => setTrimForm((current) => ({ ...current, width_mm: event.target.value }))} />
+              <Input label="Altezza mm" type="number" value={trimForm.height_mm} onChange={(event) => setTrimForm((current) => ({ ...current, height_mm: event.target.value }))} />
+              <Input label="Massa complessiva kg" type="number" value={trimForm.gross_weight_kg} onChange={(event) => setTrimForm((current) => ({ ...current, gross_weight_kg: event.target.value }))} />
+              <Input label="Traino kg" type="number" value={trimForm.tow_capacity_kg} onChange={(event) => setTrimForm((current) => ({ ...current, tow_capacity_kg: event.target.value }))} />
+              <Input label="Gomme default" value={trimForm.tire_size} onChange={(event) => setTrimForm((current) => ({ ...current, tire_size: event.target.value }))} placeholder="205/75 R16C" />
+              <Input label="Cerchio" value={trimForm.rim_size} onChange={(event) => setTrimForm((current) => ({ ...current, rim_size: event.target.value }))} placeholder="16x6J" />
+              <Input label="Indice carico" value={trimForm.load_index} onChange={(event) => setTrimForm((current) => ({ ...current, load_index: event.target.value }))} />
+              <Input label="Codice velocita" value={trimForm.speed_rating} onChange={(event) => setTrimForm((current) => ({ ...current, speed_rating: event.target.value }))} />
+              <Input label="Pressione bar" type="number" step="0.01" value={trimForm.pressure_bar} onChange={(event) => setTrimForm((current) => ({ ...current, pressure_bar: event.target.value }))} />
+              <Input label="Altre misure / note gomme" value={trimForm.tire_notes} onChange={(event) => setTrimForm((current) => ({ ...current, tire_notes: event.target.value }))} />
             </div>
             <Button type="button" disabled={!trimForm.brand_name || !trimForm.model_name} onClick={() => createTrim().catch((err) => setError(err.message || 'Impossibile salvare l allestimento.'))}>
               Salva allestimento

@@ -393,3 +393,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato in Collaudo locale, pronto per attivazione API key/provider scelto.  
 **Verifiche eseguite:** `py_compile` backend OK, `npm run lint` senza errori, `npm run build` OK, migration locale `012_fleet_external_lookup_cache` applicata, smoke service locale provider status e lookup disattivato con log di audit OK e dato di prova rimosso.  
 **Note utili:** il provider targa resta volutamente generico (`FLEET_PLATE_API_URL` + `FLEET_PLATE_API_KEY`) per poter collegare TuttoTarghe/InfoTarga o altro fornitore senza riscrivere il gestionale; finche' `FLEET_EXTERNAL_LOOKUP_ENABLED=false` non partono chiamate esterne.
+
+## 2026-05-16 13:55:00 - Popolamento reale catalogo marche/modelli
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** corretto il catalogo tecnico per mostrare anche marche e modelli, non solo allestimenti. Aggiunto endpoint di import da fonte pubblica NHTSA e contatore reale del catalogo. Eseguito import su Test.  
+**File coinvolti:** `backend/app/services/fleet_catalog.py`, `backend/app/schemas/fleet.py`, `backend/app/api/fleet/router.py`, `frontend/src/components/fleet/FleetCatalogClientPage.tsx`, hosting `smart-cv.it/test`, VPS `/opt/calabriaverde-test/backend`.  
+**Esito:** completato su Test.  
+**Verifiche eseguite:** `py_compile` backend OK, `npm run lint` senza errori, `npm run build` OK, deploy backend/frontend Test, import NHTSA Test con `12.243` marche e `2.503` modelli importati, `GET /api/fleet/catalog/stats` autenticato OK, pagina `https://smart-cv.it/test/fleet/catalogo/` `200`.  
+**Note utili:** la ricerca da targa richiede ancora una API targa italiana configurata; su Test `FLEET_EXTERNAL_LOOKUP_ENABLED=true` abilita VIN/NHTSA, mentre la targa risponde correttamente `Provider targa non configurato` finche' non viene inserito `FLEET_PLATE_API_URL`/`FLEET_PLATE_API_KEY`.

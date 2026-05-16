@@ -122,6 +122,15 @@ class ExternalLookupResult:
     source_notes: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class CatalogImportResult:
+    provider: str
+    imported_brands: int = 0
+    imported_models: int = 0
+    skipped_models: int = 0
+    errors: list[str] = field(default_factory=list)
+
+
 def normalize_catalog_key(value: str | None) -> str:
     """Normalizza stringhe catalogo evitando duplicati tipo Mercedes-Benz/mercedes benz."""
     cleaned = (value or "").strip().lower()
@@ -186,6 +195,77 @@ class FleetCatalogService:
                 note="Fonte specializzata per misure pneumatici e cerchi; si aggancia agli allestimenti gia censiti.",
             ),
         ]
+
+    def import_nhtsa_catalog(self, makes: list[str] | None = None, import_all_makes: bool = True) -> CatalogImportResult:
+        imported_brands = 0
+        imported_models = 0
+        skipped_models = 0
+        errors: list[str] = []
+        target_makes = makes or [
+            "FIAT",
+            "FORD",
+            "PEUGEOT",
+            "CITROEN",
+            "IVECO",
+            "RENAULT",
+            "TOYOTA",
+            "NISSAN",
+            "MERCEDES-BENZ",
+            "VOLKSWAGEN",
+            "OPEL",
+            "ISUZU",
+            "MITSUBISHI",
+            "SUZUKI",
+            "LAND ROVER",
+            "HYUNDAI",
+            "KIA",
+            "DACIA",
+            "PIAGGIO",
+            "MAN",
+        ]
+
+        if import_all_makes:
+            try:
+                for make_name in self._fetch_nhtsa_makes():
+                    before = self.db.query(VehicleBrand.id).filter(VehicleBrand.normalized_name == normalize_catalog_key(make_name)).first()
+                    self._get_or_create_brand(make_name)
+                    if not before:
+                        imported_brands += 1
+            except Exception as exc:  # noqa: BLE001 - import amministrativo, errore riportato nel risultato
+                errors.append(f"Import marche NHTSA non riuscito: {exc}")
+
+        for make_name in target_makes:
+            try:
+                brand = self._get_or_create_brand(make_name)
+                if brand.id and not self.db.query(VehicleBrand.id).filter(
+                    VehicleBrand.id == brand.id,
+                    VehicleBrand.created_at != VehicleBrand.updated_at,
+                ).first():
+                    pass
+                for model_name in self._fetch_nhtsa_models(make_name):
+                    before = (
+                        self.db.query(VehicleModel.id)
+                        .filter(
+                            VehicleModel.brand_id == brand.id,
+                            VehicleModel.normalized_name == normalize_catalog_key(model_name),
+                        )
+                        .first()
+                    )
+                    self._get_or_create_model(brand, model_name, "Car")
+                    if before:
+                        skipped_models += 1
+                    else:
+                        imported_models += 1
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"Import modelli {make_name} non riuscito: {exc}")
+
+        return CatalogImportResult(
+            provider="nhtsa",
+            imported_brands=imported_brands,
+            imported_models=imported_models,
+            skipped_models=skipped_models,
+            errors=errors,
+        )
 
     def lookup_external(self, lookup_type: str, lookup_key: str, persist: bool = True) -> ExternalLookupResult:
         normalized_type = normalize_catalog_key(lookup_type).replace(" ", "_")
@@ -467,6 +547,28 @@ class FleetCatalogService:
             raw_payload=result,
         )
         return ExternalLookupResult(provider="nhtsa", lookup_type="vin", lookup_key=vin, status="found", trim=trim, raw_payload=payload, http_status=200)
+
+    def _fetch_nhtsa_makes(self) -> list[str]:
+        url = "https://vpic.nhtsa.dot.gov/api/vehicles/GetAllMakes?format=json"
+        with urlopen(url, timeout=20) as response:  # nosec B310 - fonte pubblica NHTSA
+            payload = json.loads(response.read().decode("utf-8"))
+        names = []
+        for item in payload.get("Results") or []:
+            name = item.get("Make_Name")
+            if name:
+                names.append(str(name).strip())
+        return sorted(set(names))
+
+    def _fetch_nhtsa_models(self, make_name: str) -> list[str]:
+        url = f"https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/{quote(make_name)}?format=json"
+        with urlopen(url, timeout=20) as response:  # nosec B310 - fonte pubblica NHTSA
+            payload = json.loads(response.read().decode("utf-8"))
+        names = []
+        for item in payload.get("Results") or []:
+            name = item.get("Model_Name")
+            if name:
+                names.append(str(name).strip())
+        return sorted(set(names))
 
     def _trim_from_generic_payload(self, payload: dict[str, Any], source: str) -> TrimSpec | None:
         data = payload.get("data") if isinstance(payload.get("data"), dict) else payload

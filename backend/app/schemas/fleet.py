@@ -179,6 +179,20 @@ class FleetCatalogExternalLookupResponse(BaseModel):
     source_notes: list[str] = Field(default_factory=list)
 
 
+class FleetCatalogImportRequest(BaseModel):
+    provider: str = "nhtsa"
+    import_all_makes: bool = True
+    makes: list[str] = Field(default_factory=list)
+
+
+class FleetCatalogImportResponse(BaseModel):
+    provider: str
+    imported_brands: int
+    imported_models: int
+    skipped_models: int
+    errors: list[str] = Field(default_factory=list)
+
+
 class FleetVehicleRevisionResponse(BaseModel):
     id: int
     data_revisione: date

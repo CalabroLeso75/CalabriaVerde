@@ -57,6 +57,20 @@ type VehicleTrim = {
   } | null;
 };
 
+type VehicleBrand = {
+  id: number;
+  name: string;
+  normalized_name: string;
+};
+
+type VehicleModel = {
+  id: number;
+  brand_id: number;
+  name: string;
+  vehicle_category: string;
+  brand?: VehicleBrand | null;
+};
+
 type CreateVehicleResponse = {
   id: number;
   license_plate: string;
@@ -84,6 +98,20 @@ type ExternalLookupResponse = {
   error_message?: string | null;
   trim?: VehicleTrim | null;
   source_notes: string[];
+};
+
+type CatalogImportResponse = {
+  provider: string;
+  imported_brands: number;
+  imported_models: number;
+  skipped_models: number;
+  errors: string[];
+};
+
+type CatalogStats = {
+  brands: number;
+  models: number;
+  trims: number;
 };
 
 const categoryOptions = [
@@ -122,6 +150,10 @@ export default function FleetCatalogClientPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [providers, setProviders] = useState<ProviderStatus[]>([]);
+  const [brands, setBrands] = useState<VehicleBrand[]>([]);
+  const [models, setModels] = useState<VehicleModel[]>([]);
+  const [stats, setStats] = useState<CatalogStats>({ brands: 0, models: 0, trims: 0 });
+  const [isImporting, setIsImporting] = useState(false);
   const [lookupForm, setLookupForm] = useState({
     lookup_type: 'plate',
     lookup_key: '',
@@ -183,10 +215,22 @@ export default function FleetCatalogClientPage() {
     setProviders(response);
   };
 
+  const loadBrandsAndModels = async () => {
+    const [brandResponse, modelResponse, statsResponse] = await Promise.all([
+      api.get<VehicleBrand[]>('/fleet/catalog/brands'),
+      api.get<VehicleModel[]>('/fleet/catalog/models'),
+      api.get<CatalogStats>('/fleet/catalog/stats'),
+    ]);
+    setBrands(brandResponse);
+    setModels(modelResponse);
+    setStats(statsResponse);
+  };
+
   useEffect(() => {
     queueMicrotask(() => {
       loadTrims().catch((err) => setError(err.message || 'Impossibile caricare il catalogo tecnico.'));
       loadProviders().catch((err) => setError(err.message || 'Impossibile caricare i provider esterni.'));
+      loadBrandsAndModels().catch((err) => setError(err.message || 'Impossibile caricare marche e modelli.'));
     });
   }, [debouncedSearch]);
 
@@ -313,6 +357,25 @@ export default function FleetCatalogClientPage() {
     setError(response.error_message || `Nessun dato utile dal provider ${response.provider}. Stato: ${response.status}`);
   };
 
+  const importNhtsaCatalog = async () => {
+    setError(null);
+    setIsImporting(true);
+    try {
+      const response = await api.post<CatalogImportResponse>('/fleet/catalog/import', {
+        provider: 'nhtsa',
+        import_all_makes: true,
+        makes: [],
+      });
+      setSuccess(`Import NHTSA completato: ${response.imported_brands} marche e ${response.imported_models} modelli aggiunti.`);
+      if (response.errors.length > 0) {
+        setError(response.errors.join(' | '));
+      }
+      await Promise.all([loadBrandsAndModels(), loadTrims()]);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <SectionLead
@@ -322,6 +385,54 @@ export default function FleetCatalogClientPage() {
 
       {error && <NoticeBanner title="Errore caricamento" message={error} />}
       {success && <NoticeBanner title="Operazione completata" message={success} tone="success" />}
+
+      <Card padding="md">
+        <div className="grid gap-4 lg:grid-cols-[280px_1fr_1fr]">
+          <div>
+            <h3 className="text-lg font-semibold">Database catalogo</h3>
+            <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
+              Marche e modelli sono la base locale usata prima di ogni chiamata esterna.
+            </p>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                <p className="text-xs uppercase" style={{ color: 'var(--cv-neutral-500)' }}>Marche</p>
+                <p className="text-2xl font-semibold">{stats.brands}</p>
+              </div>
+              <div className="rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                <p className="text-xs uppercase" style={{ color: 'var(--cv-neutral-500)' }}>Modelli</p>
+                <p className="text-2xl font-semibold">{stats.models}</p>
+              </div>
+              <div className="rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                <p className="text-xs uppercase" style={{ color: 'var(--cv-neutral-500)' }}>Allest.</p>
+                <p className="text-2xl font-semibold">{stats.trims}</p>
+              </div>
+            </div>
+            <Button type="button" className="mt-4" disabled={isImporting} onClick={() => importNhtsaCatalog().catch((err) => setError(err.message || 'Import NHTSA non riuscito.'))}>
+              {isImporting ? 'Import in corso...' : 'Importa marche/modelli da NHTSA'}
+            </Button>
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Ultime marche</p>
+            <div className="mt-2 max-h-44 overflow-auto rounded-[var(--cv-radius-md)] border" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+              {brands.slice(0, 40).map((brand) => (
+                <div key={brand.id} className="border-b px-3 py-2 text-sm" style={{ borderColor: 'var(--cv-border-subtle)' }}>{brand.name}</div>
+              ))}
+              {brands.length === 0 && <p className="px-3 py-4 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessuna marca importata.</p>}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Ultimi modelli</p>
+            <div className="mt-2 max-h-44 overflow-auto rounded-[var(--cv-radius-md)] border" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+              {models.slice(0, 40).map((model) => (
+                <div key={model.id} className="border-b px-3 py-2 text-sm" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                  {model.brand?.name ? `${model.brand.name} ` : ''}{model.name}
+                </div>
+              ))}
+              {models.length === 0 && <p className="px-3 py-4 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessun modello importato.</p>}
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <Card padding="md">
         <div className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">

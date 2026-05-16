@@ -36,6 +36,8 @@ from app.schemas.fleet import (
     CommunicationTargetResponse,
     FleetCatalogExternalLookupRequest,
     FleetCatalogExternalLookupResponse,
+    FleetCatalogImportRequest,
+    FleetCatalogImportResponse,
     FleetCatalogProviderStatusResponse,
     FleetBulkInsuranceUpdate,
     FleetBulkRevisionUpdate,
@@ -339,6 +341,19 @@ async def list_catalog_providers(
     return FleetCatalogService(db).provider_statuses()
 
 
+@router.get("/catalog/stats")
+async def get_catalog_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del current_user
+    return {
+        "brands": db.query(func.count(VehicleBrand.id)).scalar() or 0,
+        "models": db.query(func.count(VehicleModel.id)).scalar() or 0,
+        "trims": db.query(func.count(VehicleTrim.id)).scalar() or 0,
+    }
+
+
 def trim_spec_from_payload(data: FleetVehicleTrimCreate) -> TrimSpec:
     return TrimSpec(
         brand_name=data.brand_name,
@@ -450,6 +465,29 @@ async def lookup_catalog_external_data(
         http_status=result.http_status,
         trim=trim,
         source_notes=result.source_notes,
+    )
+
+
+@router.post("/catalog/import", response_model=FleetCatalogImportResponse)
+async def import_catalog_data(
+    data: FleetCatalogImportRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del current_user
+    if data.provider != "nhtsa":
+        raise HTTPException(status_code=400, detail="Provider import non supportato")
+    result = FleetCatalogService(db).import_nhtsa_catalog(
+        makes=data.makes or None,
+        import_all_makes=data.import_all_makes,
+    )
+    db.commit()
+    return FleetCatalogImportResponse(
+        provider=result.provider,
+        imported_brands=result.imported_brands,
+        imported_models=result.imported_models,
+        skipped_models=result.skipped_models,
+        errors=result.errors,
     )
 
 

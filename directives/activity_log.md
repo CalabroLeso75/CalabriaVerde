@@ -453,3 +453,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato in Collaudo locale; da promuovere su Test impostando `FLEET_PLATE_PROVIDER=targa_co_it`, `FLEET_PLATE_USERNAME=<username>`, `FLEET_EXTERNAL_LOOKUP_ENABLED=true`.  
 **Verifiche eseguite:** credito RegCheck controllato senza lookup targa: 110 crediti disponibili.  
 **Note utili:** non esiste API key separata per questo provider: username per API, password solo per dashboard.
+
+## 2026-05-19 00:20:00 - Correzione endpoint RegCheck e gestione API
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** corretto endpoint targa da `bespokeapi.asmx` a `https://www.regcheck.org.uk/api/reg.asmx`, aggiunto parser per cilindrata testuale italiana, introdotto router amministrativo `/admin/integrations/fleet-plate` e sostituita la pagina provvisoria `Amministrazione > Configurazione` con una form reale per gestire provider, endpoint, username e stato lookup.  
+**File coinvolti:** `backend/main.py`, `backend/app/api/admin_integrations/router.py`, `backend/app/core/config.py`, `backend/app/services/fleet_catalog.py`, `frontend/src/app/(dashboard)/admin/settings/page.tsx`, `.env.example`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `py_compile` OK, `npm run lint` senza errori bloccanti, `npm run build` OK, endpoint admin integrazioni OK, pagina `https://smart-cv.it/test/admin/settings/` 200, lookup gratuito `BN071VN` trovato e salvato come PEUGEOT 206 senza consumo crediti (`110 -> 110`).  
+**Note utili:** usare sempre la targa campione gratuita `BN071VN` per smoke test provider Italia prima di provare targhe reali.

@@ -22,6 +22,7 @@ from app.api.users.router import router as users_router
 from app.api.hr.router import router as hr_router
 from app.api.admin_contracts.router import router as admin_contracts_router
 from app.api.admin_geography.router import router as admin_geography_router
+from app.api.admin_integrations.router import router as admin_integrations_router
 from app.api.fleet.router import router as fleet_router
 
 
@@ -62,6 +63,7 @@ app.include_router(hr_router, prefix="/api/hr", tags=["Risorse Umane"])
 app.include_router(fleet_router, prefix="/api/fleet", tags=["Parco Macchine"])
 app.include_router(admin_contracts_router, prefix="/api/admin/contracts", tags=["Tipi di contratto"])
 app.include_router(admin_geography_router, prefix="/api/admin/geography", tags=["Geografia"])
+app.include_router(admin_integrations_router, prefix="/api/admin/integrations", tags=["Integrazioni"])
 
 
 @app.get("/api/health", tags=["Sistema"])

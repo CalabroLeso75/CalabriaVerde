@@ -724,7 +724,7 @@ class FleetCatalogService:
             production_year=self._to_int(self._pick_nested_value(data, "RegistrationYear", "Year", "ManufactureYearFrom")),
             engine_type=self._map_engine(self._pick_nested_value(data, "FuelType", "Fuel", "engine_type")),
             engine_code=self._pick_nested_value(data, "EngineCode", "EngineNumber"),
-            displacement_cc=self._to_int(self._pick_nested_value(data, "EngineSize", "EngineCC", "displacement_cc")),
+            displacement_cc=self._to_engine_cc(self._pick_nested_value(data, "EngineSize", "EngineCC", "displacement_cc")),
             horsepower_hp=power_hp,
             body_style=self._pick_nested_value(data, "BodyStyle"),
             doors=self._to_int(self._pick_nested_value(data, "NumberOfDoors", "Doors")),
@@ -843,6 +843,20 @@ class FleetCatalogService:
             return int(float(value))
         except (TypeError, ValueError):
             return None
+
+    @staticmethod
+    def _to_engine_cc(value: Any) -> int | None:
+        direct = FleetCatalogService._to_int(value)
+        if direct and direct >= 100:
+            return direct
+        text = str(value or "")
+        matches = re.findall(r"\d{3,5}(?:[,.]\d+)?", text)
+        if not matches:
+            return direct
+        try:
+            return int(float(matches[0].replace(",", ".")))
+        except ValueError:
+            return direct
 
     def _liters_to_cc(self, value: Any) -> int | None:
         liters = self._to_float(value)

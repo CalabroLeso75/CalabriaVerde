@@ -67,7 +67,8 @@ class Settings(BaseSettings):
     # Parco macchine - provider dati esterni
     FLEET_EXTERNAL_LOOKUP_ENABLED: bool = False
     FLEET_PLATE_PROVIDER: str = "none"
-    FLEET_PLATE_API_URL: str = "https://api.tuttotarghe.it/job/jobsync"
+    FLEET_PLATE_API_URL: str = "https://www.targa.co.it/api/bespokeapi.asmx"
+    FLEET_PLATE_USERNAME: str = ""
     FLEET_PLATE_API_KEY: str = ""
     FLEET_PLATE_JOB_TYPES: str = "tecnici"
     FLEET_VIN_PROVIDER: str = "nhtsa"

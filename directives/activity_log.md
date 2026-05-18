@@ -443,3 +443,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato in Collaudo locale.  
 **Verifiche eseguite:** da eseguire con CSV reale o fixture.  
 **Note utili:** questo livello execution resta agganciabile al backend senza rischiare blocchi/rotture dovute a scraping non autorizzato.
+
+## 2026-05-19 00:00:00 - Attivazione provider Targa.co.it/RegCheck
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** verificata la documentazione ufficiale Targa.co.it/RegCheck e sostituito il flusso TuttoTarghe/RapidAPI con provider `targa_co_it`, che usa lo username account come credenziale API. Aggiunto parsing XML/JSON ASMX per `/CheckItaly`, configurazione `FLEET_PLATE_USERNAME` e stato provider coerente nella UI/API.  
+**File coinvolti:** `backend/app/core/config.py`, `backend/app/services/fleet_catalog.py`, `.env.example`, `directives/error_memory.md`, `directives/activity_log.md`.  
+**Esito:** completato in Collaudo locale; da promuovere su Test impostando `FLEET_PLATE_PROVIDER=targa_co_it`, `FLEET_PLATE_USERNAME=<username>`, `FLEET_EXTERNAL_LOOKUP_ENABLED=true`.  
+**Verifiche eseguite:** credito RegCheck controllato senza lookup targa: 110 crediti disponibili.  
+**Note utili:** non esiste API key separata per questo provider: username per API, password solo per dashboard.

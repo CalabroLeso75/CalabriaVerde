@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import json
 import re
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 from sqlalchemy.orm import Session, joinedload
@@ -166,15 +167,21 @@ class FleetCatalogService:
 
     def provider_statuses(self) -> list[ProviderStatus]:
         plate_provider = settings.FLEET_PLATE_PROVIDER.strip().lower()
+        plate_username = (settings.FLEET_PLATE_USERNAME or settings.FLEET_PLATE_API_KEY).strip()
+        plate_uses_username = plate_provider in {"targa", "targa_co_it", "targacoit", "regcheck"}
         return [
             ProviderStatus(
                 code=plate_provider or "none",
                 label="Provider targa italiana",
                 lookup_type="plate",
                 enabled=settings.FLEET_EXTERNAL_LOOKUP_ENABLED and plate_provider not in {"", "none"},
-                configured=bool(settings.FLEET_PLATE_API_URL and settings.FLEET_PLATE_API_KEY),
-                needs_api_key=True,
-                note="Usa targa per marca, modello e dati tecnici. Con TuttoTarghe Free usare solo il job tecnici per consumare pochi crediti.",
+                configured=bool(settings.FLEET_PLATE_API_URL and (plate_username if plate_uses_username else settings.FLEET_PLATE_API_KEY)),
+                needs_api_key=not plate_uses_username,
+                note=(
+                    "Targa.co.it/RegCheck usa lo username account come credenziale API; la password serve solo per la dashboard."
+                    if plate_uses_username
+                    else "Usa targa per marca, modello e dati tecnici. Configurare URL e API key del provider scelto."
+                ),
             ),
             ProviderStatus(
                 code="nhtsa",
@@ -495,6 +502,8 @@ class FleetCatalogService:
             return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="disabled", error_message="Ricerca esterna disattivata")
         if provider in {"", "none"}:
             return ExternalLookupResult(provider="none", lookup_type="plate", lookup_key=plate, status="not_configured", error_message="Provider targa non configurato")
+        if provider in {"targa", "targa_co_it", "targacoit", "regcheck"}:
+            return self._lookup_targa_co_it_plate(plate)
         if not settings.FLEET_PLATE_API_URL or not settings.FLEET_PLATE_API_KEY:
             return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="not_configured", error_message="URL o API key provider targa mancanti")
         if provider == "tuttotarghe":
@@ -510,6 +519,42 @@ class FleetCatalogService:
         except HTTPError as exc:
             return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc), http_status=exc.code)
         except (URLError, TimeoutError, ValueError) as exc:
+            return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc))
+
+    def _lookup_targa_co_it_plate(self, plate: str) -> ExternalLookupResult:
+        provider = "targa_co_it"
+        username = (settings.FLEET_PLATE_USERNAME or settings.FLEET_PLATE_API_KEY).strip()
+        if not settings.FLEET_PLATE_API_URL or not username:
+            return ExternalLookupResult(
+                provider=provider,
+                lookup_type="plate",
+                lookup_key=plate,
+                status="not_configured",
+                error_message="Ricerca da targa non attiva: manca lo username Targa.co.it/RegCheck.",
+            )
+
+        base_url = settings.FLEET_PLATE_API_URL.rstrip("/")
+        endpoint = base_url if base_url.endswith("/CheckItaly") else f"{base_url}/CheckItaly"
+        url = f"{endpoint}?{urlencode({'RegistrationNumber': plate, 'username': username})}"
+        request = Request(url, headers={"Accept": "text/xml,application/xml"})
+        try:
+            with urlopen(request, timeout=15) as response:  # nosec B310 - endpoint ufficiale configurato da amministratore
+                response_text = response.read().decode("utf-8", errors="replace")
+            payload = self._parse_regcheck_vehicle_response(response_text)
+            trim = self._trim_from_regcheck_payload(payload)
+            return ExternalLookupResult(
+                provider=provider,
+                lookup_type="plate",
+                lookup_key=plate,
+                status="found" if trim else "empty",
+                trim=trim,
+                raw_payload=payload,
+                http_status=200,
+                source_notes=["Fonte Targa.co.it/RegCheck: dati salvati nel catalogo locale per ridurre richieste successive."],
+            )
+        except HTTPError as exc:
+            return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc), http_status=exc.code)
+        except (ET.ParseError, URLError, TimeoutError, ValueError) as exc:
             return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc))
 
     def _lookup_tuttotarghe_plate(self, plate: str) -> ExternalLookupResult:
@@ -661,6 +706,76 @@ class FleetCatalogService:
             raw_payload=payload,
         )
 
+    def _trim_from_regcheck_payload(self, payload: dict[str, Any]) -> TrimSpec | None:
+        data = self._extract_vehicle_payload(payload)
+        brand = self._pick_nested_value(data, "MakeDescription", "CarMake", "make", "brand")
+        model = self._pick_nested_value(data, "ModelDescription", "CarModel", "model")
+        if not brand or not model:
+            return None
+        power_kw = self._to_int(self._pick_nested_value(data, "PowerKW", "Power", "KW"))
+        power_hp = self._to_int(self._pick_nested_value(data, "PowerCV", "PowerHP", "CV", "horsepower_hp"))
+        if not power_hp and power_kw:
+            power_hp = round(power_kw * 1.34102)
+        return TrimSpec(
+            brand_name=str(brand),
+            model_name=str(model),
+            vehicle_category=self._map_body_class(self._pick_nested_value(data, "BodyStyle", "VehicleType", "vehicle_category")),
+            commercial_name=self._pick_nested_value(data, "Version", "Variant", "Description"),
+            production_year=self._to_int(self._pick_nested_value(data, "RegistrationYear", "Year", "ManufactureYearFrom")),
+            engine_type=self._map_engine(self._pick_nested_value(data, "FuelType", "Fuel", "engine_type")),
+            engine_code=self._pick_nested_value(data, "EngineCode", "EngineNumber"),
+            displacement_cc=self._to_int(self._pick_nested_value(data, "EngineSize", "EngineCC", "displacement_cc")),
+            horsepower_hp=power_hp,
+            body_style=self._pick_nested_value(data, "BodyStyle"),
+            doors=self._to_int(self._pick_nested_value(data, "NumberOfDoors", "Doors")),
+            seats=self._to_int(self._pick_nested_value(data, "NumberOfSeats", "Seats")),
+            co2_g_km=self._to_int(self._pick_nested_value(data, "Co2", "CO2")),
+            gross_weight_kg=self._to_int(self._pick_nested_value(data, "Weight", "GrossWeight")),
+            source="targa_co_it",
+            raw_payload=payload,
+        )
+
+    def _parse_regcheck_vehicle_response(self, response_text: str) -> dict[str, Any]:
+        root = ET.fromstring(response_text)
+        json_node = self._find_xml_node(root, "vehicleJson")
+        if json_node is not None and json_node.text and json_node.text.strip():
+            try:
+                parsed = json.loads(json_node.text)
+                if isinstance(parsed, dict):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+        return self._xml_to_dict(root)
+
+    def _xml_to_dict(self, node: ET.Element) -> dict[str, Any]:
+        children = list(node)
+        tag = self._strip_xml_namespace(node.tag)
+        if not children:
+            return {tag: (node.text or "").strip()}
+        result: dict[str, Any] = {}
+        for child in children:
+            child_dict = self._xml_to_dict(child)
+            for key, value in child_dict.items():
+                if key in result:
+                    existing = result[key]
+                    if not isinstance(existing, list):
+                        result[key] = [existing]
+                    result[key].append(value)
+                else:
+                    result[key] = value
+        return result
+
+    @staticmethod
+    def _find_xml_node(root: ET.Element, local_name: str) -> ET.Element | None:
+        for node in root.iter():
+            if FleetCatalogService._strip_xml_namespace(node.tag) == local_name:
+                return node
+        return None
+
+    @staticmethod
+    def _strip_xml_namespace(tag: str) -> str:
+        return tag.rsplit("}", 1)[-1] if "}" in tag else tag
+
     def _extract_vehicle_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         candidates: list[Any] = [payload]
         for key in ("data", "result", "results", "tecnici", "technical", "vehicle", "veicolo"):
@@ -687,6 +802,17 @@ class FleetCatalogService:
         for key in keys:
             value = lowered.get(key.lower())
             if value not in (None, ""):
+                return value
+        return None
+
+    def _pick_nested_value(self, data: dict[str, Any], *keys: str) -> Any:
+        for key in keys:
+            value = self._pick_value(data, key)
+            if isinstance(value, dict):
+                nested = self._pick_nested_value(value, "CurrentTextValue", "text", "value")
+                if nested not in (None, ""):
+                    return nested
+            elif value not in (None, ""):
                 return value
         return None
 
@@ -734,6 +860,10 @@ class FleetCatalogService:
     @staticmethod
     def _map_engine(value: str | None) -> str:
         normalized = normalize_catalog_key(value)
+        if "benzina" in normalized:
+            return "Petrol"
+        if "metano" in normalized:
+            return "CNG"
         if "electric" in normalized:
             return "Electric"
         if "hybrid" in normalized:

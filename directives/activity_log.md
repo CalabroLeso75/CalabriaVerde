@@ -463,3 +463,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `py_compile` OK, `npm run lint` senza errori bloccanti, `npm run build` OK, endpoint admin integrazioni OK, pagina `https://smart-cv.it/test/admin/settings/` 200, lookup gratuito `BN071VN` trovato e salvato come PEUGEOT 206 senza consumo crediti (`110 -> 110`).  
 **Note utili:** usare sempre la targa campione gratuita `BN071VN` per smoke test provider Italia prima di provare targhe reali.
+
+## 2026-05-19 00:35:00 - Timeout lookup targa e alias RSC statici
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** adeguato il provider al percorso diretto indicato dal sito (`https://www.targa.co.it/api/reg.asmx`), aumentato il timeout lookup a 55 secondi e reso configurabile in Amministrazione. Aggiunto script post-build per generare alias RSC statici puntati (`__next...fleet.catalogo.txt`) richiesti da Next 16 sull'hosting statico.  
+**File coinvolti:** `backend/app/core/config.py`, `backend/app/services/fleet_catalog.py`, `backend/app/api/admin_integrations/router.py`, `frontend/package.json`, `frontend/scripts/create-rsc-aliases.mjs`, `frontend/src/app/(dashboard)/admin/settings/page.tsx`, `.env.example`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `py_compile` OK, `npm run lint` senza errori bloccanti, `npm run build` OK, file RSC puntati online `200`, lookup campione `BN071VN` `found`, endpoint `https://www.targa.co.it/api/reg.asmx`, timeout `55`, crediti invariati `110 -> 110`.  
+**Note utili:** se ricompaiono 504 su file `__next...txt`, verificare che lo script `create-rsc-aliases.mjs` sia stato eseguito dopo la build e prima del deploy.

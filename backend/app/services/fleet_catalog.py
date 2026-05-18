@@ -538,7 +538,7 @@ class FleetCatalogService:
         url = f"{endpoint}?{urlencode({'RegistrationNumber': plate, 'username': username})}"
         request = Request(url, headers={"Accept": "text/xml,application/xml"})
         try:
-            with urlopen(request, timeout=15) as response:  # nosec B310 - endpoint ufficiale configurato da amministratore
+            with urlopen(request, timeout=settings.FLEET_PLATE_TIMEOUT_SECONDS) as response:  # nosec B310 - endpoint ufficiale configurato da amministratore
                 response_text = response.read().decode("utf-8", errors="replace")
             payload = self._parse_regcheck_vehicle_response(response_text)
             trim = self._trim_from_regcheck_payload(payload)

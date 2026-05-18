@@ -12,6 +12,7 @@ interface FleetPlateIntegration {
   plate_username: string;
   plate_api_key_configured: boolean;
   plate_job_types: string;
+  plate_timeout_seconds: number;
   vin_provider: string;
 }
 
@@ -162,6 +163,18 @@ export default function AdminSettingsPage() {
                 className={inputClass}
                 value={form.vin_provider}
                 onChange={(event) => updateField('vin_provider', event.target.value)}
+              />
+            </label>
+
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-[var(--cv-neutral-600)]">Timeout targa secondi</span>
+              <input
+                className={inputClass}
+                type="number"
+                min={10}
+                max={120}
+                value={form.plate_timeout_seconds}
+                onChange={(event) => updateField('plate_timeout_seconds', Number(event.target.value))}
               />
             </label>
           </div>

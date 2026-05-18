@@ -19,6 +19,7 @@ class FleetPlateIntegrationResponse(BaseModel):
     plate_username: str
     plate_api_key_configured: bool
     plate_job_types: str
+    plate_timeout_seconds: int
     vin_provider: str
     credits: int | None = None
 
@@ -26,10 +27,11 @@ class FleetPlateIntegrationResponse(BaseModel):
 class FleetPlateIntegrationUpdate(BaseModel):
     external_lookup_enabled: bool
     plate_provider: str = "targa_co_it"
-    plate_api_url: str = "https://www.regcheck.org.uk/api/reg.asmx"
+    plate_api_url: str = "https://www.targa.co.it/api/reg.asmx"
     plate_username: str = ""
     plate_api_key: str = ""
     plate_job_types: str = "tecnici"
+    plate_timeout_seconds: int = 55
     vin_provider: str = "nhtsa"
 
 
@@ -74,6 +76,8 @@ def apply_runtime_values(values: dict[str, str]) -> None:
     for key, value in values.items():
         if key == "FLEET_EXTERNAL_LOOKUP_ENABLED":
             setattr(settings, key, value.strip().lower() in {"1", "true", "yes", "on"})
+        elif key == "FLEET_PLATE_TIMEOUT_SECONDS":
+            setattr(settings, key, int(value))
         else:
             setattr(settings, key, value)
 
@@ -88,6 +92,7 @@ async def get_fleet_plate_integration(current_user: User = Depends(get_current_u
         plate_username=settings.FLEET_PLATE_USERNAME,
         plate_api_key_configured=bool(settings.FLEET_PLATE_API_KEY),
         plate_job_types=settings.FLEET_PLATE_JOB_TYPES,
+        plate_timeout_seconds=settings.FLEET_PLATE_TIMEOUT_SECONDS,
         vin_provider=settings.FLEET_VIN_PROVIDER,
     )
 
@@ -101,9 +106,10 @@ async def update_fleet_plate_integration(
     values = {
         "FLEET_EXTERNAL_LOOKUP_ENABLED": "true" if data.external_lookup_enabled else "false",
         "FLEET_PLATE_PROVIDER": data.plate_provider.strip() or "targa_co_it",
-        "FLEET_PLATE_API_URL": data.plate_api_url.strip() or "https://www.regcheck.org.uk/api/reg.asmx",
+        "FLEET_PLATE_API_URL": data.plate_api_url.strip() or "https://www.targa.co.it/api/reg.asmx",
         "FLEET_PLATE_USERNAME": data.plate_username.strip(),
         "FLEET_PLATE_JOB_TYPES": data.plate_job_types.strip() or "tecnici",
+        "FLEET_PLATE_TIMEOUT_SECONDS": str(max(10, min(data.plate_timeout_seconds, 120))),
         "FLEET_VIN_PROVIDER": data.vin_provider.strip() or "nhtsa",
     }
     if data.plate_api_key:

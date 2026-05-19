@@ -599,7 +599,7 @@ async def recognize_vehicle_from_plate(
             .first()
         )
     insurance = service.lookup_italy_insurance(vehicle.targa)
-    db.flush()
+    db.commit()
     logs = (
         db.query(VehicleExternalLookup)
         .filter(VehicleExternalLookup.normalized_lookup_key == vehicle.targa.lower())

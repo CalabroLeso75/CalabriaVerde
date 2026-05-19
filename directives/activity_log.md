@@ -533,3 +533,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `npm run lint` senza errori bloccanti, `npm run build` OK, deploy frontend Test OK, `https://smart-cv.it/test/fleet/dettaglio/?id=2` `200`, backend Test `active`, smoke riconoscimento cache su mezzo `ES760CH` completato in circa 126 ms con crediti invariati `100 -> 100`.  
 **Note utili:** per navigazioni manuali browser usare `withBrowserBasePath`; per `<Link>`/`router.push` usare `withAppBasePath`. I lookup gia' salvati non devono consumare nuovi crediti.
+
+## 2026-05-19 16:20:00 - Persistenza cache assicurativa e recupero ES766CH
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** corretta la mancata persistenza dei log assicurativi nel riconoscimento mezzo: dopo `lookup_italy_insurance(...)` ora viene eseguito commit prima di leggere i log della modale, cosi' la cache resta disponibile alle richieste successive. Applicato manualmente l'aggiornamento tecnico gia' recuperato per il mezzo `ES766CH` usando l'allestimento locale `D-MAX II (TFR, TFS)`.  
+**File coinvolti:** `backend/app/api/fleet/router.py`, VPS Test `/opt/calabriaverde-test/backend`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `py_compile` OK, backend Test `active`, seconda chiamata riconoscimento `ES766CH` da cache in circa 107 ms con crediti invariati `94 -> 94`, apply `ES766CH` OK con marca `ISUZU`, modello `D-MAX II (TFR, TFS)`, alimentazione `Diesel`, anno `2012`.  
+**Note utili:** il provider ha restituito assicurazione `empty` per `ES766CH`, quindi non e' stata salvata copertura; questo va mostrato come dato non reperito, non come errore applicativo.

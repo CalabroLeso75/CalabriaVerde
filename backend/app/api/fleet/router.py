@@ -66,6 +66,10 @@ from app.schemas.fleet import (
     FleetVehicleModelResponse,
     FleetVehicleRecognitionApplyRequest,
     FleetVehicleRecognitionApplyResponse,
+    FleetVehicleRecognitionInsuranceRemote,
+    FleetVehicleRecognitionInsuranceRecord,
+    FleetVehicleRecognitionResponse,
+    FleetVehicleRecognitionRevisionRecord,
     FleetVehicleRevisionCreate,
     FleetVehicleRevisionResponse,
     FleetVehicleTrimCreate,
@@ -100,6 +104,18 @@ def actor_display_name(user: User | None = None, employee: Employee | None = Non
         return f"{employee.cognome} {employee.nome}"
     if user:
         return f"{user.cognome} {user.nome}"
+    return None
+
+
+def parse_remote_date(value: str | None) -> date | None:
+    if not value:
+        return None
+    text = value.strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
     return None
 
 
@@ -472,6 +488,83 @@ async def lookup_catalog_external_data(
     )
 
 
+@router.post("/vehicles/{vehicle_id}/recognition", response_model=FleetVehicleRecognitionResponse)
+async def recognize_vehicle_from_plate(
+    vehicle_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del current_user
+    vehicle = (
+        db.query(Vehicle)
+        .options(joinedload(Vehicle.insurance_records), joinedload(Vehicle.revisions))
+        .filter(Vehicle.id == vehicle_id)
+        .first()
+    )
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Mezzo non trovato")
+
+    service = FleetCatalogService(db)
+    result = service.lookup_external("plate", vehicle.targa, persist=True)
+    db.commit()
+    trim = None
+    if result.trim_id:
+        trim = (
+            db.query(VehicleTrim)
+            .options(
+                joinedload(VehicleTrim.model).joinedload(VehicleModel.brand),
+                joinedload(VehicleTrim.tire_fitments),
+            )
+            .filter(VehicleTrim.id == result.trim_id)
+            .first()
+        )
+    insurance = service.lookup_italy_insurance(vehicle.targa)
+    return FleetVehicleRecognitionResponse(
+        vehicle_id=vehicle.id,
+        lookup=FleetCatalogExternalLookupResponse(
+            provider=result.provider,
+            lookup_type=result.lookup_type,
+            lookup_key=result.lookup_key,
+            status=result.status,
+            error_message=result.error_message,
+            http_status=result.http_status,
+            trim=trim,
+            source_notes=result.source_notes,
+        ),
+        insurance_remote=FleetVehicleRecognitionInsuranceRemote(
+            status=insurance.status,
+            company=insurance.company,
+            expiry=insurance.expiry,
+            is_insured=insurance.is_insured,
+            region=insurance.region,
+            error_message=insurance.error_message,
+        ),
+        insurance_records=[
+            FleetVehicleRecognitionInsuranceRecord(
+                id=item.id,
+                source_type=item.source_type,
+                compagnia=item.compagnia,
+                numero_polizza=item.numero_polizza,
+                copertura_dal=item.copertura_dal,
+                copertura_al=item.copertura_al,
+                data_scadenza=item.data_scadenza,
+                is_current=item.is_current,
+            )
+            for item in sorted(vehicle.insurance_records, key=lambda record: record.data_scadenza, reverse=True)
+        ],
+        revision_records=[
+            FleetVehicleRecognitionRevisionRecord(
+                id=item.id,
+                data_revisione=item.data_revisione,
+                esito=item.esito,
+                km_rilevati=item.km_rilevati,
+                note=item.note,
+            )
+            for item in sorted(vehicle.revisions, key=lambda record: record.data_revisione, reverse=True)
+        ],
+    )
+
+
 @router.post("/vehicles/{vehicle_id}/recognition/apply", response_model=FleetVehicleRecognitionApplyResponse)
 async def apply_vehicle_recognition(
     vehicle_id: int,
@@ -497,6 +590,26 @@ async def apply_vehicle_recognition(
     vehicle.immatricolazione_anno = trim.production_year or vehicle.immatricolazione_anno
     vehicle.alimentazione = trim.engine_type or vehicle.alimentazione
     vehicle.euro_classe = trim.euro_class or vehicle.euro_classe
+
+    insurance = FleetCatalogService(db).lookup_italy_insurance(vehicle.targa)
+    insurance_due = parse_remote_date(insurance.expiry)
+    if insurance.company and insurance_due:
+        db.query(VehicleInsuranceRecord).filter(
+            VehicleInsuranceRecord.vehicle_id == vehicle_id,
+            VehicleInsuranceRecord.is_current == True,  # noqa: E712
+        ).update({"is_current": False}, synchronize_session=False)
+        db.add(VehicleInsuranceRecord(
+            vehicle_id=vehicle_id,
+            source_type="api_targa",
+            compagnia=insurance.company,
+            data_scadenza=insurance_due,
+            channels_ready=["sistema"],
+            note="Copertura corrente recuperata da Targa.co.it/RegCheck durante riconoscimento mezzo.",
+            created_by_user_id=current_user.id,
+            is_current=True,
+        ))
+        vehicle.assicurazione_compagnia = insurance.company
+        vehicle.scadenza_assicurazione = insurance_due
 
     note = data.note or "Dati tecnici aggiornati da riconoscimento targa."
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")

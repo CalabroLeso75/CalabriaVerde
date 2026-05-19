@@ -93,6 +93,40 @@ type RecognitionResponse = {
   trim?: VehicleTrimResponse | null;
 };
 
+type RecognitionInsuranceRecord = {
+  id: number;
+  source_type: string;
+  compagnia: string;
+  numero_polizza?: string | null;
+  copertura_dal?: string | null;
+  copertura_al?: string | null;
+  data_scadenza: string;
+  is_current: boolean;
+};
+
+type RecognitionRevisionRecord = {
+  id: number;
+  data_revisione: string;
+  esito: string;
+  km_rilevati?: number | null;
+  note?: string | null;
+};
+
+type VehicleRecognitionResponse = {
+  vehicle_id: number;
+  lookup: RecognitionResponse;
+  insurance_remote?: {
+    status: string;
+    company?: string | null;
+    expiry?: string | null;
+    is_insured?: boolean | null;
+    region?: string | null;
+    error_message?: string | null;
+  } | null;
+  insurance_records: RecognitionInsuranceRecord[];
+  revision_records: RecognitionRevisionRecord[];
+};
+
 type RecognitionStep = 'confirm' | 'running' | 'result' | 'empty' | 'applying';
 
 function formatDate(value?: string | null) {
@@ -189,7 +223,7 @@ export default function FleetRegistryClientPage() {
   const [recognitionVehicle, setRecognitionVehicle] = useState<VehicleItem | null>(null);
   const [recognitionStep, setRecognitionStep] = useState<RecognitionStep>('confirm');
   const [recognitionElapsed, setRecognitionElapsed] = useState(0);
-  const [recognitionResult, setRecognitionResult] = useState<RecognitionResponse | null>(null);
+  const [recognitionResult, setRecognitionResult] = useState<VehicleRecognitionResponse | null>(null);
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<number[]>([]);
   const [groupVehicleSearch, setGroupVehicleSearch] = useState('');
 
@@ -400,31 +434,32 @@ export default function FleetRegistryClientPage() {
     setRecognitionResult(null);
     setError(null);
     try {
-      const response = await api.post<RecognitionResponse>('/fleet/catalog/external-lookup', {
-        lookup_type: 'plate',
-        lookup_key: recognitionVehicle.targa,
-        persist: true,
-      });
+      const response = await api.post<VehicleRecognitionResponse>(`/fleet/vehicles/${recognitionVehicle.id}/recognition`, {});
       setRecognitionResult(response);
-      setRecognitionStep(response.status === 'found' && response.trim ? 'result' : 'empty');
+      setRecognitionStep(response.lookup.status === 'found' && response.lookup.trim ? 'result' : 'empty');
     } catch (err) {
       setRecognitionStep('empty');
       setRecognitionResult({
-        provider: 'targa_co_it',
-        lookup_type: 'plate',
-        lookup_key: recognitionVehicle.targa,
-        status: 'error',
-        error_message: err instanceof Error ? err.message : 'Ricerca targa non riuscita.',
+        vehicle_id: recognitionVehicle.id,
+        lookup: {
+          provider: 'targa_co_it',
+          lookup_type: 'plate',
+          lookup_key: recognitionVehicle.targa,
+          status: 'error',
+          error_message: err instanceof Error ? err.message : 'Ricerca targa non riuscita.',
+        },
+        insurance_records: [],
+        revision_records: [],
       });
     }
   };
 
   const applyRecognition = async () => {
-    if (!recognitionVehicle || !recognitionResult?.trim?.id) return;
+    if (!recognitionVehicle || !recognitionResult?.lookup.trim?.id) return;
     setRecognitionStep('applying');
     await api.post(`/fleet/vehicles/${recognitionVehicle.id}/recognition/apply`, {
-      trim_id: recognitionResult.trim.id,
-      note: `Riconoscimento targa ${recognitionVehicle.targa} da provider ${recognitionResult.provider}.`,
+      trim_id: recognitionResult.lookup.trim.id,
+      note: `Riconoscimento targa ${recognitionVehicle.targa} da provider ${recognitionResult.lookup.provider}.`,
     });
     setActionMessage(`Dati mezzo ${recognitionVehicle.targa} aggiornati da riconoscimento targa.`);
     setRecognitionVehicle(null);
@@ -817,7 +852,7 @@ export default function FleetRegistryClientPage() {
                 Avvia riconoscimento
               </Button>
             )}
-            {recognitionStep === 'result' && recognitionResult?.trim && (
+            {recognitionStep === 'result' && recognitionResult?.lookup.trim && (
               <Button type="button" onClick={() => applyRecognition().catch((err) => setError(err.message || 'Aggiornamento mezzo non riuscito.'))}>
                 Aggiorna dati mezzo
               </Button>
@@ -850,37 +885,71 @@ export default function FleetRegistryClientPage() {
 
             {(recognitionStep === 'result' || recognitionStep === 'empty') && (
               <div className="space-y-4">
-                {recognitionResult?.trim ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
+                {recognitionResult?.lookup.trim ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
                       <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Marca</p>
-                      <p className="font-semibold">{recognitionResult.trim.model?.brand?.name || '-'}</p>
+                      <p className="font-semibold">{recognitionResult.lookup.trim.model?.brand?.name || '-'}</p>
                     </div>
                     <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
                       <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Modello</p>
-                      <p className="font-semibold">{recognitionResult.trim.model?.name || '-'}</p>
+                      <p className="font-semibold">{recognitionResult.lookup.trim.model?.name || '-'}</p>
                     </div>
                     <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
                       <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Versione</p>
-                      <p className="font-semibold">{recognitionResult.trim.commercial_name || '-'}</p>
+                      <p className="font-semibold">{recognitionResult.lookup.trim.commercial_name || '-'}</p>
                     </div>
                     <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
                       <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Anno</p>
-                      <p className="font-semibold">{recognitionResult.trim.production_year || '-'}</p>
+                      <p className="font-semibold">{recognitionResult.lookup.trim.production_year || '-'}</p>
                     </div>
                     <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
                       <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Alimentazione</p>
-                      <p className="font-semibold">{recognitionResult.trim.engine_type}</p>
+                      <p className="font-semibold">{recognitionResult.lookup.trim.engine_type}</p>
                     </div>
                     <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
                       <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Cilindrata / CV</p>
-                      <p className="font-semibold">{recognitionResult.trim.displacement_cc || '-'} cc · {recognitionResult.trim.horsepower_hp || '-'} CV</p>
+                      <p className="font-semibold">{recognitionResult.lookup.trim.displacement_cc || '-'} cc · {recognitionResult.lookup.trim.horsepower_hp || '-'} CV</p>
+                    </div>
+                    </div>
+
+                    <div className="rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                      <p className="text-sm font-semibold text-[var(--cv-neutral-900)]">Assicurazione recuperata dal provider</p>
+                      <p className="mt-1 text-sm text-[var(--cv-neutral-700)]">
+                        {recognitionResult.insurance_remote?.company
+                          ? `${recognitionResult.insurance_remote.company} · scadenza ${recognitionResult.insurance_remote.expiry || 'non indicata'}`
+                          : recognitionResult.insurance_remote?.error_message || 'Nessuna assicurazione remota disponibile.'}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                        <p className="text-sm font-semibold text-[var(--cv-neutral-900)]">Storico assicurazioni gestionale</p>
+                        <div className="mt-2 space-y-2">
+                          {recognitionResult.insurance_records.length ? recognitionResult.insurance_records.map((item) => (
+                            <div key={item.id} className="text-sm text-[var(--cv-neutral-700)]">
+                              <span className="font-semibold">{item.compagnia}</span> · {formatDate(item.data_scadenza)}{item.is_current ? ' · attuale' : ''}
+                            </div>
+                          )) : <p className="text-sm text-[var(--cv-neutral-600)]">Nessuna assicurazione storicizzata.</p>}
+                        </div>
+                      </div>
+                      <div className="rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                        <p className="text-sm font-semibold text-[var(--cv-neutral-900)]">Storico revisioni gestionale</p>
+                        <div className="mt-2 space-y-2">
+                          {recognitionResult.revision_records.length ? recognitionResult.revision_records.map((item) => (
+                            <div key={item.id} className="text-sm text-[var(--cv-neutral-700)]">
+                              <span className="font-semibold">{formatDate(item.data_revisione)}</span> · {item.esito}{item.km_rilevati ? ` · ${item.km_rilevati.toLocaleString('it-IT')} km` : ''}
+                            </div>
+                          )) : <p className="text-sm text-[var(--cv-neutral-600)]">Nessuna revisione storicizzata.</p>}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ) : (
                   <NoticeBanner
                     title="Nessun dato aggiornabile"
-                    message={recognitionResult?.error_message || `Il provider ha restituito stato ${recognitionResult?.status || 'non definito'}.`}
+                    message={recognitionResult?.lookup.error_message || `Il provider ha restituito stato ${recognitionResult?.lookup.status || 'non definito'}.`}
                   />
                 )}
               </div>

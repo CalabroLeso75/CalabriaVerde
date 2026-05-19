@@ -483,3 +483,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `py_compile` OK, `npm run lint` senza errori bloccanti, `npm run build` OK, backend Test `active`, pagina `https://smart-cv.it/test/fleet/anagrafica/` `200`, smoke API lista mezzi OK.  
 **Note utili:** il riconoscimento su targa reale consuma credito solo dopo conferma utente nel modale; evitare smoke test con targhe reali non autorizzate.
+
+## 2026-05-19 10:30:00 - Storico assicurazioni e revisioni nel riconoscimento mezzo
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** esteso il riconoscimento mezzo per recuperare anche l'assicurazione corrente dal provider Targa.co.it/RegCheck e per mostrare nella modale tutti gli storici assicurazioni/revisioni gia' presenti nel gestionale. Alla conferma dell'aggiornamento, se il provider restituisce compagnia e scadenza, viene creato un nuovo record assicurativo corrente preservando i precedenti come storico.  
+**File coinvolti:** `backend/app/services/fleet_catalog.py`, `backend/app/api/fleet/router.py`, `backend/app/schemas/fleet.py`, `frontend/src/components/fleet/FleetRegistryClientPage.tsx`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `py_compile` OK, `npm run lint` senza errori bloccanti, `npm run build` OK, backend Test `active`, pagina `https://smart-cv.it/test/fleet/anagrafica/` `200`.  
+**Note utili:** l'API documenta assicurazione corrente italiana, non uno storico remoto completo; lo storico completo viene mantenuto dal gestionale a ogni aggiornamento/riconoscimento.

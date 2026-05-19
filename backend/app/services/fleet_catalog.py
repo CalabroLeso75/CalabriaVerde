@@ -124,6 +124,20 @@ class ExternalLookupResult:
 
 
 @dataclass(frozen=True)
+class InsuranceLookupResult:
+    provider: str
+    lookup_key: str
+    status: str
+    company: str | None = None
+    expiry: str | None = None
+    is_insured: bool | None = None
+    region: str | None = None
+    raw_payload: dict[str, Any] | None = None
+    error_message: str | None = None
+    http_status: int | None = None
+
+
+@dataclass(frozen=True)
 class CatalogImportResult:
     provider: str
     imported_brands: int = 0
@@ -307,6 +321,35 @@ class FleetCatalogService:
                 source_notes=[*result.source_notes, f"Allestimento salvato nel catalogo locale con id {trim.id}."],
             )
         return result
+
+    def lookup_italy_insurance(self, plate: str) -> InsuranceLookupResult:
+        provider = "targa_co_it_insurance"
+        username = (settings.FLEET_PLATE_USERNAME or settings.FLEET_PLATE_API_KEY).strip()
+        if not settings.FLEET_EXTERNAL_LOOKUP_ENABLED or not username:
+            return InsuranceLookupResult(provider=provider, lookup_key=plate, status="not_configured", error_message="Provider assicurazione targa non configurato")
+        base_url = "https://www.targa.co.it/api/bespokeapi.asmx"
+        url = f"{base_url}/CheckInsuranceStatusItaly?{urlencode({'regNumber': self._normalize_license_plate(plate), 'username': username})}"
+        request = Request(url, headers={"Accept": "text/xml,application/xml"})
+        try:
+            with urlopen(request, timeout=settings.FLEET_PLATE_TIMEOUT_SECONDS) as response:  # nosec B310 - endpoint ufficiale configurato da amministratore
+                response_text = response.read().decode("utf-8", errors="replace")
+            payload = self._xml_to_dict(ET.fromstring(response_text))
+            data = self._extract_vehicle_payload(payload)
+            return InsuranceLookupResult(
+                provider=provider,
+                lookup_key=plate,
+                status="found" if self._pick_nested_value(data, "Company") else "empty",
+                company=self._pick_nested_value(data, "Company"),
+                expiry=self._pick_nested_value(data, "Expiry"),
+                is_insured=self._to_bool(self._pick_nested_value(data, "IsInsured")),
+                region=self._pick_nested_value(data, "Region"),
+                raw_payload=payload,
+                http_status=200,
+            )
+        except HTTPError as exc:
+            return InsuranceLookupResult(provider=provider, lookup_key=plate, status="error", error_message=str(exc), http_status=exc.code)
+        except (ET.ParseError, URLError, TimeoutError, ValueError) as exc:
+            return InsuranceLookupResult(provider=provider, lookup_key=plate, status="error", error_message=str(exc))
 
     def get_or_create_trim(self, spec: TrimSpec) -> VehicleTrim:
         brand = self._get_or_create_brand(spec.brand_name)
@@ -870,6 +913,17 @@ class FleetCatalogService:
             return float(value)
         except (TypeError, ValueError):
             return None
+
+    @staticmethod
+    def _to_bool(value: Any) -> bool | None:
+        if value in (None, ""):
+            return None
+        normalized = normalize_catalog_key(str(value))
+        if normalized in {"true", "1", "yes", "si", "s"}:
+            return True
+        if normalized in {"false", "0", "no", "n"}:
+            return False
+        return None
 
     @staticmethod
     def _map_engine(value: str | None) -> str:

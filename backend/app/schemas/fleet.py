@@ -196,6 +196,42 @@ class FleetVehicleRecognitionApplyResponse(BaseModel):
     euro_classe: Optional[str] = None
 
 
+class FleetVehicleRecognitionInsuranceRemote(BaseModel):
+    status: str
+    company: Optional[str] = None
+    expiry: Optional[str] = None
+    is_insured: Optional[bool] = None
+    region: Optional[str] = None
+    error_message: Optional[str] = None
+
+
+class FleetVehicleRecognitionInsuranceRecord(BaseModel):
+    id: int
+    source_type: str
+    compagnia: str
+    numero_polizza: Optional[str] = None
+    copertura_dal: Optional[date] = None
+    copertura_al: Optional[date] = None
+    data_scadenza: date
+    is_current: bool = True
+
+
+class FleetVehicleRecognitionRevisionRecord(BaseModel):
+    id: int
+    data_revisione: date
+    esito: str
+    km_rilevati: Optional[int] = None
+    note: Optional[str] = None
+
+
+class FleetVehicleRecognitionResponse(BaseModel):
+    vehicle_id: int
+    lookup: FleetCatalogExternalLookupResponse
+    insurance_remote: Optional[FleetVehicleRecognitionInsuranceRemote] = None
+    insurance_records: list[FleetVehicleRecognitionInsuranceRecord] = Field(default_factory=list)
+    revision_records: list[FleetVehicleRecognitionRevisionRecord] = Field(default_factory=list)
+
+
 class FleetCatalogImportRequest(BaseModel):
     provider: str = "nhtsa"
     import_all_makes: bool = True

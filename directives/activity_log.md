@@ -643,3 +643,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** build frontend Test OK; upload frontend Test OK; API health 200; DB Test: `vehicle_notes_multiline=0`, `insurance_replica_notes=0`, `snapshot_status_replicated=0`; nessuna nuova chiamata al provider targa.  
 **Note utili:** la pagina frontend ha mostrato un rifiuto connessione intermittente su alcune richieste `HEAD`, ma `/test/fleet/` ha risposto 200 dopo retry; l'API e' rimasta online.
+
+## 2026-05-19 19:35:00 - Copertura assicurativa con tolleranza e pacchetto Isuzu neutro
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine / scadenziario assicurazioni  
+**Azione svolta:** aggiunta funzione backend `insurance_coverage_until` per valorizzare sempre `assicurazione_copertura`: usa `copertura_al` se inserita, altrimenti la data provider, altrimenti `data_scadenza + tolleranza_giorni`. Puliti sul DB Test i 20 record assicurativi Isuzu che riportavano `Pacchetto Isuzu replicato da ES762CH`, sostituiti con `Convenzione flotta Isuzu`; aggiornata la copertura fino al 2026-06-06 per i mezzi coinvolti.  
+**File coinvolti:** `backend/app/api/fleet/router.py`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `py_compile` backend OK; backend Test riavviato e `active`; API health 200; DB Test: `bad_package_rows=0`, campioni ES779CH/ES778CH/ES760CH con scadenza operativa `2026-05-22` e copertura fino al `2026-06-06`.  
+**Note utili:** nessuna chiamata al provider targa; intervento solo su logica backend e dati gia' presenti.

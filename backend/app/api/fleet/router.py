@@ -140,6 +140,21 @@ def insurance_operational_due(provider_due: date | None) -> date | None:
     return provider_due - timedelta(days=INSURANCE_PROVIDER_GRACE_DAYS)
 
 
+def insurance_coverage_until(
+    data_scadenza: date | None,
+    copertura_al: date | None = None,
+    provider_due: date | None = None,
+    tolleranza_giorni: int | None = 0,
+) -> date | None:
+    if copertura_al:
+        return copertura_al
+    if provider_due:
+        return provider_due
+    if data_scadenza and tolleranza_giorni:
+        return data_scadenza + timedelta(days=tolleranza_giorni)
+    return data_scadenza
+
+
 def document_status(value: date | None) -> str:
     if not value:
         return "missing"
@@ -839,6 +854,11 @@ async def apply_vehicle_recognition(
             is_current=True,
         ))
         vehicle.scadenza_assicurazione = insurance_due
+        vehicle.assicurazione_copertura = insurance_coverage_until(
+            insurance_due,
+            provider_due=insurance_provider_due,
+            tolleranza_giorni=INSURANCE_PROVIDER_GRACE_DAYS,
+        )
         insurance_record_saved = True
         insurance_save_message = "Compagnia e scadenza assicurativa salvate nella scheda mezzo e nello storico coperture."
 
@@ -1398,7 +1418,12 @@ async def add_vehicle_insurance(
 
     vehicle.assicurazione_compagnia = data.compagnia
     vehicle.assicurazione_polizza = data.numero_polizza
-    vehicle.assicurazione_copertura = data.copertura_al
+    vehicle.assicurazione_copertura = insurance_coverage_until(
+        data.data_scadenza,
+        data.copertura_al,
+        data.data_scadenza_provider,
+        data.tolleranza_giorni,
+    )
     vehicle.scadenza_assicurazione = data.data_scadenza
 
     db.commit()
@@ -1442,7 +1467,12 @@ async def bulk_update_insurance(
             is_current=True,
         ))
         vehicle.assicurazione_compagnia = data.compagnia
-        vehicle.assicurazione_copertura = data.copertura_al
+        vehicle.assicurazione_copertura = insurance_coverage_until(
+            data.data_scadenza,
+            data.copertura_al,
+            data.data_scadenza_provider,
+            data.tolleranza_giorni,
+        )
         vehicle.scadenza_assicurazione = data.data_scadenza
         updated += 1
 

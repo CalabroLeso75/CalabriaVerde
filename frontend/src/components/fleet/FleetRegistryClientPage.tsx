@@ -13,6 +13,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { api } from '@/lib/api';
+import { withAppBasePath } from '@/lib/app-path';
 
 type VehicleTypeOption = {
   id: number;
@@ -746,7 +747,7 @@ export default function FleetRegistryClientPage() {
       <div className="grid gap-4 xl:grid-cols-2">
         {(payload?.items || []).map((vehicle) => (
           <Card key={vehicle.id} padding="md" className="h-full transition-transform hover:-translate-y-0.5">
-            <Link href={`/fleet/dettaglio?id=${vehicle.id}`} className="block">
+            <Link href={withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}`)} className="block">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>
@@ -824,7 +825,7 @@ export default function FleetRegistryClientPage() {
               >
                 Riconosci mezzo
               </Button>
-              <Link href={`/fleet/dettaglio?id=${vehicle.id}`} className="inline-flex">
+              <Link href={withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}`)} className="inline-flex">
                 <Button type="button" size="sm">Dettaglio</Button>
               </Link>
             </div>

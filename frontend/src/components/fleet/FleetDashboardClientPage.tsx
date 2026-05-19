@@ -9,7 +9,7 @@ import { NoticeBanner } from '@/components/common/NoticeBanner';
 import { SectionLead } from '@/components/common/SectionLead';
 import { Card } from '@/components/ui/Card';
 import { api } from '@/lib/api';
-import { withAppBasePath } from '@/lib/app-path';
+import { withAppBasePath, withBrowserBasePath } from '@/lib/app-path';
 
 type FleetSummary = {
   total_vehicles: number;
@@ -180,7 +180,7 @@ export default function FleetDashboardClientPage() {
                   key={vehicle.id}
                   className="cursor-pointer transition hover:bg-[var(--cv-primary-soft)]"
                   onClick={() => {
-                    window.location.href = withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}`);
+                    window.location.href = withBrowserBasePath(`/fleet/dettaglio?id=${vehicle.id}`);
                   }}
                 >
                   <Cell>

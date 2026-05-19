@@ -291,6 +291,9 @@ class FleetCatalogService:
     def lookup_external(self, lookup_type: str, lookup_key: str, persist: bool = True) -> ExternalLookupResult:
         normalized_type = normalize_catalog_key(lookup_type).replace(" ", "_")
         key = (lookup_key or "").strip().upper()
+        cached = self._cached_lookup_result(normalized_type, key)
+        if cached:
+            return cached
         if normalized_type == "plate":
             result = self._lookup_plate_provider(key)
         elif normalized_type == "vin":
@@ -322,11 +325,73 @@ class FleetCatalogService:
             )
         return result
 
+    def _cached_lookup_result(self, lookup_type: str, lookup_key: str) -> ExternalLookupResult | None:
+        if lookup_type not in {"plate", "vin"}:
+            return None
+        item = (
+            self.db.query(VehicleExternalLookup)
+            .options(joinedload(VehicleExternalLookup.trim).joinedload(VehicleTrim.model).joinedload(VehicleModel.brand))
+            .filter(
+                VehicleExternalLookup.lookup_type == lookup_type,
+                VehicleExternalLookup.normalized_lookup_key == normalize_catalog_key(lookup_key),
+                VehicleExternalLookup.status == "found",
+                VehicleExternalLookup.trim_id.isnot(None),
+            )
+            .order_by(VehicleExternalLookup.id.desc())
+            .first()
+        )
+        if not item or not item.trim:
+            return None
+        return ExternalLookupResult(
+            provider=f"{item.provider}_cache",
+            lookup_type=lookup_type,
+            lookup_key=lookup_key,
+            status="found",
+            trim=self._trim_spec_from_model(item.trim),
+            trim_id=item.trim_id,
+            raw_payload=item.raw_payload,
+            http_status=item.http_status,
+            source_notes=["Dati recuperati dalla cache locale: nessuna nuova chiamata al provider targa."],
+        )
+
+    def _trim_spec_from_model(self, trim: VehicleTrim) -> TrimSpec:
+        return TrimSpec(
+            brand_name=trim.model.brand.name,
+            model_name=trim.model.name,
+            vehicle_category=trim.model.vehicle_category,
+            commercial_name=trim.commercial_name,
+            production_year=trim.production_year,
+            engine_type=trim.engine_type,
+            engine_code=trim.engine_code,
+            displacement_cc=trim.displacement_cc,
+            horsepower_hp=trim.horsepower_hp,
+            torque_nm=trim.torque_nm,
+            transmission=trim.transmission,
+            drive_type=trim.drive_type,
+            body_style=trim.body_style,
+            doors=trim.doors,
+            seats=trim.seats,
+            euro_class=trim.euro_class,
+            co2_g_km=trim.co2_g_km,
+            fuel_consumption_l_100km=trim.fuel_consumption_l_100km,
+            wheelbase_mm=trim.wheelbase_mm,
+            length_mm=trim.length_mm,
+            width_mm=trim.width_mm,
+            height_mm=trim.height_mm,
+            gross_weight_kg=trim.gross_weight_kg,
+            tow_capacity_kg=trim.tow_capacity_kg,
+            source=trim.source or "cache_locale",
+            raw_payload=trim.raw_payload,
+        )
+
     def lookup_italy_insurance(self, plate: str) -> InsuranceLookupResult:
         provider = "targa_co_it_insurance"
         username = (settings.FLEET_PLATE_USERNAME or settings.FLEET_PLATE_API_KEY).strip()
         if not settings.FLEET_EXTERNAL_LOOKUP_ENABLED or not username:
             return InsuranceLookupResult(provider=provider, lookup_key=plate, status="not_configured", error_message="Provider assicurazione targa non configurato")
+        cached = self._cached_insurance_result(plate)
+        if cached:
+            return cached
         base_url = "https://www.targa.co.it/api/bespokeapi.asmx"
         url = f"{base_url}/CheckInsuranceStatusItaly?{urlencode({'regNumber': self._normalize_license_plate(plate), 'username': username})}"
         request = Request(url, headers={"Accept": "text/xml,application/xml"})
@@ -367,6 +432,34 @@ class FleetCatalogService:
             result = InsuranceLookupResult(provider=provider, lookup_key=plate, status="error", error_message=str(exc))
             self._record_external_lookup(ExternalLookupResult(provider=provider, lookup_type="insurance", lookup_key=plate, status="error", error_message=str(exc)))
             return result
+
+    def _cached_insurance_result(self, plate: str) -> InsuranceLookupResult | None:
+        item = (
+            self.db.query(VehicleExternalLookup)
+            .filter(
+                VehicleExternalLookup.lookup_type == "insurance",
+                VehicleExternalLookup.normalized_lookup_key == normalize_catalog_key(plate),
+                VehicleExternalLookup.status.in_(("found", "empty")),
+            )
+            .order_by(VehicleExternalLookup.id.desc())
+            .first()
+        )
+        if not item:
+            return None
+        payload = item.raw_payload or {}
+        data = self._extract_vehicle_payload(payload) if isinstance(payload, dict) else {}
+        return InsuranceLookupResult(
+            provider=f"{item.provider}_cache",
+            lookup_key=plate,
+            status=item.status,
+            company=self._pick_nested_value(data, "Company"),
+            expiry=self._pick_nested_value(data, "Expiry"),
+            is_insured=self._to_bool(self._pick_nested_value(data, "IsInsured")),
+            region=self._pick_nested_value(data, "Region"),
+            raw_payload=payload,
+            http_status=item.http_status,
+            error_message=item.error_message,
+        )
 
     def get_or_create_trim(self, spec: TrimSpec) -> VehicleTrim:
         brand = self._get_or_create_brand(spec.brand_name)

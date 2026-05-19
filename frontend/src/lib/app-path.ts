@@ -24,3 +24,18 @@ export function withAppBasePath(path: string) {
 
   return rebuiltPath;
 }
+
+export function withBrowserBasePath(path: string) {
+  const basePath = getAppBasePath();
+  const normalizedPath = withAppBasePath(path);
+
+  if (!basePath || normalizedPath === '/') {
+    return normalizedPath;
+  }
+
+  if (normalizedPath === basePath || normalizedPath.startsWith(`${basePath}/`)) {
+    return normalizedPath;
+  }
+
+  return `${basePath}${normalizedPath}`;
+}

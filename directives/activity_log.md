@@ -523,3 +523,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `py_compile` locale e remoto OK, servizio `calabriaverde-test` `active`, smoke autenticato `POST /api/fleet/vehicles/{id}/recognition/apply` su Test completato in circa 120 ms.  
 **Note utili:** il riconoscimento puo' ancora registrare un errore se il provider esterno non risponde, ma il salvataggio non deve piu' generare `Gateway Timeout` per una seconda chiamata duplicata.
+
+## 2026-05-19 15:30:00 - Correzione routing Test e cache lookup targa/assicurazione
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** corretto il routing client che usciva da `/test` quando la navigazione avveniva con `window.location.href`, aggiungendo `withBrowserBasePath(...)` e aggiornando la pagina principale fleet. Corretti anche i link grezzi rimasti nelle tessere dell'anagrafica mezzi. Aggiunta cache tecnica e assicurativa dei lookup riusciti: se un riconoscimento targa e' gia' registrato, il sistema riusa `vehicle_external_lookups` senza nuova chiamata al provider.  
+**File coinvolti:** `frontend/src/lib/app-path.ts`, `frontend/src/components/fleet/FleetDashboardClientPage.tsx`, `frontend/src/components/fleet/FleetRegistryClientPage.tsx`, `backend/app/services/fleet_catalog.py`, `backend/app/api/fleet/router.py`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `npm run lint` senza errori bloccanti, `npm run build` OK, deploy frontend Test OK, `https://smart-cv.it/test/fleet/dettaglio/?id=2` `200`, backend Test `active`, smoke riconoscimento cache su mezzo `ES760CH` completato in circa 126 ms con crediti invariati `100 -> 100`.  
+**Note utili:** per navigazioni manuali browser usare `withBrowserBasePath`; per `<Link>`/`router.push` usare `withAppBasePath`. I lookup gia' salvati non devono consumare nuovi crediti.

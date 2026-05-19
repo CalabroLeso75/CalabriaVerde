@@ -80,7 +80,13 @@ from app.schemas.fleet import (
     FleetVehicleUsageLogResponse,
 )
 from app.services.communication_log import register_communication, resolve_targets
-from app.services.fleet_catalog import FleetCatalogService, PhysicalVehicleSpec, TireFitmentSpec, TrimSpec
+from app.services.fleet_catalog import (
+    FleetCatalogService,
+    PhysicalVehicleSpec,
+    TireFitmentSpec,
+    TrimSpec,
+    normalize_catalog_key,
+)
 
 router = APIRouter()
 
@@ -179,7 +185,7 @@ def latest_logged_insurance(db: Session, plate: str) -> dict[str, str | None]:
         db.query(VehicleExternalLookup)
         .filter(
             VehicleExternalLookup.lookup_type == "insurance",
-            VehicleExternalLookup.normalized_lookup_key == plate.lower(),
+            VehicleExternalLookup.normalized_lookup_key == normalize_catalog_key(plate),
         )
         .order_by(VehicleExternalLookup.id.desc())
         .first()

@@ -63,6 +63,7 @@ from app.schemas.fleet import (
     FleetVehicleIncidentResponse,
     FleetVehicleInsuranceCreate,
     FleetVehicleInsuranceRecordResponse,
+    FleetVehicleKmUpdate,
     FleetVehicleListItem,
     FleetVehicleListResponse,
     FleetVehicleModelResponse,
@@ -1507,6 +1508,38 @@ async def add_vehicle_revision(
     db.commit()
     db.refresh(revision)
     return FleetVehicleRevisionResponse.model_validate(revision)
+
+
+@router.patch("/vehicles/{vehicle_id}/km")
+async def update_vehicle_km(
+    vehicle_id: int,
+    data: FleetVehicleKmUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    vehicle = load_vehicle_or_404(db, vehicle_id)
+    previous_km = vehicle.km_attuali
+    vehicle.km_attuali = data.km_attuali
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    km_note = f"[{stamp}] Aggiornamento km mezzo: da {previous_km} a {data.km_attuali}. Operatore: {current_user.email}."
+    if data.note:
+        km_note = f"{km_note} Note: {data.note}"
+    vehicle.note = "\n".join([part for part in [vehicle.note, km_note] if part]).strip() or vehicle.note
+    db.add(VehicleExternalLookup(
+        provider="gestionale",
+        lookup_type="vehicle_km_update",
+        lookup_key=vehicle.targa,
+        normalized_lookup_key=vehicle.targa.lower(),
+        status="saved",
+        vehicle_id=vehicle.id,
+        raw_payload={
+            "previous_km": previous_km,
+            "new_km": data.km_attuali,
+            "note": data.note,
+        },
+    ))
+    db.commit()
+    return {"vehicle_id": vehicle.id, "previous_km": previous_km, "km_attuali": vehicle.km_attuali}
 
 
 @router.post("/bulk/revision")

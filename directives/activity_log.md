@@ -663,3 +663,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** build frontend Test OK; upload frontend Test OK; API health 200; DB Test: `isuzu_package_rows=0`, `non_empty_package_rows=0`.  
 **Note utili:** nessuna chiamata al provider targa; la compagnia e le scadenze restano i dati utili provenienti/salvati dal lookup.
+
+## 2026-05-19 20:05:00 - Dettaglio mezzo: coperture, stato operativo e km
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine / scheda mezzo operativa  
+**Azione svolta:** semplificata la sezione `Coperture assicurative` lasciando solo compagnia, numero polizza, scadenza assicurazione e copertura fino al; rimossa la lista intermedia duplicata delle coperture. Uniformato il box `Dati tecnici provider` in una sola griglia con etichette coerenti. Sostituito lo stato generico del mezzo con uno stato operativo calcolato da assicurazione e revisione: mancante, scaduta, in scadenza o ok per ciascuna delle due voci. Aggiunto pulsante `Aggiorna km` nel dettaglio mezzo e endpoint backend `PATCH /fleet/vehicles/{id}/km` con salvataggio nota e log gestionale.  
+**File coinvolti:** `backend/app/api/fleet/router.py`, `backend/app/schemas/fleet.py`, `frontend/src/components/fleet/FleetDetailClientPage.tsx`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `py_compile` backend OK; build frontend Test OK; upload frontend Test OK; controllo stringhe obsolete OK (`Compagnia attuale`, `Polizza attuale`, `Copertura attuale`, `Copertura storica` assenti dal dettaglio mezzo).  
+**Note utili:** nessuna chiamata al provider targa e nessun consumo token API; l'aggiornamento km e' manuale e tracciato nello storico tecnico/log lookup gestionale.

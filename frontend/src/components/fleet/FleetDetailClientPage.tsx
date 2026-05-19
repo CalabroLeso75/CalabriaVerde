@@ -203,7 +203,7 @@ type VehicleDetail = {
 
 type FleetTab = 'anagrafica' | 'revisioni' | 'assegnazioni' | 'documenti' | 'sinistri' | 'comunicazioni';
 type VehicleOperationKind = 'assicurazione' | 'revisione' | 'assegnazione' | 'utilizzo' | 'alert' | 'sinistro' | 'comunicazione';
-type ActionModal = 'insurance' | 'revision' | 'assignment' | 'return' | 'extension' | null;
+type ActionModal = 'insurance' | 'revision' | 'assignment' | 'return' | 'extension' | 'km' | null;
 
 type VehicleOperation = {
   id: string;
@@ -224,6 +224,39 @@ function formatDate(value?: string | null) {
 function formatDateTime(value?: string | null) {
   if (!value) return '-';
   return new Date(value).toLocaleString('it-IT');
+}
+
+function daysUntil(value?: string | null) {
+  if (!value) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(value);
+  target.setHours(0, 0, 0, 0);
+  return Math.ceil((target.getTime() - today.getTime()) / 86400000);
+}
+
+function deadlineState(value?: string | null) {
+  const days = daysUntil(value);
+  if (days === null) return 'missing';
+  if (days < 0) return 'expired';
+  if (days <= 30) return 'expiring';
+  return 'ok';
+}
+
+function vehicleOperationalStatus(vehicle: VehicleDetail) {
+  const insurance = deadlineState(vehicle.scadenza_assicurazione);
+  const revision = deadlineState(vehicle.scadenza_revisione);
+
+  if (insurance === 'missing' && revision === 'missing') return 'Manca copertura assicurativa e revisione';
+  if (insurance === 'missing') return revision === 'ok' ? 'Manca copertura assicurativa e revisione ok' : 'Manca copertura assicurativa e revisione da verificare';
+  if (revision === 'missing') return insurance === 'ok' ? 'Copertura assicurativa ok e manca revisione' : 'Copertura assicurativa da verificare e manca revisione';
+  if (insurance === 'expired' && revision === 'expired') return 'Copertura assicurativa scaduta e revisione scaduta';
+  if (insurance === 'expired') return revision === 'ok' ? 'Copertura assicurativa scaduta e revisione ok' : 'Copertura assicurativa scaduta e revisione in scadenza';
+  if (revision === 'expired') return insurance === 'ok' ? 'Copertura assicurativa ok e revisione scaduta' : 'Copertura assicurativa in scadenza e revisione scaduta';
+  if (insurance === 'expiring' && revision === 'expiring') return 'Copertura assicurativa e revisione in scadenza';
+  if (insurance === 'expiring') return revision === 'ok' ? 'Copertura assicurativa in scadenza e revisione ok' : 'Copertura assicurativa in scadenza e revisione da verificare';
+  if (revision === 'expiring') return insurance === 'ok' ? 'Copertura assicurativa ok e revisione in scadenza' : 'Copertura assicurativa da verificare e revisione in scadenza';
+  return 'Copertura assicurativa ok e revisione ok';
 }
 
 function TextareaField({
@@ -296,6 +329,10 @@ export default function FleetDetailClientPage() {
     km_rilevati: '',
     scadenza_revisione: '',
     scadenza_verifica_sicurezza: '',
+    note: '',
+  });
+  const [kmUpdateForm, setKmUpdateForm] = useState({
+    km_attuali: '',
     note: '',
   });
   const [assignmentForm, setAssignmentForm] = useState({
@@ -455,6 +492,21 @@ export default function FleetDetailClientPage() {
     [vehicle],
   );
   const isAssigned = activeAssignments.length > 0;
+  const operationalStatus = vehicle ? vehicleOperationalStatus(vehicle) : '-';
+  const providerTechnicalFields = useMemo(() => {
+    if (!vehicle?.trim) return [];
+    return [
+      { label: 'Versione', value: vehicle.trim.commercial_name || '-' },
+      { label: 'Codice motore', value: vehicle.trim.engine_code || '-' },
+      { label: 'Cilindrata', value: vehicle.trim.displacement_cc ? `${vehicle.trim.displacement_cc} cc` : '-' },
+      { label: 'Potenza', value: vehicle.trim.horsepower_hp ? `${vehicle.trim.horsepower_hp} CV` : '-' },
+      { label: 'Porte', value: vehicle.trim.doors ? String(vehicle.trim.doors) : '-' },
+      { label: 'Posti', value: vehicle.trim.seats ? String(vehicle.trim.seats) : '-' },
+      { label: 'CO2', value: vehicle.trim.co2_g_km ? `${vehicle.trim.co2_g_km} g/km` : '-' },
+      { label: 'Fonte', value: vehicle.trim.source || '-' },
+      ...providerDisplayFields(vehicle.trim.raw_payload),
+    ];
+  }, [vehicle]);
 
   const submitInsurance = async () => {
     if (!vehicle) return;
@@ -487,6 +539,18 @@ export default function FleetDetailClientPage() {
     setSuccess('Revisione del mezzo registrata.');
     setActionModal(null);
     setRevisionForm({ data_revisione: '', esito: 'regolare', km_rilevati: '', scadenza_revisione: '', scadenza_verifica_sicurezza: '', note: '' });
+    await loadVehicle();
+  };
+
+  const submitKmUpdate = async () => {
+    if (!vehicle) return;
+    await api.patch(`/fleet/vehicles/${vehicle.id}/km`, {
+      km_attuali: Number(kmUpdateForm.km_attuali),
+      note: kmUpdateForm.note || null,
+    });
+    setSuccess('Chilometraggio del mezzo aggiornato.');
+    setActionModal(null);
+    setKmUpdateForm({ km_attuali: '', note: '' });
     await loadVehicle();
   };
 
@@ -566,7 +630,7 @@ export default function FleetDetailClientPage() {
       kind: 'assicurazione',
       title: `Copertura ${record.compagnia}`,
       dateValue: record.data_scadenza,
-      summary: `${record.is_current ? 'Copertura attuale' : 'Copertura storica'} - scadenza ${formatDate(record.data_scadenza)}`,
+      summary: `Scadenza assicurazione ${formatDate(record.data_scadenza)}`,
       badge: 'Assicurazione',
       details: [
         { label: 'Compagnia', value: record.compagnia },
@@ -717,6 +781,16 @@ export default function FleetDetailClientPage() {
             <Button type="button" variant="outline" onClick={() => setActionModal('revision')}>
               Aggiungi revisione
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setKmUpdateForm({ km_attuali: String(vehicle.km_attuali || 0), note: '' });
+                setActionModal('km');
+              }}
+            >
+              Aggiorna km
+            </Button>
             {!isAssigned ? (
               <Button
                 type="button"
@@ -769,7 +843,7 @@ export default function FleetDetailClientPage() {
                   Stato
                 </p>
                 <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>
-                  {vehicle.stato || 'Non definito'}
+                  {operationalStatus}
                 </p>
                 <p className="mt-3 text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>
                   Km attuali
@@ -822,7 +896,7 @@ export default function FleetDetailClientPage() {
                   <Info label="Alimentazione" value={vehicle.alimentazione || '-'} />
                   <Info label="Classe euro" value={vehicle.euro_classe || '-'} />
                   <Info label="Colore" value={vehicle.colore || '-'} />
-                  <Info label="Proprietà" value={vehicle.proprieta_tipo || '-'} />
+                  <Info label="Proprieta'" value={vehicle.proprieta_tipo || '-'} />
                   <Info label="Patente richiesta" value={vehicle.vehicle_type?.patente || '-'} />
                   <Info label="Abilitazione" value={vehicle.vehicle_type?.tipo_abilitazione || '-'} />
                   <Info label="Note" value={vehicle.note || '-'} />
@@ -830,25 +904,12 @@ export default function FleetDetailClientPage() {
               </Card>
 
               {vehicle.trim && (
-                <Card padding="md">
+                <Card padding="md" className="xl:col-span-2">
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Dati tecnici provider</h3>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <Info label="Versione" value={vehicle.trim.commercial_name || '-'} />
-                      <Info label="Codice motore" value={vehicle.trim.engine_code || '-'} />
-                      <Info label="Cilindrata" value={vehicle.trim.displacement_cc ? `${vehicle.trim.displacement_cc} cc` : '-'} />
-                      <Info label="Potenza" value={vehicle.trim.horsepower_hp ? `${vehicle.trim.horsepower_hp} CV` : '-'} />
-                      <Info label="Porte" value={vehicle.trim.doors ? String(vehicle.trim.doors) : '-'} />
-                      <Info label="Posti" value={vehicle.trim.seats ? String(vehicle.trim.seats) : '-'} />
-                      <Info label="CO2" value={vehicle.trim.co2_g_km ? `${vehicle.trim.co2_g_km} g/km` : '-'} />
-                      <Info label="Fonte" value={vehicle.trim.source || '-'} />
-                    </div>
-                    <div className="grid max-h-72 gap-2 overflow-y-auto text-xs sm:grid-cols-2">
-                      {providerDisplayFields(vehicle.trim.raw_payload).length ? providerDisplayFields(vehicle.trim.raw_payload).map((item) => (
-                        <div key={`${item.label}-${item.value}`} className="rounded-[var(--cv-radius-sm)] bg-white px-3 py-2">
-                          <p className="font-semibold text-[var(--cv-neutral-600)]">{item.label}</p>
-                          <p className="mt-1 text-[var(--cv-neutral-900)]">{item.value}</p>
-                        </div>
+                    <div className="grid max-h-96 gap-4 overflow-y-auto md:grid-cols-2 xl:grid-cols-4">
+                      {providerTechnicalFields.length ? providerTechnicalFields.map((item) => (
+                        <Info key={`${item.label}-${item.value}`} label={item.label} value={item.value} />
                       )) : <p className="text-sm text-[var(--cv-neutral-600)]">Nessun payload esteso disponibile.</p>}
                     </div>
                   </div>
@@ -933,34 +994,11 @@ export default function FleetDetailClientPage() {
                   <div>
                     <h3 className="text-lg font-semibold">Coperture assicurative</h3>
                     <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                      <Info label="Compagnia attuale" value={vehicle.assicurazione_compagnia || '-'} />
-                      <Info label="Polizza attuale" value={vehicle.assicurazione_polizza || '-'} />
+                      <Info label="Compagnia" value={vehicle.assicurazione_compagnia || '-'} />
+                      <Info label="Numero di polizza" value={vehicle.assicurazione_polizza || '-'} />
                       <Info label="Scadenza assicurazione" value={formatDate(vehicle.scadenza_assicurazione)} />
                       <Info label="Copertura fino al" value={formatDate(vehicle.assicurazione_copertura)} />
                     </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    {vehicle.insurance_records.length === 0 && (
-                      <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessun rinnovo assicurativo registrato nel fascicolo mezzo.</p>
-                    )}
-                    {vehicle.insurance_records.map((record) => (
-                      <div key={record.id} className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold">{record.compagnia}</p>
-                          <span className="text-xs font-semibold" style={{ color: record.is_current ? 'var(--cv-primary-dark)' : 'var(--cv-neutral-500)' }}>
-                            {record.is_current ? 'Copertura attuale' : 'Copertura storica'}
-                          </span>
-                        </div>
-                        <div className="mt-2 grid gap-3 md:grid-cols-2">
-                          <Info label="Numero polizza" value={record.numero_polizza || 'Da inserire'} />
-                          <Info label="Copertura dal" value={formatDate(record.copertura_dal)} />
-                          <Info label="Scadenza" value={formatDate(record.data_scadenza)} />
-                          <Info label="Copertura fino al" value={formatDate(record.copertura_al)} />
-                        </div>
-                        {record.note ? <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{record.note}</p> : null}
-                      </div>
-                    ))}
                   </div>
 
                   <div>
@@ -1546,6 +1584,27 @@ export default function FleetDetailClientPage() {
           </Card>
         </>
       )}
+
+      <Modal
+        isOpen={actionModal === 'km'}
+        onClose={() => setActionModal(null)}
+        title="Aggiorna chilometraggio"
+        description="Registra il chilometraggio attuale del mezzo."
+        size="md"
+        footer={(
+          <>
+            <Button type="button" variant="outline" onClick={() => setActionModal(null)}>Annulla</Button>
+            <Button type="button" disabled={!kmUpdateForm.km_attuali} onClick={() => submitKmUpdate().catch((err) => setError(err.message || 'Impossibile aggiornare i km del mezzo.'))}>
+              Salva km
+            </Button>
+          </>
+        )}
+      >
+        <div className="grid gap-3">
+          <Input label="Km attuali" type="number" value={kmUpdateForm.km_attuali} onChange={(event) => setKmUpdateForm((current) => ({ ...current, km_attuali: event.target.value }))} />
+          <TextareaField label="Note aggiornamento" value={kmUpdateForm.note} onChange={(value) => setKmUpdateForm((current) => ({ ...current, note: value }))} />
+        </div>
+      </Modal>
 
       <Modal
         isOpen={actionModal === 'insurance'}

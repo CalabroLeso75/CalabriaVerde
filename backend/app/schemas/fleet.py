@@ -467,6 +467,11 @@ class FleetBulkRevisionUpdate(BaseModel):
     scadenza_verifica_sicurezza: Optional[date] = None
 
 
+class FleetVehicleKmUpdate(BaseModel):
+    km_attuali: int = Field(ge=0)
+    note: Optional[str] = None
+
+
 class FleetVehicleAssignmentCreate(BaseModel):
     employee_id: Optional[int] = None
     user_id: Optional[int] = None

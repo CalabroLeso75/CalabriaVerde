@@ -613,3 +613,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `py_compile` backend OK; migrazione Alembic `012 -> 013` applicata su Test; backend Test riavviato e `active`; `https://smart-cv.it/api/health` 200; verifica SQLAlchemy sul server: tabella `vehicle_plate_provider_snapshots` esistente con colonne attese.  
 **Note utili:** la tabella non consuma crediti: registra solo dati gia' ricevuti dal provider o dalla cache locale.
+
+## 2026-05-19 18:42:00 - Replica dati Isuzu da singolo lookup targa
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine / gestione pacchetti omogenei  
+**Azione svolta:** aggiunti allo storico assicurazioni i campi `data_scadenza_provider`, `tolleranza_giorni` e `provider_payload`, cosi' la data restituita dal provider resta conservata ma lo scadenziario usa la data operativa al netto della tolleranza. Eseguito un lookup reale sul campione Isuzu `ES762CH` e replicati dati tecnici/allestimento e assicurazione sui 20 mezzi Isuzu censiti nel DB Test. Non e' stato copiato il telaio/VIN perche' e' dato univoco del singolo mezzo.  
+**File coinvolti:** `backend/app/models/fleet.py`, `backend/app/schemas/fleet.py`, `backend/app/api/fleet/router.py`, `backend/migrations/versions/014_fleet_insurance_provider_fields.py`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `py_compile` backend OK; migrazione Alembic `013 -> 014` applicata su Test; backend Test `active`; script campione: `sample=ES762CH updated_isuzu=20 company=HDI ASSICURAZIONI provider_due=2026-06-06 operational_due=2026-05-22`; API lista mezzi Test mostra 20 Isuzu con scadenza `2026-05-22`; DB: `snapshots=20`, `replicated_snapshots=19`, `current_replicated_insurance=20`.  
+**Note utili:** per pacchetti futuri usare lo stesso schema: una targa campione alimenta lo snapshot completo, poi la replica interna aggiorna i mezzi del gruppo omogeneo senza ulteriori chiamate provider.

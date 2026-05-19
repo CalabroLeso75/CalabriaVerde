@@ -407,6 +407,9 @@ class FleetVehicleInsuranceRecordResponse(BaseModel):
     copertura_dal: Optional[date] = None
     copertura_al: Optional[date] = None
     data_scadenza: date
+    data_scadenza_provider: Optional[date] = None
+    tolleranza_giorni: int = 0
+    provider_payload: Optional[dict] = None
     channels_ready: Optional[list[str]] = None
     is_current: bool = True
     note: Optional[str] = None
@@ -424,6 +427,9 @@ class FleetVehicleInsuranceCreate(BaseModel):
     copertura_dal: Optional[date] = None
     copertura_al: Optional[date] = None
     data_scadenza: date
+    data_scadenza_provider: Optional[date] = None
+    tolleranza_giorni: int = 0
+    provider_payload: Optional[dict] = None
     channels_ready: list[str] = Field(default_factory=list)
     note: Optional[str] = None
 
@@ -437,6 +443,9 @@ class FleetBulkInsuranceUpdate(BaseModel):
     copertura_dal: Optional[date] = None
     copertura_al: Optional[date] = None
     data_scadenza: date
+    data_scadenza_provider: Optional[date] = None
+    tolleranza_giorni: int = 0
+    provider_payload: Optional[dict] = None
     note: Optional[str] = None
 
 

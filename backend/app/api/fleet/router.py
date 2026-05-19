@@ -90,6 +90,7 @@ from app.services.fleet_catalog import (
 )
 
 router = APIRouter()
+INSURANCE_PROVIDER_GRACE_DAYS = 15
 
 
 def assignment_display_name(assignment: VehicleAssignment) -> str | None:
@@ -131,6 +132,12 @@ def parse_remote_date(value: str | None) -> date | None:
         except ValueError:
             continue
     return None
+
+
+def insurance_operational_due(provider_due: date | None) -> date | None:
+    if not provider_due:
+        return None
+    return provider_due - timedelta(days=INSURANCE_PROVIDER_GRACE_DAYS)
 
 
 def document_status(value: date | None) -> str:
@@ -803,7 +810,9 @@ async def apply_vehicle_recognition(
         vehicle.numero_telaio = remote_vin.strip().upper()
 
     insurance = latest_logged_insurance(db, vehicle.targa)
-    insurance_due = parse_remote_date(insurance.get("expiry"))
+    insurance_lookup = latest_lookup_record(db, vehicle.targa, "insurance")
+    insurance_provider_due = parse_remote_date(insurance.get("expiry"))
+    insurance_due = insurance_operational_due(insurance_provider_due)
     insurance_company_saved = False
     insurance_record_saved = False
     insurance_save_message = "Assicurazione non salvata: il provider non ha restituito compagnia e scadenza valide."
@@ -821,8 +830,11 @@ async def apply_vehicle_recognition(
             source_type="api_targa",
             compagnia=insurance["company"],
             data_scadenza=insurance_due,
+            data_scadenza_provider=insurance_provider_due,
+            tolleranza_giorni=INSURANCE_PROVIDER_GRACE_DAYS,
+            provider_payload=insurance_lookup.raw_payload if insurance_lookup else None,
             channels_ready=["sistema"],
-            note="Copertura corrente salvata dall'ultimo lookup Targa.co.it/RegCheck registrato.",
+            note="Copertura corrente salvata dall'ultimo lookup Targa.co.it/RegCheck registrato. La scadenza operativa sottrae i 15 giorni di tolleranza dalla data provider.",
             created_by_user_id=current_user.id,
             is_current=True,
         ))
@@ -1374,6 +1386,9 @@ async def add_vehicle_insurance(
         copertura_dal=data.copertura_dal,
         copertura_al=data.copertura_al,
         data_scadenza=data.data_scadenza,
+        data_scadenza_provider=data.data_scadenza_provider,
+        tolleranza_giorni=data.tolleranza_giorni,
+        provider_payload=data.provider_payload,
         channels_ready=data.channels_ready,
         note=data.note,
         created_by_user_id=current_user.id,
@@ -1419,6 +1434,9 @@ async def bulk_update_insurance(
             copertura_dal=data.copertura_dal,
             copertura_al=data.copertura_al,
             data_scadenza=data.data_scadenza,
+            data_scadenza_provider=data.data_scadenza_provider,
+            tolleranza_giorni=data.tolleranza_giorni,
+            provider_payload=data.provider_payload,
             note=data.note,
             created_by_user_id=current_user.id,
             is_current=True,

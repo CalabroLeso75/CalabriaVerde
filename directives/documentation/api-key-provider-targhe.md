@@ -85,6 +85,14 @@ Il gestionale salva una copertura assicurativa solo se sono presenti sia compagn
 
 Se il provider restituisce la compagnia ma non una scadenza valida, il gestionale aggiorna solo `assicurazione_compagnia` sulla scheda mezzo e registra nel log perche' non ha creato il record storico della copertura. Il record `vehicle_insurance_records` richiede una `data_scadenza` valida.
 
+Per le assicurazioni italiane il provider puo' restituire la scadenza comprensiva dei giorni di tolleranza previsti. Il gestionale conserva entrambi i valori:
+
+- `data_scadenza_provider`: data esatta restituita dal provider;
+- `tolleranza_giorni`: giorni sottratti, oggi impostati a 15;
+- `data_scadenza`: data operativa usata da scadenziario e alert, quindi `data_scadenza_provider - 15 giorni`.
+
+Per pacchetti assicurativi omogenei, ad esempio mezzi Isuzu con stesso allestimento e stessa copertura aziendale, si usa una sola targa campione per alimentare snapshot e payload, poi si replica internamente su tutti i mezzi del gruppo senza consumare altri crediti. Non replicare mai il VIN/telaio, perche' resta un dato univoco del singolo mezzo.
+
 ## Revisioni
 
 Targa.co.it / RegCheck, nella documentazione Italia verificata, non espone uno storico revisioni italiano. Il gestionale deve quindi:

@@ -13,6 +13,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
 import { withAppBasePath } from '@/lib/app-path';
+import { providerDisplayFields } from '@/lib/provider-payload';
 
 type GroupItem = {
   id: number;
@@ -223,40 +224,6 @@ function formatDate(value?: string | null) {
 function formatDateTime(value?: string | null) {
   if (!value) return '-';
   return new Date(value).toLocaleString('it-IT');
-}
-
-function flattenPayload(value: unknown, prefix = '', rows: Array<{ label: string; value: string }> = []) {
-  if (value === null || value === undefined || value === '') return rows;
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => flattenPayload(item, `${prefix}[${index}]`, rows));
-    return rows;
-  }
-  if (typeof value === 'object') {
-    Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
-      flattenPayload(item, prefix ? `${prefix}.${key}` : key, rows);
-    });
-    return rows;
-  }
-  rows.push({ label: prefix, value: String(value) });
-  return rows;
-}
-
-function providerFields(payload?: Record<string, unknown> | null) {
-  const uniqueVehicleKeys = new Set([
-    'vin',
-    'vehicleidentificationnumber',
-    'vechileidentificationnumber',
-    'chassisnumber',
-    'registrationnumber',
-    'licenseplate',
-    'targa',
-  ]);
-  return flattenPayload(payload)
-    .filter((item) => {
-      const normalizedLabel = item.label.toLowerCase().replace(/[\s._-]+/g, '');
-      return item.label && item.value && !uniqueVehicleKeys.has(normalizedLabel);
-    })
-    .slice(0, 120);
 }
 
 function TextareaField({
@@ -877,7 +844,7 @@ export default function FleetDetailClientPage() {
                       <Info label="Fonte" value={vehicle.trim.source || '-'} />
                     </div>
                     <div className="grid max-h-72 gap-2 overflow-y-auto text-xs sm:grid-cols-2">
-                      {providerFields(vehicle.trim.raw_payload).length ? providerFields(vehicle.trim.raw_payload).map((item) => (
+                      {providerDisplayFields(vehicle.trim.raw_payload).length ? providerDisplayFields(vehicle.trim.raw_payload).map((item) => (
                         <div key={`${item.label}-${item.value}`} className="rounded-[var(--cv-radius-sm)] bg-white px-3 py-2">
                           <p className="font-semibold text-[var(--cv-neutral-600)]">{item.label}</p>
                           <p className="mt-1 text-[var(--cv-neutral-900)]">{item.value}</p>

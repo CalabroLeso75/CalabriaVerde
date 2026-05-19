@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/Select';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { api } from '@/lib/api';
 import { withAppBasePath } from '@/lib/app-path';
+import { providerDisplayFields } from '@/lib/provider-payload';
 
 type VehicleTypeOption = {
   id: number;
@@ -231,26 +232,6 @@ function recognitionEmptyMessage(result: VehicleRecognitionResponse | null) {
     return 'Il provider non ha restituito dati tecnici salvabili per questa targa. Il risultato e stato registrato per evitare nuove chiamate inutili.';
   }
   return `Il provider ha restituito stato ${result.lookup.status || 'non definito'}.`;
-}
-
-function flattenPayload(value: unknown, prefix = '', rows: Array<{ label: string; value: string }> = []) {
-  if (value === null || value === undefined || value === '') return rows;
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => flattenPayload(item, `${prefix}[${index}]`, rows));
-    return rows;
-  }
-  if (typeof value === 'object') {
-    Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
-      flattenPayload(item, prefix ? `${prefix}.${key}` : key, rows);
-    });
-    return rows;
-  }
-  rows.push({ label: prefix, value: String(value) });
-  return rows;
-}
-
-function providerFields(payload?: Record<string, unknown> | null) {
-  return flattenPayload(payload).filter((item) => item.label && item.value).slice(0, 100);
 }
 
 function TextareaField({
@@ -1070,7 +1051,7 @@ export default function FleetRegistryClientPage() {
                     <div className="rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
                       <p className="text-sm font-semibold text-[var(--cv-neutral-900)]">Dati completi recuperati dal provider</p>
                       <div className="mt-3 grid max-h-72 gap-2 overflow-y-auto text-xs sm:grid-cols-2">
-                        {providerFields(recognitionResult.lookup.trim.raw_payload).length ? providerFields(recognitionResult.lookup.trim.raw_payload).map((item) => (
+                        {providerDisplayFields(recognitionResult.lookup.trim.raw_payload, 100).length ? providerDisplayFields(recognitionResult.lookup.trim.raw_payload, 100).map((item) => (
                           <div key={`${item.label}-${item.value}`} className="rounded-[var(--cv-radius-sm)] bg-white px-3 py-2">
                             <p className="font-semibold text-[var(--cv-neutral-600)]">{item.label}</p>
                             <p className="mt-1 text-[var(--cv-neutral-900)]">{item.value}</p>

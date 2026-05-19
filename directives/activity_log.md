@@ -633,3 +633,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** build frontend Test OK; backend Test riavviato e `active`; sanitizzazione DB Test eseguita su payload condivisi e snapshot replicati: `sanitized=20`; nessuna nuova chiamata reale al provider targa.  
 **Note utili:** il VIN e' un dato univoco del veicolo fisico e deve essere estratto o inserito per ogni targa/mezzo. Non va replicato tra mezzi uguali; la replica puo' riguardare solo dati comuni di modello/allestimento e coperture assicurative aziendali omogenee.
+
+## 2026-05-19 19:25:00 - Etichette provider e pulizia riferimenti replica
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine / qualita' scheda mezzo  
+**Azione svolta:** normalizzate le etichette dei campi provider in italiano tecnico con helper frontend comune, riusato nel dettaglio mezzo e nella modale di riconoscimento. Rimossi dal DB Test i riferimenti operativi alla replica: note mezzo ridotte all'ultima nota, note assicurative di replica azzerate, metadati `replicated_*` rimossi dagli snapshot e stati snapshot riportati a `captured`.  
+**File coinvolti:** `frontend/src/lib/provider-payload.ts`, `frontend/src/components/fleet/FleetDetailClientPage.tsx`, `frontend/src/components/fleet/FleetRegistryClientPage.tsx`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** build frontend Test OK; upload frontend Test OK; API health 200; DB Test: `vehicle_notes_multiline=0`, `insurance_replica_notes=0`, `snapshot_status_replicated=0`; nessuna nuova chiamata al provider targa.  
+**Note utili:** la pagina frontend ha mostrato un rifiuto connessione intermittente su alcune richieste `HEAD`, ma `/test/fleet/` ha risposto 200 dopo retry; l'API e' rimasta online.

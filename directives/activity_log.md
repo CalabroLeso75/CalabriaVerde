@@ -603,3 +603,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `py_compile` backend locale OK; build frontend con `NEXT_PUBLIC_BASE_PATH=/test` OK; upload backend Test OK; `systemctl restart calabriaverde-test` OK e servizio `active`; upload frontend Test OK; `https://smart-cv.it/api/health` 200; login API Test OK; lista mezzi API Test OK; file pagina dettaglio Test presenti su hosting.  
 **Note utili:** non sono state effettuate nuove chiamate reali al provider targa durante questa verifica, per evitare consumo crediti. Le chiamate online a singole pagine statiche hanno mostrato qualche rifiuto connessione intermittente da hosting, ma `/test/fleet/` e API risultano raggiungibili. Dopo il deploy e' stata eseguita anche una normalizzazione DB non pagante sui modelli gia' salvati: rimossi codici tra parentesi tipo `TFR, TFS` da 8 record tra modelli e mezzi.
+
+## 2026-05-19 18:20:00 - Tabella snapshot dati provider targa
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine / conservazione dati API  
+**Azione svolta:** aggiunta tabella dedicata `vehicle_plate_provider_snapshots` per conservare ogni ciclo di riconoscimento targa in un record unico: payload tecnico completo, payload assicurativo completo, payload aggregato, campi estratti normalizzati, stato, errori, mezzo, allestimento e riferimenti ai log API originali. Aggiornata la procedura `recognition` per creare lo snapshot dopo il lookup tecnico/assicurativo, senza richiamare il provider in fase di applicazione dati.  
+**File coinvolti:** `backend/app/models/fleet.py`, `backend/app/api/fleet/router.py`, `backend/migrations/versions/013_fleet_plate_provider_snapshots.py`, `directives/documentation/api-key-provider-targhe.md`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `py_compile` backend OK; migrazione Alembic `012 -> 013` applicata su Test; backend Test riavviato e `active`; `https://smart-cv.it/api/health` 200; verifica SQLAlchemy sul server: tabella `vehicle_plate_provider_snapshots` esistente con colonne attese.  
+**Note utili:** la tabella non consuma crediti: registra solo dati gia' ricevuti dal provider o dalla cache locale.

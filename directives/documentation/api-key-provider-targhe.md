@@ -44,6 +44,7 @@ Campi principali da estrarre:
 - `MakeDescription.CurrentTextValue` oppure `CarMake.CurrentTextValue`;
 - `ModelDescription.CurrentTextValue` oppure `CarModel.CurrentTextValue`;
 - `Description`;
+- `RegistrationDate` o `FirstRegistrationDate`, se restituiti;
 - `RegistrationYear`;
 - `EngineSize.CurrentTextValue`;
 - `FuelType.CurrentTextValue`;
@@ -51,6 +52,9 @@ Campi principali da estrarre:
 - `PowerCV`;
 - `PowerKW`;
 - `Vin` o `VehicleIdentificationNumber`.
+- `ImageUrl`, `VehicleImageUrl` o `Image`, se restituiti.
+
+Il provider puo' restituire ulteriori chiavi non sempre stabili tra targhe e versioni del servizio. Per questo il gestionale deve salvare l'intero payload e non soltanto i campi mappati.
 
 Nota cilindrata: in Italia il campo puo' arrivare come `2.0`, come `1199`, oppure come fascia testuale tipo `14 cv (da 1119,2 a 1243,6 cc.)`. Il parser deve trasformare:
 
@@ -103,6 +107,12 @@ Targa.co.it / RegCheck, nella documentazione Italia verificata, non espone uno s
 10. Salvare sul mezzo: marca, modello, categoria, anno, alimentazione, classe euro se presente, numero telaio se presente, assicurazione solo se completa.
 11. Registrare un log `vehicle_recognition_apply` con esito tecnico, assicurativo, VIN e nota revisioni.
 12. Mostrare nel dettaglio mezzo i dati strutturati principali e il payload completo appiattito in campi leggibili.
+13. Salvare ogni ciclo di riconoscimento nella tabella dedicata `vehicle_plate_provider_snapshots`, che consolida in un solo record:
+    - payload tecnico completo;
+    - payload assicurativo completo;
+    - payload unificato `merged_payload`;
+    - campi estratti normalizzati;
+    - collegamento a mezzo, allestimento, log tecnico e log assicurativo.
 
 ## Errori noti
 

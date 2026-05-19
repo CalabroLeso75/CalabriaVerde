@@ -180,6 +180,42 @@ class VehicleExternalLookup(Base):
     trim = relationship("VehicleTrim")
 
 
+class VehiclePlateProviderSnapshot(Base):
+    __tablename__ = "vehicle_plate_provider_snapshots"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id", ondelete="SET NULL"), nullable=True, index=True)
+    trim_id = Column(Integer, ForeignKey("vehicle_trims.id", ondelete="SET NULL"), nullable=True, index=True)
+    plate_lookup_id = Column(Integer, ForeignKey("vehicle_external_lookups.id", ondelete="SET NULL"), nullable=True, index=True)
+    insurance_lookup_id = Column(Integer, ForeignKey("vehicle_external_lookups.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    provider = Column(String(80), nullable=False, index=True)
+    license_plate = Column(String(20), nullable=False, index=True)
+    normalized_license_plate = Column(String(20), nullable=False, index=True)
+    status = Column(String(40), nullable=False, default="captured", index=True)
+    technical_found = Column(Boolean, nullable=False, default=False)
+    insurance_found = Column(Boolean, nullable=False, default=False)
+    http_status = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    technical_payload = Column(JSON, nullable=True)
+    insurance_payload = Column(JSON, nullable=True)
+    merged_payload = Column(JSON, nullable=True)
+    extracted_fields = Column(JSON, nullable=True)
+
+    insurance_company = Column(String(255), nullable=True)
+    insurance_expiry = Column(String(40), nullable=True)
+    is_insured = Column(Boolean, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+
+    vehicle = relationship("Vehicle")
+    trim = relationship("VehicleTrim")
+    plate_lookup = relationship("VehicleExternalLookup", foreign_keys=[plate_lookup_id])
+    insurance_lookup = relationship("VehicleExternalLookup", foreign_keys=[insurance_lookup_id])
+
+
 class Vehicle(Base):
     __tablename__ = "vehicles"
 

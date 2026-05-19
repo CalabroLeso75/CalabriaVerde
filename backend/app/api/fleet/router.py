@@ -22,6 +22,7 @@ from app.models.fleet import (
     VehicleIncident,
     VehicleInsuranceRecord,
     VehicleModel,
+    VehiclePlateProviderSnapshot,
     VehicleRevision,
     VehicleTrim,
     VehicleTrimTireFitment,
@@ -216,6 +217,96 @@ def latest_logged_vehicle_payload(db: Session, plate: str) -> dict:
         .first()
     )
     return item.raw_payload if item and isinstance(item.raw_payload, dict) else {}
+
+
+def latest_lookup_record(db: Session, plate: str, lookup_type: str) -> VehicleExternalLookup | None:
+    return (
+        db.query(VehicleExternalLookup)
+        .filter(
+            VehicleExternalLookup.lookup_type == lookup_type,
+            VehicleExternalLookup.normalized_lookup_key == normalize_catalog_key(plate),
+        )
+        .order_by(VehicleExternalLookup.id.desc())
+        .first()
+    )
+
+
+def _find_payload_bool(payload: object, *keys: str) -> bool | None:
+    value = _find_payload_value(payload, *keys)
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    if normalized in {"true", "1", "yes", "si", "sì", "insured", "active"}:
+        return True
+    if normalized in {"false", "0", "no", "not insured", "inactive"}:
+        return False
+    return None
+
+
+def build_plate_snapshot_fields(technical_payload: dict, insurance_payload: dict) -> dict:
+    return {
+        "make": _find_payload_value(technical_payload, "MakeDescription", "CarMake", "Make"),
+        "model": _find_payload_value(technical_payload, "ModelDescription", "CarModel", "Model"),
+        "description": _find_payload_value(technical_payload, "Description"),
+        "version": _find_payload_value(technical_payload, "Version"),
+        "registration_year": _find_payload_value(technical_payload, "RegistrationYear"),
+        "registration_date": _find_payload_value(technical_payload, "RegistrationDate", "FirstRegistrationDate"),
+        "engine_size": _find_payload_value(technical_payload, "EngineSize", "EngineCC", "displacement_cc"),
+        "fuel_type": _find_payload_value(technical_payload, "FuelType", "Fuel"),
+        "power_cv": _find_payload_value(technical_payload, "PowerCV"),
+        "power_kw": _find_payload_value(technical_payload, "PowerKW"),
+        "vin": _find_payload_value(technical_payload, "Vin", "VIN", "VehicleIdentificationNumber", "VechileIdentificationNumber"),
+        "image_url": _find_payload_value(technical_payload, "ImageUrl", "VehicleImageUrl", "Image"),
+        "insurance_company": _find_payload_value(insurance_payload, "Company", "compagnia"),
+        "insurance_expiry": _find_payload_value(insurance_payload, "Expiry", "Scadenza", "data_scadenza"),
+        "is_insured": _find_payload_bool(insurance_payload, "IsInsured", "insured", "InsuranceValid"),
+        "insurance_region": _find_payload_value(insurance_payload, "Region"),
+    }
+
+
+def save_plate_provider_snapshot(
+    db: Session,
+    vehicle: Vehicle,
+    plate_lookup: VehicleExternalLookup | None,
+    insurance_lookup: VehicleExternalLookup | None,
+) -> VehiclePlateProviderSnapshot:
+    technical_payload = plate_lookup.raw_payload if plate_lookup and isinstance(plate_lookup.raw_payload, dict) else {}
+    insurance_payload = insurance_lookup.raw_payload if insurance_lookup and isinstance(insurance_lookup.raw_payload, dict) else {}
+    extracted = build_plate_snapshot_fields(technical_payload, insurance_payload)
+    status = "captured"
+    errors = []
+    if plate_lookup and plate_lookup.error_message:
+        errors.append(f"tecnico: {plate_lookup.error_message}")
+    if insurance_lookup and insurance_lookup.error_message:
+        errors.append(f"assicurazione: {insurance_lookup.error_message}")
+    if not plate_lookup and not insurance_lookup:
+        status = "empty"
+    elif errors:
+        status = "partial" if technical_payload or insurance_payload else "error"
+
+    snapshot = VehiclePlateProviderSnapshot(
+        vehicle_id=vehicle.id,
+        trim_id=plate_lookup.trim_id if plate_lookup else vehicle.trim_id,
+        plate_lookup_id=plate_lookup.id if plate_lookup else None,
+        insurance_lookup_id=insurance_lookup.id if insurance_lookup else None,
+        provider=(plate_lookup.provider if plate_lookup else insurance_lookup.provider if insurance_lookup else "unknown"),
+        license_plate=vehicle.targa,
+        normalized_license_plate=normalize_catalog_key(vehicle.targa),
+        status=status,
+        technical_found=bool(plate_lookup and plate_lookup.status == "found" and technical_payload),
+        insurance_found=bool(insurance_lookup and insurance_lookup.status == "found" and insurance_payload),
+        http_status=(plate_lookup.http_status if plate_lookup and plate_lookup.http_status else insurance_lookup.http_status if insurance_lookup else None),
+        error_message="; ".join(errors) if errors else None,
+        technical_payload=technical_payload or None,
+        insurance_payload=insurance_payload or None,
+        merged_payload={"technical": technical_payload, "insurance": insurance_payload},
+        extracted_fields=extracted,
+        insurance_company=extracted.get("insurance_company"),
+        insurance_expiry=extracted.get("insurance_expiry"),
+        is_insured=extracted.get("is_insured"),
+    )
+    db.add(snapshot)
+    return snapshot
 
 
 def serialize_group(group: FleetGroup) -> FleetGroupResponse:
@@ -621,6 +712,10 @@ async def recognize_vehicle_from_plate(
         service.clean_cached_trim_model_name(trim)
         db.commit()
     insurance = service.lookup_italy_insurance(vehicle.targa, force_refresh=force_refresh)
+    db.commit()
+    plate_lookup = latest_lookup_record(db, vehicle.targa, "plate")
+    insurance_lookup = latest_lookup_record(db, vehicle.targa, "insurance")
+    save_plate_provider_snapshot(db, vehicle, plate_lookup, insurance_lookup)
     db.commit()
     logs = (
         db.query(VehicleExternalLookup)

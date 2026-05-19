@@ -121,6 +121,19 @@ Targa.co.it / RegCheck, nella documentazione Italia verificata, non espone uno s
     - payload unificato `merged_payload`;
     - campi estratti normalizzati;
     - collegamento a mezzo, allestimento, log tecnico e log assicurativo.
+14. Non salvare campi univoci del singolo veicolo dentro `vehicle_trims.raw_payload`: VIN/telaio, targa, registration number e campi equivalenti devono restare nello snapshot del lookup e nella scheda del mezzo specifico. L'allestimento e' condiviso da molti mezzi, quindi deve contenere solo dati tecnici comuni.
+15. Nel frontend usare fallback ASCII `-` per i valori mancanti. Evitare il trattino lungo Unicode come placeholder, perche' su hosting o browser con encoding incoerente puo' comparire come mojibake `â€”`.
+
+## VIN e dati replicabili
+
+Il VIN/telaio e' un identificativo univoco del veicolo fisico. Due mezzi dello stesso modello, con stesso allestimento e stessa polizza aziendale, non devono mai condividere lo stesso VIN.
+
+Regola operativa:
+
+- replicabili su gruppo omogeneo: marca, modello, versione/allestimento, alimentazione, cilindrata, potenza, anno produzione/immatricolazione se coerente, compagnia e scadenza assicurativa comune;
+- non replicabili: VIN/telaio, targa, numero pratica, numero polizza specifico se dedicato al mezzo, chilometri, assegnazioni, note, sinistri, documenti e qualunque campo identificativo del singolo veicolo;
+- il payload completo del provider resta sempre consultabile in `vehicle_plate_provider_snapshots` per la targa che ha generato il lookup;
+- il payload tecnico condiviso in `vehicle_trims.raw_payload` viene sanitizzato prima del salvataggio, rimuovendo i campi univoci.
 
 ## Errori noti
 

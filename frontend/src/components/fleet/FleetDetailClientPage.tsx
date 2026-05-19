@@ -216,12 +216,12 @@ type VehicleOperation = {
 };
 
 function formatDate(value?: string | null) {
-  if (!value) return '—';
+  if (!value) return '-';
   return new Date(value).toLocaleDateString('it-IT');
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) return '—';
+  if (!value) return '-';
   return new Date(value).toLocaleString('it-IT');
 }
 
@@ -242,7 +242,21 @@ function flattenPayload(value: unknown, prefix = '', rows: Array<{ label: string
 }
 
 function providerFields(payload?: Record<string, unknown> | null) {
-  return flattenPayload(payload).filter((item) => item.label && item.value).slice(0, 120);
+  const uniqueVehicleKeys = new Set([
+    'vin',
+    'vehicleidentificationnumber',
+    'vechileidentificationnumber',
+    'chassisnumber',
+    'registrationnumber',
+    'licenseplate',
+    'targa',
+  ]);
+  return flattenPayload(payload)
+    .filter((item) => {
+      const normalizedLabel = item.label.toLowerCase().replace(/[\s._-]+/g, '');
+      return item.label && item.value && !uniqueVehicleKeys.has(normalizedLabel);
+    })
+    .slice(0, 120);
 }
 
 function TextareaField({
@@ -465,7 +479,7 @@ export default function FleetDetailClientPage() {
   const needsKmConfirmation = actionModal === 'assignment' && kmDelta !== 0;
 
   const assignmentOptions = useMemo(
-    () => [{ value: '', label: 'Seleziona assegnazione' }, ...(vehicle?.assignments || []).map((item) => ({ value: String(item.id), label: `${item.employee_display_name || item.user_display_name || 'Operatore'} · ${item.stato}` }))],
+    () => [{ value: '', label: 'Seleziona assegnazione' }, ...(vehicle?.assignments || []).map((item) => ({ value: String(item.id), label: `${item.employee_display_name || item.user_display_name || 'Operatore'} - ${item.stato}` }))],
     [vehicle],
   );
 
@@ -585,12 +599,12 @@ export default function FleetDetailClientPage() {
       kind: 'assicurazione',
       title: `Copertura ${record.compagnia}`,
       dateValue: record.data_scadenza,
-      summary: `${record.is_current ? 'Corrente' : 'Storica'} · scadenza ${formatDate(record.data_scadenza)}`,
+      summary: `${record.is_current ? 'Corrente' : 'Storica'} - scadenza ${formatDate(record.data_scadenza)}`,
       badge: 'Assicurazione',
       details: [
         { label: 'Compagnia', value: record.compagnia },
-        { label: 'Polizza', value: record.numero_polizza || '—' },
-        { label: 'Pacchetto', value: record.package_name || '—' },
+        { label: 'Polizza', value: record.numero_polizza || '-' },
+        { label: 'Pacchetto', value: record.package_name || '-' },
         { label: 'Scadenza', value: formatDate(record.data_scadenza) },
       ],
       note: record.note,
@@ -601,12 +615,12 @@ export default function FleetDetailClientPage() {
       kind: 'revisione',
       title: `Revisione del ${formatDate(revision.data_revisione)}`,
       dateValue: revision.data_revisione,
-      summary: `${revision.esito} · km ${revision.km_rilevati?.toLocaleString('it-IT') || '—'}`,
+      summary: `${revision.esito} - km ${revision.km_rilevati?.toLocaleString('it-IT') || '-'}`,
       badge: 'Revisione',
       details: [
         { label: 'Data revisione', value: formatDate(revision.data_revisione) },
         { label: 'Esito', value: revision.esito },
-        { label: 'Km rilevati', value: revision.km_rilevati?.toLocaleString('it-IT') || '—' },
+        { label: 'Km rilevati', value: revision.km_rilevati?.toLocaleString('it-IT') || '-' },
       ],
       note: revision.note,
     }));
@@ -616,14 +630,14 @@ export default function FleetDetailClientPage() {
       kind: 'assegnazione',
       title: `Assegnazione a ${assignment.organization_display_name || assignment.employee_display_name || assignment.user_display_name || 'Operatore'}`,
       dateValue: assignment.assegnato_il || '',
-      summary: `${assignment.stato} · dal ${formatDateTime(assignment.assegnato_il)}`,
+      summary: `${assignment.stato} - dal ${formatDateTime(assignment.assegnato_il)}`,
       badge: 'Assegnazione',
       details: [
-        { label: 'Operatore', value: assignment.employee_display_name || assignment.user_display_name || '—' },
+        { label: 'Operatore', value: assignment.employee_display_name || assignment.user_display_name || '-' },
         { label: 'Km iniziali', value: assignment.km_iniziali.toLocaleString('it-IT') },
-        { label: 'Documento assegnazione', value: assignment.documento_assegnazione_numero || '—' },
+        { label: 'Documento assegnazione', value: assignment.documento_assegnazione_numero || '-' },
         { label: 'Restituito il', value: formatDateTime(assignment.riconsegnato_il) },
-        { label: 'Documento restituzione', value: assignment.documento_restituzione_numero || '—' },
+        { label: 'Documento restituzione', value: assignment.documento_restituzione_numero || '-' },
       ],
       note: assignment.note,
     }));
@@ -633,17 +647,17 @@ export default function FleetDetailClientPage() {
       kind: 'utilizzo',
       title: `Utilizzo mezzo - ${usage.actor_display_name || 'Operatore'}`,
       dateValue: usage.started_at,
-      summary: `${usage.km_partenza.toLocaleString('it-IT')} km partenza · ${formatDateTime(usage.started_at)}`,
+      summary: `${usage.km_partenza.toLocaleString('it-IT')} km partenza - ${formatDateTime(usage.started_at)}`,
       badge: 'Utilizzo',
       details: [
-        { label: 'Operatore', value: usage.actor_display_name || '—' },
+        { label: 'Operatore', value: usage.actor_display_name || '-' },
         { label: 'Km partenza', value: usage.km_partenza.toLocaleString('it-IT') },
-        { label: 'Km rientro', value: usage.km_rientro?.toLocaleString('it-IT') || '—' },
+        { label: 'Km rientro', value: usage.km_rientro?.toLocaleString('it-IT') || '-' },
         { label: 'Inizio', value: formatDateTime(usage.started_at) },
         { label: 'Fine', value: formatDateTime(usage.ended_at) },
-        { label: 'Problemi rilevati', value: usage.issue_flags.length > 0 ? usage.issue_flags.join(', ') : '—' },
+        { label: 'Problemi rilevati', value: usage.issue_flags.length > 0 ? usage.issue_flags.join(', ') : '-' },
       ],
-      note: [usage.note_presa ? `Presa: ${usage.note_presa}` : null, usage.note_rientro ? `Rientro: ${usage.note_rientro}` : null].filter(Boolean).join(' · '),
+      note: [usage.note_presa ? `Presa: ${usage.note_presa}` : null, usage.note_rientro ? `Rientro: ${usage.note_rientro}` : null].filter(Boolean).join(' - '),
     }));
 
     const alertOps: VehicleOperation[] = vehicle.alerts.map((alert) => ({
@@ -651,14 +665,14 @@ export default function FleetDetailClientPage() {
       kind: 'alert',
       title: `${alert.alert_type.toUpperCase()} - ${alert.title}`,
       dateValue: alert.event_at || '',
-      summary: `${alert.severity} · ${alert.status}`,
+      summary: `${alert.severity} - ${alert.status}`,
       badge: 'Alert',
       details: [
         { label: 'Tipo', value: alert.alert_type },
         { label: 'Gravità', value: alert.severity },
-        { label: 'Provincia', value: alert.province_code || '—' },
-        { label: 'Luogo', value: alert.location_text || '—' },
-        { label: 'Operatore', value: alert.actor_display_name || '—' },
+        { label: 'Provincia', value: alert.province_code || '-' },
+        { label: 'Luogo', value: alert.location_text || '-' },
+        { label: 'Operatore', value: alert.actor_display_name || '-' },
       ],
       note: alert.description,
     }));
@@ -668,13 +682,13 @@ export default function FleetDetailClientPage() {
       kind: 'sinistro',
       title: incident.tipo || 'Sinistro',
       dateValue: incident.data_evento,
-      summary: `${incident.stato} · ${incident.luogo || 'luogo non indicato'}`,
+      summary: `${incident.stato} - ${incident.luogo || 'luogo non indicato'}`,
       badge: 'Sinistro',
       details: [
         { label: 'Data evento', value: formatDate(incident.data_evento) },
-        { label: 'Numero sinistro', value: incident.numero_sinistro || '—' },
+        { label: 'Numero sinistro', value: incident.numero_sinistro || '-' },
         { label: 'Stato', value: incident.stato },
-        { label: 'Luogo', value: incident.luogo || '—' },
+        { label: 'Luogo', value: incident.luogo || '-' },
       ],
       note: incident.descrizione || incident.note,
     }));
@@ -684,13 +698,13 @@ export default function FleetDetailClientPage() {
       kind: 'comunicazione',
       title: item.subject,
       dateValue: item.created_at || '',
-      summary: `${item.event_type} · ${item.channel} · ${item.status}`,
+      summary: `${item.event_type} - ${item.channel} - ${item.status}`,
       badge: 'Comunicazione',
       details: [
         { label: 'Canale', value: item.channel },
         { label: 'Evento', value: item.event_type },
         { label: 'Stato', value: item.status },
-        { label: 'Destinatari', value: item.recipients.length ? item.recipients.map((recipient) => recipient.recipient_label).join(', ') : '—' },
+        { label: 'Destinatari', value: item.recipients.length ? item.recipients.map((recipient) => recipient.recipient_label).join(', ') : '-' },
       ],
       note: item.message,
     }));
@@ -717,7 +731,7 @@ export default function FleetDetailClientPage() {
       <div className="flex items-center justify-between gap-3">
         <SectionLead
           description="Scheda completa del mezzo con storico tecnico, assegnazioni operative, alert e tracciamento comunicazioni."
-          detail={vehicle ? `${vehicle.targa} · ${vehicle.marca} ${vehicle.modello}` : 'Caricamento in corso...'}
+          detail={vehicle ? `${vehicle.targa} - ${vehicle.marca} ${vehicle.modello}` : 'Caricamento in corso...'}
         />
         <Link href={withAppBasePath('/fleet/anagrafica')} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
           Torna all&apos;anagrafica
@@ -780,7 +794,7 @@ export default function FleetDetailClientPage() {
                   {vehicle.marca} {vehicle.modello}
                 </h2>
                 <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                  {vehicle.targa} · {vehicle.vehicle_type?.name || vehicle.tipo}
+                  {vehicle.targa} - {vehicle.vehicle_type?.name || vehicle.tipo}
                 </p>
               </div>
               <div>
@@ -837,14 +851,14 @@ export default function FleetDetailClientPage() {
               <Card padding="md">
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <Info label="Immatricolazione" value={formatDate(vehicle.immatricolazione_date)} />
-                  <Info label="Telaio" value={vehicle.numero_telaio || '—'} />
-                  <Info label="Alimentazione" value={vehicle.alimentazione || '—'} />
-                  <Info label="Classe euro" value={vehicle.euro_classe || '—'} />
-                  <Info label="Colore" value={vehicle.colore || '—'} />
-                  <Info label="Proprietà" value={vehicle.proprieta_tipo || '—'} />
-                  <Info label="Patente richiesta" value={vehicle.vehicle_type?.patente || '—'} />
-                  <Info label="Abilitazione" value={vehicle.vehicle_type?.tipo_abilitazione || '—'} />
-                  <Info label="Note" value={vehicle.note || '—'} />
+                  <Info label="Telaio" value={vehicle.numero_telaio || '-'} />
+                  <Info label="Alimentazione" value={vehicle.alimentazione || '-'} />
+                  <Info label="Classe euro" value={vehicle.euro_classe || '-'} />
+                  <Info label="Colore" value={vehicle.colore || '-'} />
+                  <Info label="Proprietà" value={vehicle.proprieta_tipo || '-'} />
+                  <Info label="Patente richiesta" value={vehicle.vehicle_type?.patente || '-'} />
+                  <Info label="Abilitazione" value={vehicle.vehicle_type?.tipo_abilitazione || '-'} />
+                  <Info label="Note" value={vehicle.note || '-'} />
                 </div>
               </Card>
 
@@ -853,14 +867,14 @@ export default function FleetDetailClientPage() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Dati tecnici provider</h3>
                     <div className="grid gap-3 md:grid-cols-2">
-                      <Info label="Versione" value={vehicle.trim.commercial_name || 'â€”'} />
-                      <Info label="Codice motore" value={vehicle.trim.engine_code || 'â€”'} />
-                      <Info label="Cilindrata" value={vehicle.trim.displacement_cc ? `${vehicle.trim.displacement_cc} cc` : 'â€”'} />
-                      <Info label="Potenza" value={vehicle.trim.horsepower_hp ? `${vehicle.trim.horsepower_hp} CV` : 'â€”'} />
-                      <Info label="Porte" value={vehicle.trim.doors ? String(vehicle.trim.doors) : 'â€”'} />
-                      <Info label="Posti" value={vehicle.trim.seats ? String(vehicle.trim.seats) : 'â€”'} />
-                      <Info label="CO2" value={vehicle.trim.co2_g_km ? `${vehicle.trim.co2_g_km} g/km` : 'â€”'} />
-                      <Info label="Fonte" value={vehicle.trim.source || 'â€”'} />
+                      <Info label="Versione" value={vehicle.trim.commercial_name || '-'} />
+                      <Info label="Codice motore" value={vehicle.trim.engine_code || '-'} />
+                      <Info label="Cilindrata" value={vehicle.trim.displacement_cc ? `${vehicle.trim.displacement_cc} cc` : '-'} />
+                      <Info label="Potenza" value={vehicle.trim.horsepower_hp ? `${vehicle.trim.horsepower_hp} CV` : '-'} />
+                      <Info label="Porte" value={vehicle.trim.doors ? String(vehicle.trim.doors) : '-'} />
+                      <Info label="Posti" value={vehicle.trim.seats ? String(vehicle.trim.seats) : '-'} />
+                      <Info label="CO2" value={vehicle.trim.co2_g_km ? `${vehicle.trim.co2_g_km} g/km` : '-'} />
+                      <Info label="Fonte" value={vehicle.trim.source || '-'} />
                     </div>
                     <div className="grid max-h-72 gap-2 overflow-y-auto text-xs sm:grid-cols-2">
                       {providerFields(vehicle.trim.raw_payload).length ? providerFields(vehicle.trim.raw_payload).map((item) => (
@@ -889,7 +903,7 @@ export default function FleetDetailClientPage() {
                           <div>
                             <p className="text-sm font-semibold">{group.name}</p>
                             <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
-                              {group.code} · {group.scope}
+                              {group.code} - {group.scope}
                             </p>
                           </div>
                           <button
@@ -952,8 +966,8 @@ export default function FleetDetailClientPage() {
                   <div>
                     <h3 className="text-lg font-semibold">Coperture assicurative</h3>
                     <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                      <Info label="Compagnia attuale" value={vehicle.assicurazione_compagnia || '—'} />
-                      <Info label="Polizza attuale" value={vehicle.assicurazione_polizza || '—'} />
+                      <Info label="Compagnia attuale" value={vehicle.assicurazione_compagnia || '-'} />
+                      <Info label="Polizza attuale" value={vehicle.assicurazione_polizza || '-'} />
                       <Info label="Scadenza assicurazione" value={formatDate(vehicle.scadenza_assicurazione)} />
                       <Info label="Copertura fino al" value={formatDate(vehicle.assicurazione_copertura)} />
                     </div>
@@ -972,7 +986,7 @@ export default function FleetDetailClientPage() {
                           </span>
                         </div>
                         <div className="mt-2 grid gap-3 md:grid-cols-2">
-                          <Info label="Pacchetto" value={record.package_name || '—'} />
+                          <Info label="Pacchetto" value={record.package_name || '-'} />
                           <Info label="Numero polizza" value={record.numero_polizza || 'Da inserire'} />
                           <Info label="Copertura dal" value={formatDate(record.copertura_dal)} />
                           <Info label="Scadenza" value={formatDate(record.data_scadenza)} />
@@ -1001,7 +1015,7 @@ export default function FleetDetailClientPage() {
                             <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>{revision.esito}</span>
                           </div>
                           <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                            Km rilevati: {revision.km_rilevati?.toLocaleString('it-IT') || '—'}
+                            Km rilevati: {revision.km_rilevati?.toLocaleString('it-IT') || '-'}
                           </p>
                           {revision.note ? <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{revision.note}</p> : null}
                         </div>
@@ -1115,12 +1129,12 @@ export default function FleetDetailClientPage() {
                           <div className="mt-2 grid gap-3 md:grid-cols-2">
                             <Info label="Assegnato il" value={formatDateTime(assignment.assegnato_il)} />
                             <Info label="Riconsegnato il" value={formatDateTime(assignment.riconsegnato_il)} />
-                            <Info label="Documento assegnazione" value={assignment.documento_assegnazione_numero || '—'} />
+                            <Info label="Documento assegnazione" value={assignment.documento_assegnazione_numero || '-'} />
                             <Info label="Assegnatario persona" value={assignment.employee_display_name || '---'} />
                             <Info label="Assegnatario reparto/sede" value={assignment.organization_display_name || '---'} />
                             <Info label="Km iniziali" value={assignment.km_iniziali.toLocaleString('it-IT')} />
-                            <Info label="Documento restituzione" value={assignment.documento_restituzione_numero || '—'} />
-                            <Info label="Km finali" value={assignment.km_finali?.toLocaleString('it-IT') || '—'} />
+                            <Info label="Documento restituzione" value={assignment.documento_restituzione_numero || '-'} />
+                            <Info label="Km finali" value={assignment.km_finali?.toLocaleString('it-IT') || '-'} />
                           </div>
                           {assignment.note ? <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{assignment.note}</p> : null}
                           {!assignment.riconsegnato_il ? (
@@ -1177,7 +1191,7 @@ export default function FleetDetailClientPage() {
                           </div>
                           <div className="mt-2 grid gap-3 md:grid-cols-2">
                             <Info label="Km partenza" value={usage.km_partenza.toLocaleString('it-IT')} />
-                            <Info label="Km rientro" value={usage.km_rientro?.toLocaleString('it-IT') || '—'} />
+                            <Info label="Km rientro" value={usage.km_rientro?.toLocaleString('it-IT') || '-'} />
                             <Info label="Inizio utilizzo" value={formatDateTime(usage.started_at)} />
                             <Info label="Fine utilizzo" value={formatDateTime(usage.ended_at)} />
                           </div>
@@ -1286,7 +1300,7 @@ export default function FleetDetailClientPage() {
                       label="Assegnazione attiva"
                       value={returnForm.assignment_id}
                       onChange={(event) => setReturnForm((current) => ({ ...current, assignment_id: event.target.value }))}
-                      options={[{ value: '', label: 'Seleziona assegnazione' }, ...activeAssignments.map((item) => ({ value: String(item.id), label: `${item.employee_display_name || item.user_display_name || 'Operatore'} · ${item.stato}` }))]}
+                      options={[{ value: '', label: 'Seleziona assegnazione' }, ...activeAssignments.map((item) => ({ value: String(item.id), label: `${item.employee_display_name || item.user_display_name || 'Operatore'} - ${item.stato}` }))]}
                     />
                     <div className="grid gap-3 md:grid-cols-2">
                       <Input label="Km finali" type="number" value={returnForm.km_finali} onChange={(event) => setReturnForm((current) => ({ ...current, km_finali: event.target.value }))} />
@@ -1340,7 +1354,7 @@ export default function FleetDetailClientPage() {
                     </div>
                     <div className="mt-2 grid gap-3 md:grid-cols-2">
                       <Info label="Tipo documento" value={document.tipo_documento} />
-                      <Info label="Numero documento" value={document.numero_documento || '—'} />
+                      <Info label="Numero documento" value={document.numero_documento || '-'} />
                       <Info label="Data rilascio" value={formatDate(document.data_rilascio)} />
                       <Info label="Scadenza" value={formatDate(document.data_scadenza)} />
                     </div>
@@ -1364,15 +1378,15 @@ export default function FleetDetailClientPage() {
                           <div className="flex items-center justify-between gap-3">
                             <p className="text-sm font-semibold">{alert.title}</p>
                             <span className="text-xs font-semibold" style={{ color: alert.alert_type === 'sos' ? 'var(--cv-danger)' : 'var(--cv-primary-dark)' }}>
-                              {alert.alert_type} · {alert.severity}
+                              {alert.alert_type} - {alert.severity}
                             </span>
                           </div>
                           <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{alert.description}</p>
                           <div className="mt-2 grid gap-3 md:grid-cols-2">
-                            <Info label="Luogo" value={alert.location_text || '—'} />
-                            <Info label="Provincia" value={alert.province_code || '—'} />
+                            <Info label="Luogo" value={alert.location_text || '-'} />
+                            <Info label="Provincia" value={alert.province_code || '-'} />
                             <Info label="Momento evento" value={formatDateTime(alert.event_at)} />
-                            <Info label="Operatore" value={alert.actor_display_name || '—'} />
+                            <Info label="Operatore" value={alert.actor_display_name || '-'} />
                           </div>
                         </div>
                       ))}
@@ -1391,8 +1405,8 @@ export default function FleetDetailClientPage() {
                           </div>
                           <div className="mt-2 grid gap-3 md:grid-cols-2">
                             <Info label="Data evento" value={formatDate(incident.data_evento)} />
-                            <Info label="Luogo" value={incident.luogo || '—'} />
-                            <Info label="Numero sinistro" value={incident.numero_sinistro || '—'} />
+                            <Info label="Luogo" value={incident.luogo || '-'} />
+                            <Info label="Numero sinistro" value={incident.numero_sinistro || '-'} />
                             <Info label="Data chiusura" value={formatDate(incident.data_chiusura)} />
                           </div>
                           {incident.descrizione ? <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{incident.descrizione}</p> : null}
@@ -1476,7 +1490,7 @@ export default function FleetDetailClientPage() {
                       <div>
                         <p className="text-sm font-semibold">{item.subject}</p>
                         <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
-                          {item.event_type} · {item.channel} · {formatDateTime(item.created_at)}
+                          {item.event_type} - {item.channel} - {formatDateTime(item.created_at)}
                         </p>
                       </div>
                       <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>{item.status}</span>
@@ -1486,9 +1500,9 @@ export default function FleetDetailClientPage() {
                       {item.recipients.map((recipient) => (
                         <div key={recipient.id} className="rounded-[var(--cv-radius-sm)] border px-3 py-2 text-sm" style={{ borderColor: 'var(--cv-border-subtle)' }}>
                           <span className="font-medium">{recipient.recipient_label}</span>
-                          <span style={{ color: 'var(--cv-neutral-600)' }}> · {recipient.channel}</span>
-                          {recipient.destination ? <span style={{ color: 'var(--cv-neutral-600)' }}> · {recipient.destination}</span> : null}
-                          <span style={{ color: 'var(--cv-neutral-600)' }}> · {recipient.delivery_status}</span>
+                          <span style={{ color: 'var(--cv-neutral-600)' }}> - {recipient.channel}</span>
+                          {recipient.destination ? <span style={{ color: 'var(--cv-neutral-600)' }}> - {recipient.destination}</span> : null}
+                          <span style={{ color: 'var(--cv-neutral-600)' }}> - {recipient.delivery_status}</span>
                         </div>
                       ))}
                     </div>

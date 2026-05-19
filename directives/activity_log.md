@@ -623,3 +623,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `py_compile` backend OK; migrazione Alembic `013 -> 014` applicata su Test; backend Test `active`; script campione: `sample=ES762CH updated_isuzu=20 company=HDI ASSICURAZIONI provider_due=2026-06-06 operational_due=2026-05-22`; API lista mezzi Test mostra 20 Isuzu con scadenza `2026-05-22`; DB: `snapshots=20`, `replicated_snapshots=19`, `current_replicated_insurance=20`.  
 **Note utili:** per pacchetti futuri usare lo stesso schema: una targa campione alimenta lo snapshot completo, poi la replica interna aggiorna i mezzi del gruppo omogeneo senza ulteriori chiamate provider.
+
+## 2026-05-19 19:10:00 - Sanitizzazione payload condivisi e fix placeholder dettaglio mezzo
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine / qualita' dati provider  
+**Azione svolta:** corretto il salvataggio dei dati tecnici provider separando dati condivisi di allestimento da dati univoci del mezzo. `vehicle_trims.raw_payload` viene ora sanitizzato prima del salvataggio e non conserva VIN, targa, registration number o campi equivalenti; il payload completo resta nello snapshot specifico del lookup. Pulito il frontend dettaglio mezzo per usare placeholder ASCII `-` al posto del trattino lungo Unicode che su alcuni ambienti veniva mostrato come mojibake `â€”`.  
+**File coinvolti:** `backend/app/services/fleet_catalog.py`, `frontend/src/components/fleet/FleetDetailClientPage.tsx`, `directives/documentation/api-key-provider-targhe.md`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** build frontend Test OK; backend Test riavviato e `active`; sanitizzazione DB Test eseguita su payload condivisi e snapshot replicati: `sanitized=20`; nessuna nuova chiamata reale al provider targa.  
+**Note utili:** il VIN e' un dato univoco del veicolo fisico e deve essere estratto o inserito per ogni targa/mezzo. Non va replicato tra mezzi uguali; la replica puo' riguardare solo dati comuni di modello/allestimento e coperture assicurative aziendali omogenee.

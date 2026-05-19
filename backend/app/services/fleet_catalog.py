@@ -627,7 +627,7 @@ class FleetCatalogService:
             gross_weight_kg=spec.gross_weight_kg,
             tow_capacity_kg=spec.tow_capacity_kg,
             source=spec.source,
-            raw_payload=spec.raw_payload,
+            raw_payload=self.sanitize_shared_trim_payload(spec.raw_payload),
         )
         self.db.add(trim)
         self.db.flush()
@@ -659,7 +659,7 @@ class FleetCatalogService:
             if value not in (None, ""):
                 setattr(trim, field_name, value)
         if spec.raw_payload:
-            trim.raw_payload = spec.raw_payload
+            trim.raw_payload = self.sanitize_shared_trim_payload(spec.raw_payload)
         if spec.source and spec.source != "manuale":
             trim.source = spec.source
 
@@ -1142,6 +1142,39 @@ class FleetCatalogService:
         text = (value or "").strip()
         cleaned = re.sub(r"\s*\(([A-Z0-9]{2,6})(?:\s*,\s*[A-Z0-9]{2,6})+\)\s*$", "", text)
         return cleaned.strip() or text
+
+    @staticmethod
+    def sanitize_shared_trim_payload(payload: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Rimuove dati univoci dal payload salvato sull'allestimento condiviso.
+
+        Il payload completo resta negli snapshot targa. Nel trim, invece, non
+        devono finire VIN/telaio o targa perche' un allestimento puo' essere
+        condiviso da molti veicoli fisici.
+        """
+        if not isinstance(payload, dict):
+            return payload
+        unique_keys = {
+            "vin",
+            "vehicleidentificationnumber",
+            "vechileidentificationnumber",
+            "chassisnumber",
+            "registrationnumber",
+            "licenseplate",
+            "targa",
+        }
+
+        def clean(value: Any) -> Any:
+            if isinstance(value, dict):
+                return {
+                    key: clean(item)
+                    for key, item in value.items()
+                    if normalize_catalog_key(str(key)).replace(" ", "") not in unique_keys
+                }
+            if isinstance(value, list):
+                return [clean(item) for item in value]
+            return value
+
+        return clean(payload)
 
     def clean_cached_trim_model_name(self, trim: VehicleTrim | None) -> None:
         if not trim or not trim.model or not trim.model.brand:

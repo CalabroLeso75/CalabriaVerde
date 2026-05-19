@@ -566,13 +566,13 @@ export default function FleetDetailClientPage() {
       kind: 'assicurazione',
       title: `Copertura ${record.compagnia}`,
       dateValue: record.data_scadenza,
-      summary: `${record.is_current ? 'Corrente' : 'Storica'} - scadenza ${formatDate(record.data_scadenza)}`,
+      summary: `${record.is_current ? 'Copertura attuale' : 'Copertura storica'} - scadenza ${formatDate(record.data_scadenza)}`,
       badge: 'Assicurazione',
       details: [
         { label: 'Compagnia', value: record.compagnia },
         { label: 'Polizza', value: record.numero_polizza || '-' },
-        { label: 'Pacchetto', value: record.package_name || '-' },
         { label: 'Scadenza', value: formatDate(record.data_scadenza) },
+        { label: 'Copertura fino al', value: formatDate(record.copertura_al) },
       ],
       note: record.note,
     }));
@@ -949,14 +949,14 @@ export default function FleetDetailClientPage() {
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-sm font-semibold">{record.compagnia}</p>
                           <span className="text-xs font-semibold" style={{ color: record.is_current ? 'var(--cv-primary-dark)' : 'var(--cv-neutral-500)' }}>
-                            {record.is_current ? 'Corrente' : 'Storico'}
+                            {record.is_current ? 'Copertura attuale' : 'Copertura storica'}
                           </span>
                         </div>
                         <div className="mt-2 grid gap-3 md:grid-cols-2">
-                          <Info label="Pacchetto" value={record.package_name || '-'} />
                           <Info label="Numero polizza" value={record.numero_polizza || 'Da inserire'} />
                           <Info label="Copertura dal" value={formatDate(record.copertura_dal)} />
                           <Info label="Scadenza" value={formatDate(record.data_scadenza)} />
+                          <Info label="Copertura fino al" value={formatDate(record.copertura_al)} />
                         </div>
                         {record.note ? <p className="mt-2 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>{record.note}</p> : null}
                       </div>

@@ -653,3 +653,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `py_compile` backend OK; backend Test riavviato e `active`; API health 200; DB Test: `bad_package_rows=0`, campioni ES779CH/ES778CH/ES760CH con scadenza operativa `2026-05-22` e copertura fino al `2026-06-06`.  
 **Note utili:** nessuna chiamata al provider targa; intervento solo su logica backend e dati gia' presenti.
+
+## 2026-05-19 19:48:00 - Rimozione pacchetto assicurativo non API e stato copertura
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine / chiarezza coperture assicurative  
+**Azione svolta:** rimossa dalla visualizzazione della scheda mezzo la riga `Pacchetto`, perche' non proveniente dal provider targa. Rinominato lo stato assicurativo da `Corrente/Storico` a `Copertura attuale/Copertura storica`. Azzerati su Test i valori `package_name` residui dei record Isuzu.  
+**File coinvolti:** `frontend/src/components/fleet/FleetDetailClientPage.tsx`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** build frontend Test OK; upload frontend Test OK; API health 200; DB Test: `isuzu_package_rows=0`, `non_empty_package_rows=0`.  
+**Note utili:** nessuna chiamata al provider targa; la compagnia e le scadenze restano i dati utili provenienti/salvati dal lookup.

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { api } from '@/lib/api';
+import { providerDisplayFields } from '@/lib/provider-payload';
 
 type VehicleTrim = {
   id: number;
@@ -35,6 +36,7 @@ type VehicleTrim = {
   gross_weight_kg?: number | null;
   tow_capacity_kg?: number | null;
   source: string;
+  raw_payload?: Record<string, unknown> | null;
   tire_fitments: Array<{
     id: number;
     position: string;
@@ -147,6 +149,29 @@ function trimLabel(trim: VehicleTrim) {
     trim.horsepower_hp ? `${trim.horsepower_hp} CV` : null,
   ].filter(Boolean).join(' - ');
   return `${brand} ${model}${details ? ` - ${details}` : ''}`;
+}
+
+function trimTechnicalFields(trim?: VehicleTrim | null) {
+  if (!trim) return [];
+  return [
+    { label: 'Marca', value: trim.model?.brand?.name || '-' },
+    { label: 'Modello', value: trim.model?.name || '-' },
+    { label: 'Categoria', value: trim.model?.vehicle_category || '-' },
+    { label: 'Versione', value: trim.commercial_name || '-' },
+    { label: 'Anno', value: trim.production_year ? String(trim.production_year) : '-' },
+    { label: 'Alimentazione', value: trim.engine_type || '-' },
+    { label: 'Codice motore', value: trim.engine_code || '-' },
+    { label: 'Cilindrata', value: trim.displacement_cc ? `${trim.displacement_cc} cc` : '-' },
+    { label: 'Potenza', value: trim.horsepower_hp ? `${trim.horsepower_hp} CV` : '-' },
+    { label: 'Coppia', value: trim.torque_nm ? `${trim.torque_nm} Nm` : '-' },
+    { label: 'Cambio', value: trim.transmission || '-' },
+    { label: 'Trazione', value: trim.drive_type || '-' },
+    { label: 'Classe euro', value: trim.euro_class || '-' },
+    { label: 'Porte', value: trim.doors ? String(trim.doors) : '-' },
+    { label: 'Posti', value: trim.seats ? String(trim.seats) : '-' },
+    { label: 'CO2', value: trim.co2_g_km ? `${trim.co2_g_km} g/km` : '-' },
+    { label: 'Fonte', value: trim.source || '-' },
+  ];
 }
 
 const conventionalCsvTemplate = [
@@ -273,6 +298,9 @@ export default function FleetCatalogClientPage() {
   const selectedProvider = providers.find((provider) => provider.lookup_type === lookupForm.lookup_type);
   const selectedProviderReady = Boolean(selectedProvider?.enabled && selectedProvider?.configured);
   const selectedProviderMissing = Boolean(selectedProvider && !selectedProviderReady);
+  const selectedTrim = trims.find((trim) => String(trim.id) === selectedTrimId) || null;
+  const selectedTrimFields = useMemo(() => trimTechnicalFields(selectedTrim), [selectedTrim]);
+  const selectedTrimProviderFields = useMemo(() => providerDisplayFields(selectedTrim?.raw_payload, 160), [selectedTrim]);
 
   const createTrim = async () => {
     const response = await api.post<VehicleTrim>('/fleet/catalog/trims', {
@@ -678,6 +706,58 @@ export default function FleetCatalogClientPage() {
                 <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessun allestimento trovato.</p>
               )}
             </div>
+            {selectedTrim && (
+              <div className="mt-4 rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)', background: 'white' }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 className="text-base font-semibold">Scheda tecnica catalogo</h4>
+                    <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
+                      Dati salvati localmente dal provider o da inserimento manuale.
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-primary-dark)' }}>
+                    {selectedTrim.source}
+                  </span>
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {selectedTrimFields.map((item) => (
+                    <div key={item.label}>
+                      <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>{item.label}</p>
+                      <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-800)' }}>{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>Pneumatici</p>
+                  {selectedTrim.tire_fitments.length ? (
+                    <div className="mt-2 grid gap-2">
+                      {selectedTrim.tire_fitments.map((item) => (
+                        <p key={item.id} className="rounded-[var(--cv-radius-sm)] border px-3 py-2 text-sm" style={{ borderColor: 'var(--cv-border-subtle)', color: 'var(--cv-neutral-800)' }}>
+                          {item.tire_size}{item.rim_size ? ` - cerchio ${item.rim_size}` : ''}{item.is_default ? ' - default' : ''}
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessuna misura pneumatici salvata.</p>
+                  )}
+                </div>
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>Dati provider completi</p>
+                  {selectedTrimProviderFields.length ? (
+                    <div className="mt-2 grid max-h-80 gap-3 overflow-y-auto md:grid-cols-2">
+                      {selectedTrimProviderFields.map((item) => (
+                        <div key={`${item.label}-${item.value}`} className="rounded-[var(--cv-radius-sm)] border px-3 py-2" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                          <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>{item.label}</p>
+                          <p className="mt-1 break-words text-sm" style={{ color: 'var(--cv-neutral-800)' }}>{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessun payload provider esteso salvato.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 

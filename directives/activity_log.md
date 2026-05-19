@@ -673,3 +673,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `py_compile` backend OK; build frontend Test OK; upload frontend Test OK; controllo stringhe obsolete OK (`Compagnia attuale`, `Polizza attuale`, `Copertura attuale`, `Copertura storica` assenti dal dettaglio mezzo).  
 **Note utili:** nessuna chiamata al provider targa e nessun consumo token API; l'aggiornamento km e' manuale e tracciato nello storico tecnico/log lookup gestionale.
+
+## 2026-05-19 20:30:00 - Pulizia fascicolo mezzo e scheda catalogo provider
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine / dettaglio e catalogo tecnico  
+**Azione svolta:** eliminata dal dettaglio mezzo la descrizione sotto il titolo `Fascicolo mezzo` e rimossi dalla riga compatta dell'elenco operazioni i dati ripetuti a destra. Nel catalogo tecnico, il click su un allestimento apre ora una scheda tecnica estesa con dati strutturati, pneumatici e tutti i campi salvati nel payload provider normalizzati con etichette italiane.  
+**File coinvolti:** `frontend/src/components/fleet/FleetDetailClientPage.tsx`, `frontend/src/components/fleet/FleetCatalogClientPage.tsx`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** build frontend Test OK; upload frontend Test OK; API health 200; verifica SSH hosting: `fleet/catalogo/index.html` e `fleet/dettaglio/index.html` aggiornati alle 23:28 del server.  
+**Note utili:** nessuna chiamata al provider targa e nessun consumo token API. I campi come kW, porte, posti, immagini, classe Euro, cambio, colore, polizza o revisione vengono esposti se presenti nel payload salvato; Targa.co.it/RegCheck finora ha restituito dati tecnici e assicurazione, mentre la revisione resta normalmente da storico locale/provider dedicato.

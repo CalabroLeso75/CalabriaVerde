@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import { NoticeBanner } from '@/components/common/NoticeBanner';
-import { SectionLead } from '@/components/common/SectionLead';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -759,11 +758,7 @@ export default function FleetDetailClientPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <SectionLead
-          description="Scheda completa del mezzo con storico tecnico, assegnazioni operative, alert e tracciamento comunicazioni."
-          detail={vehicle ? `${vehicle.targa} - ${vehicle.marca} ${vehicle.modello}` : 'Caricamento in corso...'}
-        />
+      <div className="flex items-center justify-end gap-3">
         <Link href={withAppBasePath('/fleet/anagrafica')} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
           Torna all&apos;anagrafica
         </Link>
@@ -1548,14 +1543,6 @@ export default function FleetDetailClientPage() {
                           </p>
                           <p className="mt-1 text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
                             {operation.summary}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-xs font-semibold" style={{ color: 'var(--cv-primary-dark)' }}>
-                            {operation.badge}
-                          </span>
-                          <p className="mt-1 text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
-                            {formatDateTime(operation.dateValue)}
                           </p>
                         </div>
                       </div>

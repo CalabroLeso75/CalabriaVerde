@@ -543,3 +543,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `py_compile` OK, backend Test `active`, seconda chiamata riconoscimento `ES766CH` da cache in circa 107 ms con crediti invariati `94 -> 94`, apply `ES766CH` OK con marca `ISUZU`, modello `D-MAX II (TFR, TFS)`, alimentazione `Diesel`, anno `2012`.  
 **Note utili:** il provider ha restituito assicurazione `empty` per `ES766CH`, quindi non e' stata salvata copertura; questo va mostrato come dato non reperito, non come errore applicativo.
+
+## 2026-05-19 16:45:00 - Prontuario Openapi e provider Automotive
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine / documentazione sistema  
+**Azione svolta:** verificata la documentazione ufficiale Openapi Automotive e OAuth. Aggiunto provider backend `openapi_automotive/openapi_sandbox` con endpoint `IT-car` e `IT-insurance`, parsing dei dati tecnici e gestione Bearer token. Aggiornata la pagina configurazione con i provider Openapi e aggiunta sezione `Amministrazione > Documentazione` con prontuario operativo. Creata cartella `directives/documentation` con documenti markdown su API key, parco macchine, ambienti, registro errori/cache, risorse umane e strumenti.  
+**File coinvolti:** `backend/app/services/fleet_catalog.py`, `backend/app/api/admin_integrations/router.py`, `frontend/src/app/(dashboard)/admin/documentation/page.tsx`, `frontend/src/app/(dashboard)/admin/settings/page.tsx`, `frontend/src/app/(dashboard)/admin/page.tsx`, `frontend/src/components/layout/Header.tsx`, `directives/documentation/*`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** consultazione fonti ufficiali Openapi; prova sandbox con stringa API visibile in console: risposta `Wrong Token`, quindi non e' Bearer token; prova OAuth Basic con username non email: `Wrong Auth Data Provided`; `py_compile` OK, `npm run lint` senza errori bloccanti, `npm run build` OK, backend Test `active`, `https://smart-cv.it/test/admin/documentation/` `200`, configurazione integrazioni API OK.  
+**Note utili:** per attivare Openapi serve generare o fornire il Bearer token OAuth dalla console oppure fornire email account Openapi + API key per generarlo via `POST https://oauth.openapi.it/token`. Non usare la API key account direttamente sugli endpoint Automotive.

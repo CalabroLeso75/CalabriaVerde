@@ -103,10 +103,16 @@ async def update_fleet_plate_integration(
     current_user: User = Depends(get_current_user),
 ):
     require_admin_user(current_user)
+    provider = data.plate_provider.strip() or "targa_co_it"
+    default_url = "https://www.targa.co.it/api/reg.asmx"
+    if provider == "openapi_automotive":
+        default_url = "https://automotive.openapi.com"
+    elif provider == "openapi_sandbox":
+        default_url = "https://test.automotive.openapi.com"
     values = {
         "FLEET_EXTERNAL_LOOKUP_ENABLED": "true" if data.external_lookup_enabled else "false",
-        "FLEET_PLATE_PROVIDER": data.plate_provider.strip() or "targa_co_it",
-        "FLEET_PLATE_API_URL": data.plate_api_url.strip() or "https://www.targa.co.it/api/reg.asmx",
+        "FLEET_PLATE_PROVIDER": provider,
+        "FLEET_PLATE_API_URL": data.plate_api_url.strip() or default_url,
         "FLEET_PLATE_USERNAME": data.plate_username.strip(),
         "FLEET_PLATE_JOB_TYPES": data.plate_job_types.strip() or "tecnici",
         "FLEET_PLATE_TIMEOUT_SECONDS": str(max(10, min(data.plate_timeout_seconds, 120))),

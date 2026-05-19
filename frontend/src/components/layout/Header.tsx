@@ -30,6 +30,7 @@ const routeTitles: Record<string, { title: string; subtitle: string }> = {
   '/admin/organizations': { title: 'Organizzazioni', subtitle: 'Distretti e strutture' },
   '/admin/logs': { title: 'Log di Sistema', subtitle: 'Audit trail operazioni' },
   '/admin/settings': { title: 'Configurazione', subtitle: 'Impostazioni e integrazioni' },
+  '/admin/documentation': { title: 'Documentazione', subtitle: 'Prontuario operativo e procedure consolidate' },
   '/login': { title: 'Accesso', subtitle: 'Calabria Verde Gestionale' },
   '/register': { title: 'Richiesta di Accesso', subtitle: 'Nuovo account gestionale' },
 };

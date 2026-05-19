@@ -17,6 +17,8 @@ interface FleetPlateIntegration {
 }
 
 const providerOptions = [
+  { value: 'openapi_automotive', label: 'Openapi Automotive' },
+  { value: 'openapi_sandbox', label: 'Openapi Automotive Sandbox' },
   { value: 'targa_co_it', label: 'Targa.co.it / RegCheck' },
   { value: 'tuttotarghe', label: 'TuttoTarghe' },
   { value: 'none', label: 'Disattivato' },
@@ -143,7 +145,7 @@ export default function AdminSettingsPage() {
                 type="password"
                 value={apiKey}
                 onChange={(event) => setApiKey(event.target.value)}
-                placeholder={form.plate_api_key_configured ? 'Gia configurata, lascia vuoto per non cambiarla' : 'Non richiesta da Targa.co.it'}
+                placeholder={form.plate_api_key_configured ? 'Gia configurata, lascia vuoto per non cambiarla' : 'Bearer token Openapi o token provider'}
                 autoComplete="new-password"
               />
             </label>
@@ -180,7 +182,8 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className="mt-5 rounded-[var(--cv-radius-md)] bg-[var(--cv-primary-lighter)] px-4 py-3 text-sm text-[var(--cv-neutral-800)]">
-            Per Targa.co.it / RegCheck non serve una API key separata: il gestionale usa lo username dell&apos;account. La password non viene salvata qui.
+            Openapi Automotive richiede un Bearer token generato dalla console OAuth. La API key account non va usata direttamente come Bearer.
+            Per Targa.co.it / RegCheck il gestionale usa invece lo username account; la password non viene salvata qui.
           </div>
         </Card>
       )}

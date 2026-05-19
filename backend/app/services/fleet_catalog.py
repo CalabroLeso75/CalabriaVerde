@@ -183,6 +183,7 @@ class FleetCatalogService:
         plate_provider = settings.FLEET_PLATE_PROVIDER.strip().lower()
         plate_username = (settings.FLEET_PLATE_USERNAME or settings.FLEET_PLATE_API_KEY).strip()
         plate_uses_username = plate_provider in {"targa", "targa_co_it", "targacoit", "regcheck"}
+        plate_uses_bearer = plate_provider in {"openapi", "openapi_automotive", "openapi_sandbox"}
         return [
             ProviderStatus(
                 code=plate_provider or "none",
@@ -194,6 +195,8 @@ class FleetCatalogService:
                 note=(
                     "Targa.co.it/RegCheck usa lo username account come credenziale API; la password serve solo per la dashboard."
                     if plate_uses_username
+                    else "Openapi Automotive usa un Bearer token generato dalla console OAuth, non la API key account."
+                    if plate_uses_bearer
                     else "Usa targa per marca, modello e dati tecnici. Configurare URL e API key del provider scelto."
                 ),
             ),
@@ -385,6 +388,13 @@ class FleetCatalogService:
         )
 
     def lookup_italy_insurance(self, plate: str) -> InsuranceLookupResult:
+        provider_name = settings.FLEET_PLATE_PROVIDER.strip().lower()
+        if provider_name in {"openapi", "openapi_automotive", "openapi_sandbox"}:
+            cached = self._cached_insurance_result(plate)
+            if cached:
+                return cached
+            return self._lookup_openapi_insurance(plate)
+
         provider = "targa_co_it_insurance"
         username = (settings.FLEET_PLATE_USERNAME or settings.FLEET_PLATE_API_KEY).strip()
         if not settings.FLEET_EXTERNAL_LOOKUP_ENABLED or not username:
@@ -657,6 +667,8 @@ class FleetCatalogService:
             return ExternalLookupResult(provider="none", lookup_type="plate", lookup_key=plate, status="not_configured", error_message="Provider targa non configurato")
         if provider in {"targa", "targa_co_it", "targacoit", "regcheck"}:
             return self._lookup_targa_co_it_plate(plate)
+        if provider in {"openapi", "openapi_automotive", "openapi_sandbox"}:
+            return self._lookup_openapi_plate(plate)
         if not settings.FLEET_PLATE_API_URL or not settings.FLEET_PLATE_API_KEY:
             return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="not_configured", error_message="URL o API key provider targa mancanti")
         if provider == "tuttotarghe":
@@ -709,6 +721,97 @@ class FleetCatalogService:
             return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc), http_status=exc.code)
         except (ET.ParseError, URLError, TimeoutError, ValueError) as exc:
             return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc))
+
+    def _lookup_openapi_plate(self, plate: str) -> ExternalLookupResult:
+        provider = "openapi_automotive"
+        token = settings.FLEET_PLATE_API_KEY.strip()
+        if not settings.FLEET_PLATE_API_URL or not token:
+            return ExternalLookupResult(
+                provider=provider,
+                lookup_type="plate",
+                lookup_key=plate,
+                status="not_configured",
+                error_message="Openapi Automotive richiede un Bearer token generato da OAuth, non la API key account.",
+            )
+        base_url = settings.FLEET_PLATE_API_URL.rstrip("/")
+        url = f"{base_url}/IT-car/{quote(plate)}"
+        request = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+        try:
+            timeout_seconds = min(settings.FLEET_PLATE_TIMEOUT_SECONDS, 25)
+            with urlopen(request, timeout=timeout_seconds) as response:  # nosec B310 - endpoint configurato da amministratore
+                payload = json.loads(response.read().decode("utf-8", errors="replace"))
+            data = payload.get("data") if isinstance(payload, dict) else None
+            trim = self._trim_from_openapi_payload(data or {})
+            return ExternalLookupResult(
+                provider=provider,
+                lookup_type="plate",
+                lookup_key=plate,
+                status="found" if trim else "empty",
+                trim=trim,
+                raw_payload=payload,
+                http_status=200,
+                source_notes=["Fonte Openapi Automotive IT-car: dati salvati nel catalogo locale per ridurre richieste successive."],
+            )
+        except HTTPError as exc:
+            message = str(exc)
+            try:
+                body = exc.read().decode("utf-8", errors="replace")
+                if body:
+                    message = body
+            except Exception:
+                pass
+            return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=message, http_status=exc.code)
+        except (URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+            return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc))
+
+    def _lookup_openapi_insurance(self, plate: str) -> InsuranceLookupResult:
+        provider = "openapi_automotive_insurance"
+        token = settings.FLEET_PLATE_API_KEY.strip()
+        if not settings.FLEET_EXTERNAL_LOOKUP_ENABLED or not token:
+            return InsuranceLookupResult(provider=provider, lookup_key=plate, status="not_configured", error_message="Openapi Automotive richiede Bearer token valido.")
+        base_url = settings.FLEET_PLATE_API_URL.rstrip("/")
+        url = f"{base_url}/IT-insurance/{quote(plate)}"
+        request = Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
+        try:
+            timeout_seconds = min(settings.FLEET_PLATE_TIMEOUT_SECONDS, 15)
+            with urlopen(request, timeout=timeout_seconds) as response:  # nosec B310 - endpoint configurato da amministratore
+                payload = json.loads(response.read().decode("utf-8", errors="replace"))
+            data = payload.get("data") if isinstance(payload, dict) else {}
+            company = self._pick_nested_value(data, "Company", "InsuranceCompany", "company")
+            expiry = self._pick_nested_value(data, "Expiry", "Expiration", "ValidUntil", "expiry")
+            is_insured = self._to_bool(self._pick_nested_value(data, "IsInsured", "insured", "InsuranceValid"))
+            status = "found" if company or expiry or is_insured is not None else "empty"
+            self._record_external_lookup(ExternalLookupResult(
+                provider=provider,
+                lookup_type="insurance",
+                lookup_key=plate,
+                status=status,
+                raw_payload=payload,
+                http_status=200,
+            ))
+            return InsuranceLookupResult(
+                provider=provider,
+                lookup_key=plate,
+                status=status,
+                company=company,
+                expiry=expiry,
+                is_insured=is_insured,
+                raw_payload=payload,
+                http_status=200,
+            )
+        except HTTPError as exc:
+            message = str(exc)
+            try:
+                body = exc.read().decode("utf-8", errors="replace")
+                if body:
+                    message = body
+            except Exception:
+                pass
+            self._record_external_lookup(ExternalLookupResult(provider=provider, lookup_type="insurance", lookup_key=plate, status="error", error_message=message, http_status=exc.code))
+            return InsuranceLookupResult(provider=provider, lookup_key=plate, status="error", error_message=message, http_status=exc.code)
+        except (URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+            self._record_external_lookup(ExternalLookupResult(provider=provider, lookup_type="insurance", lookup_key=plate, status="error", error_message=str(exc)))
+            return InsuranceLookupResult(provider=provider, lookup_key=plate, status="error", error_message=str(exc))
 
     def _lookup_tuttotarghe_plate(self, plate: str) -> ExternalLookupResult:
         provider = "tuttotarghe"
@@ -886,6 +989,27 @@ class FleetCatalogService:
             gross_weight_kg=self._to_int(self._pick_nested_value(data, "Weight", "GrossWeight")),
             source="targa_co_it",
             raw_payload=payload,
+        )
+
+    def _trim_from_openapi_payload(self, data: dict[str, Any]) -> TrimSpec | None:
+        if not data:
+            return None
+        brand = self._pick_nested_value(data, "CarMake", "MakeDescription", "brand", "make")
+        model = self._pick_nested_value(data, "CarModel", "ModelDescription", "model")
+        if not brand or not model:
+            return None
+        return TrimSpec(
+            brand_name=str(brand),
+            model_name=str(model),
+            vehicle_category="Car",
+            commercial_name=self._pick_nested_value(data, "Version", "Description"),
+            production_year=self._to_int(self._pick_nested_value(data, "RegistrationYear", "Year")),
+            engine_type=self._map_engine(self._pick_nested_value(data, "FuelType", "Fuel")),
+            displacement_cc=self._to_engine_cc(self._pick_nested_value(data, "EngineSize")),
+            horsepower_hp=self._to_int(self._pick_nested_value(data, "PowerCV", "PowerHP")),
+            engine_code=self._pick_nested_value(data, "KType"),
+            source="openapi_automotive",
+            raw_payload=data,
         )
 
     def _parse_regcheck_vehicle_response(self, response_text: str) -> dict[str, Any]:

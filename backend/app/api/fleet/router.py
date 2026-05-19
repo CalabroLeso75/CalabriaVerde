@@ -154,6 +154,45 @@ def serialize_api_log(item: VehicleExternalLookup) -> FleetVehicleRecognitionApi
     )
 
 
+def _find_payload_value(payload: object, *keys: str) -> str | None:
+    wanted = {key.lower() for key in keys}
+    queue: list[object] = [payload]
+    while queue:
+        item = queue.pop(0)
+        if isinstance(item, dict):
+            for key, value in item.items():
+                if str(key).lower() in wanted and value not in (None, ""):
+                    if isinstance(value, dict):
+                        nested = _find_payload_value(value, "CurrentTextValue", "text", "value")
+                        if nested:
+                            return nested
+                    return str(value)
+                if isinstance(value, (dict, list)):
+                    queue.append(value)
+        elif isinstance(item, list):
+            queue.extend(item)
+    return None
+
+
+def latest_logged_insurance(db: Session, plate: str) -> dict[str, str | None]:
+    item = (
+        db.query(VehicleExternalLookup)
+        .filter(
+            VehicleExternalLookup.lookup_type == "insurance",
+            VehicleExternalLookup.normalized_lookup_key == plate.lower(),
+        )
+        .order_by(VehicleExternalLookup.id.desc())
+        .first()
+    )
+    payload = item.raw_payload if item and item.raw_payload else {}
+    return {
+        "status": item.status if item else "not_found",
+        "company": _find_payload_value(payload, "Company", "compagnia"),
+        "expiry": _find_payload_value(payload, "Expiry", "Scadenza", "data_scadenza"),
+        "error_message": item.error_message if item else "Nessun lookup assicurativo registrato per questa targa.",
+    }
+
+
 def serialize_group(group: FleetGroup) -> FleetGroupResponse:
     return FleetGroupResponse(
         id=group.id,
@@ -635,10 +674,10 @@ async def apply_vehicle_recognition(
     vehicle.alimentazione = trim.engine_type or vehicle.alimentazione
     vehicle.euro_classe = trim.euro_class or vehicle.euro_classe
 
-    insurance = FleetCatalogService(db).lookup_italy_insurance(vehicle.targa)
-    insurance_due = parse_remote_date(insurance.expiry)
+    insurance = latest_logged_insurance(db, vehicle.targa)
+    insurance_due = parse_remote_date(insurance.get("expiry"))
     insurance_saved = False
-    if insurance.company and insurance_due:
+    if insurance.get("company") and insurance_due:
         db.query(VehicleInsuranceRecord).filter(
             VehicleInsuranceRecord.vehicle_id == vehicle_id,
             VehicleInsuranceRecord.is_current == True,  # noqa: E712
@@ -646,14 +685,14 @@ async def apply_vehicle_recognition(
         db.add(VehicleInsuranceRecord(
             vehicle_id=vehicle_id,
             source_type="api_targa",
-            compagnia=insurance.company,
+            compagnia=insurance["company"],
             data_scadenza=insurance_due,
             channels_ready=["sistema"],
-            note="Copertura corrente recuperata da Targa.co.it/RegCheck durante riconoscimento mezzo.",
+            note="Copertura corrente salvata dall'ultimo lookup Targa.co.it/RegCheck registrato.",
             created_by_user_id=current_user.id,
             is_current=True,
         ))
-        vehicle.assicurazione_compagnia = insurance.company
+        vehicle.assicurazione_compagnia = insurance["company"]
         vehicle.scadenza_assicurazione = insurance_due
         insurance_saved = True
 
@@ -674,8 +713,8 @@ async def apply_vehicle_recognition(
         raw_payload={
             "technical_saved": True,
             "insurance_saved": insurance_saved,
-            "insurance_provider_status": insurance.status,
-            "insurance_error": insurance.error_message,
+            "insurance_provider_status": insurance.get("status"),
+            "insurance_error": insurance.get("error_message"),
             "vehicle": {
                 "id": vehicle.id,
                 "targa": vehicle.targa,
@@ -687,7 +726,7 @@ async def apply_vehicle_recognition(
                 "scadenza_revisione": str(vehicle.scadenza_revisione) if vehicle.scadenza_revisione else None,
             },
         },
-        error_message=None if insurance_saved else "Dati tecnici salvati; assicurazione non salvata per assenza compagnia/scadenza dal provider.",
+        error_message=None if insurance_saved else "Dati tecnici salvati; assicurazione non salvata per assenza compagnia/scadenza nell'ultimo lookup registrato.",
     ))
     db.commit()
     db.refresh(vehicle)

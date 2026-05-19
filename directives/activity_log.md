@@ -513,3 +513,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `npm run lint` senza errori bloccanti, `npm run build` OK, deploy statico Test OK, `https://smart-cv.it/test/fleet/` `200`, smoke API autenticato `/api/fleet/vehicles?page=1&page_size=5` OK con ordinamento e campi `compliance_status`, `insurance_status`, `revision_status`.  
 **Note utili:** per la vista principale del parco macchine usare sempre `/fleet/`; `/fleet/anagrafica/` resta la pagina di gestione operativa con riconoscimento da tessera e azioni anagrafiche.
+
+## 2026-05-19 11:40:00 - Correzione Gateway Timeout su apply riconoscimento targa
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** corretto il flusso di applicazione del riconoscimento targa: l'endpoint `/fleet/vehicles/{id}/recognition/apply` non richiama piu' il provider esterno assicurativo, ma usa l'ultimo lookup gia' registrato in `vehicle_external_lookups`. Ridotto inoltre il timeout massimo del controllo assicurativo accessorio a 15 secondi, lasciando il log dell'errore senza bloccare il flusso principale.  
+**File coinvolti:** `backend/app/services/fleet_catalog.py`, `backend/app/api/fleet/router.py`, VPS Test `/opt/calabriaverde-test/backend`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `py_compile` locale e remoto OK, servizio `calabriaverde-test` `active`, smoke autenticato `POST /api/fleet/vehicles/{id}/recognition/apply` su Test completato in circa 120 ms.  
+**Note utili:** il riconoscimento puo' ancora registrare un errore se il provider esterno non risponde, ma il salvataggio non deve piu' generare `Gateway Timeout` per una seconda chiamata duplicata.

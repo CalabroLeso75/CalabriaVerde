@@ -331,7 +331,10 @@ class FleetCatalogService:
         url = f"{base_url}/CheckInsuranceStatusItaly?{urlencode({'regNumber': self._normalize_license_plate(plate), 'username': username})}"
         request = Request(url, headers={"Accept": "text/xml,application/xml"})
         try:
-            with urlopen(request, timeout=settings.FLEET_PLATE_TIMEOUT_SECONDS) as response:  # nosec B310 - endpoint ufficiale configurato da amministratore
+            # Il controllo assicurativo e' accessorio: non deve bloccare il flusso mezzo
+            # oltre i tempi tipici del gateway.
+            timeout_seconds = min(settings.FLEET_PLATE_TIMEOUT_SECONDS, 15)
+            with urlopen(request, timeout=timeout_seconds) as response:  # nosec B310 - endpoint ufficiale configurato da amministratore
                 response_text = response.read().decode("utf-8", errors="replace")
             payload = self._xml_to_dict(ET.fromstring(response_text))
             data = self._extract_vehicle_payload(payload)

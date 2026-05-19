@@ -493,3 +493,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `py_compile` OK, `npm run lint` senza errori bloccanti, `npm run build` OK, backend Test `active`, pagina `https://smart-cv.it/test/fleet/anagrafica/` `200`.  
 **Note utili:** l'API documenta assicurazione corrente italiana, non uno storico remoto completo; lo storico completo viene mantenuto dal gestionale a ogni aggiornamento/riconoscimento.
+
+## 2026-05-19 11:00:00 - Audit API e ordinamento operativo mezzi
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** esteso il riconoscimento mezzo con log API visibili in modale: lookup tecnico, lookup assicurativo, raw payload, esito e messaggi di errore. L'applicazione dell'aggiornamento crea un log `vehicle_recognition_apply` con esito salvataggio tecnico/assicurativo. La lista mezzi ora espone stato assicurazione/revisione e viene ordinata per priorita': completi attivi, parziali attivi, scaduti/mancanti, solo targa/dati minimi.  
+**File coinvolti:** `backend/app/services/fleet_catalog.py`, `backend/app/api/fleet/router.py`, `backend/app/schemas/fleet.py`, `frontend/src/components/fleet/FleetRegistryClientPage.tsx`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `py_compile` OK, `npm run lint` senza errori bloccanti, `npm run build` OK, backend Test `active`, lista mezzi autenticata OK con campi `compliance_status`, `insurance_status`, `revision_status` e ordinamento corretto.  
+**Note utili:** se il provider non restituisce assicurazione o revisione, la modale lo evidenzia esplicitamente; revisione remota italiana non disponibile nel provider attuale.

@@ -55,6 +55,10 @@ type VehicleItem = {
   current_assignee?: string | null;
   current_assignment_unit?: string | null;
   current_user_name?: string | null;
+  compliance_status: string;
+  compliance_label: string;
+  insurance_status: string;
+  revision_status: string;
   open_incidents: number;
 };
 
@@ -125,6 +129,17 @@ type VehicleRecognitionResponse = {
   } | null;
   insurance_records: RecognitionInsuranceRecord[];
   revision_records: RecognitionRevisionRecord[];
+  api_logs: Array<{
+    id: number;
+    provider: string;
+    lookup_type: string;
+    lookup_key: string;
+    status: string;
+    http_status?: number | null;
+    error_message?: string | null;
+    created_at?: string | null;
+    raw_payload?: Record<string, unknown> | null;
+  }>;
 };
 
 type RecognitionStep = 'confirm' | 'running' | 'result' | 'empty' | 'applying';
@@ -168,6 +183,12 @@ function ExpiryBadge({ label, value }: { label: string; value?: string | null })
       </span>
     </div>
   );
+}
+
+function statusText(value: string) {
+  if (value === 'active') return 'Attiva';
+  if (value === 'expired') return 'Scaduta';
+  return 'Non reperita';
 }
 
 function TextareaField({
@@ -450,6 +471,7 @@ export default function FleetRegistryClientPage() {
         },
         insurance_records: [],
         revision_records: [],
+        api_logs: [],
       });
     }
   };
@@ -747,6 +769,12 @@ export default function FleetRegistryClientPage() {
                   {vehicle.stato || 'Non definito'}
                 </span>
               </div>
+              <div className="mt-3 rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] px-3 py-2 text-sm">
+                <p className="font-semibold text-[var(--cv-neutral-900)]">{vehicle.compliance_label}</p>
+                <p className="mt-1 text-xs text-[var(--cv-neutral-600)]">
+                  Assicurazione: {statusText(vehicle.insurance_status)} · Revisione: {statusText(vehicle.revision_status)}
+                </p>
+              </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <ExpiryBadge label="Assicurazione" value={vehicle.scadenza_assicurazione} />
@@ -919,7 +947,13 @@ export default function FleetRegistryClientPage() {
                       <p className="mt-1 text-sm text-[var(--cv-neutral-700)]">
                         {recognitionResult.insurance_remote?.company
                           ? `${recognitionResult.insurance_remote.company} · scadenza ${recognitionResult.insurance_remote.expiry || 'non indicata'}`
-                          : recognitionResult.insurance_remote?.error_message || 'Nessuna assicurazione remota disponibile.'}
+                          : recognitionResult.insurance_remote?.error_message || 'Assicurazione non reperita dal provider.'}
+                      </p>
+                    </div>
+                    <div className="rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                      <p className="text-sm font-semibold text-[var(--cv-neutral-900)]">Revisione remota</p>
+                      <p className="mt-1 text-sm text-[var(--cv-neutral-700)]">
+                        Revisione non reperita dal provider italiano configurato. Il gestionale mostra e mantiene lo storico locale.
                       </p>
                     </div>
 
@@ -943,6 +977,18 @@ export default function FleetRegistryClientPage() {
                             </div>
                           )) : <p className="text-sm text-[var(--cv-neutral-600)]">Nessuna revisione storicizzata.</p>}
                         </div>
+                      </div>
+                    </div>
+                    <div className="rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                      <p className="text-sm font-semibold text-[var(--cv-neutral-900)]">Log attività API e salvataggi</p>
+                      <div className="mt-2 max-h-52 space-y-2 overflow-y-auto">
+                        {recognitionResult.api_logs.length ? recognitionResult.api_logs.map((item) => (
+                          <div key={item.id} className="rounded-[var(--cv-radius-sm)] bg-white px-3 py-2 text-xs text-[var(--cv-neutral-700)]">
+                            <p><span className="font-semibold">{item.provider}</span> · {item.lookup_type} · {item.status}</p>
+                            {item.error_message && <p className="mt-1 text-[var(--cv-danger)]">{item.error_message}</p>}
+                            {item.created_at && <p className="mt-1 text-[var(--cv-neutral-500)]">{new Date(item.created_at).toLocaleString('it-IT')}</p>}
+                          </div>
+                        )) : <p className="text-sm text-[var(--cv-neutral-600)]">Nessun log API disponibile.</p>}
                       </div>
                     </div>
                   </div>

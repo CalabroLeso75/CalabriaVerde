@@ -224,12 +224,25 @@ class FleetVehicleRecognitionRevisionRecord(BaseModel):
     note: Optional[str] = None
 
 
+class FleetVehicleRecognitionApiLog(BaseModel):
+    id: int
+    provider: str
+    lookup_type: str
+    lookup_key: str
+    status: str
+    http_status: Optional[int] = None
+    error_message: Optional[str] = None
+    raw_payload: Optional[dict] = None
+    created_at: Optional[datetime] = None
+
+
 class FleetVehicleRecognitionResponse(BaseModel):
     vehicle_id: int
     lookup: FleetCatalogExternalLookupResponse
     insurance_remote: Optional[FleetVehicleRecognitionInsuranceRemote] = None
     insurance_records: list[FleetVehicleRecognitionInsuranceRecord] = Field(default_factory=list)
     revision_records: list[FleetVehicleRecognitionRevisionRecord] = Field(default_factory=list)
+    api_logs: list[FleetVehicleRecognitionApiLog] = Field(default_factory=list)
 
 
 class FleetCatalogImportRequest(BaseModel):
@@ -621,6 +634,10 @@ class FleetVehicleListItem(BaseModel):
     current_assignee: Optional[str] = None
     current_assignment_unit: Optional[str] = None
     current_user_name: Optional[str] = None
+    compliance_status: str = "solo_targa"
+    compliance_label: str = "Solo targa o dati minimi"
+    insurance_status: str = "missing"
+    revision_status: str = "missing"
     open_incidents: int = 0
 
 

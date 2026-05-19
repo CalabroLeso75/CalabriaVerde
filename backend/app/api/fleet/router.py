@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, case, func, or_
 from sqlalchemy.orm import Session, joinedload, load_only
 
 from app.core.database import get_db
@@ -18,6 +18,7 @@ from app.models.fleet import (
     VehicleAssignment,
     VehicleBrand,
     VehicleDocument,
+    VehicleExternalLookup,
     VehicleIncident,
     VehicleInsuranceRecord,
     VehicleModel,
@@ -66,6 +67,7 @@ from app.schemas.fleet import (
     FleetVehicleModelResponse,
     FleetVehicleRecognitionApplyRequest,
     FleetVehicleRecognitionApplyResponse,
+    FleetVehicleRecognitionApiLog,
     FleetVehicleRecognitionInsuranceRemote,
     FleetVehicleRecognitionInsuranceRecord,
     FleetVehicleRecognitionResponse,
@@ -117,6 +119,39 @@ def parse_remote_date(value: str | None) -> date | None:
         except ValueError:
             continue
     return None
+
+
+def document_status(value: date | None) -> str:
+    if not value:
+        return "missing"
+    return "active" if value >= date.today() else "expired"
+
+
+def vehicle_compliance(vehicle: Vehicle) -> tuple[str, str, str, str, int]:
+    insurance_status = document_status(vehicle.scadenza_assicurazione)
+    revision_status = document_status(vehicle.scadenza_revisione)
+    has_catalog_data = bool(vehicle.trim_id and vehicle.marca and vehicle.modello and vehicle.marca.lower() not in {"da censire", "sconosciuta"})
+    if not has_catalog_data and insurance_status == "missing" and revision_status == "missing":
+        return "solo_targa", "Solo targa o dati minimi", insurance_status, revision_status, 4
+    if insurance_status == "active" and revision_status == "active":
+        return "completo_attivo", "Dati completi, assicurazione e revisione attive", insurance_status, revision_status, 1
+    if insurance_status == "active" or revision_status == "active":
+        return "parziale_attivo", "Dati aggiornati con una scadenza attiva", insurance_status, revision_status, 2
+    return "scaduto", "Dati aggiornati con assicurazione e revisione scadute/mancanti", insurance_status, revision_status, 3
+
+
+def serialize_api_log(item: VehicleExternalLookup) -> FleetVehicleRecognitionApiLog:
+    return FleetVehicleRecognitionApiLog(
+        id=item.id,
+        provider=item.provider,
+        lookup_type=item.lookup_type,
+        lookup_key=item.lookup_key,
+        status=item.status,
+        http_status=item.http_status,
+        error_message=item.error_message,
+        raw_payload=item.raw_payload,
+        created_at=item.created_at,
+    )
 
 
 def serialize_group(group: FleetGroup) -> FleetGroupResponse:
@@ -519,6 +554,14 @@ async def recognize_vehicle_from_plate(
             .first()
         )
     insurance = service.lookup_italy_insurance(vehicle.targa)
+    db.flush()
+    logs = (
+        db.query(VehicleExternalLookup)
+        .filter(VehicleExternalLookup.normalized_lookup_key == vehicle.targa.lower())
+        .order_by(VehicleExternalLookup.id.desc())
+        .limit(10)
+        .all()
+    )
     return FleetVehicleRecognitionResponse(
         vehicle_id=vehicle.id,
         lookup=FleetCatalogExternalLookupResponse(
@@ -562,6 +605,7 @@ async def recognize_vehicle_from_plate(
             )
             for item in sorted(vehicle.revisions, key=lambda record: record.data_revisione, reverse=True)
         ],
+        api_logs=[serialize_api_log(item) for item in logs],
     )
 
 
@@ -593,6 +637,7 @@ async def apply_vehicle_recognition(
 
     insurance = FleetCatalogService(db).lookup_italy_insurance(vehicle.targa)
     insurance_due = parse_remote_date(insurance.expiry)
+    insurance_saved = False
     if insurance.company and insurance_due:
         db.query(VehicleInsuranceRecord).filter(
             VehicleInsuranceRecord.vehicle_id == vehicle_id,
@@ -610,6 +655,7 @@ async def apply_vehicle_recognition(
         ))
         vehicle.assicurazione_compagnia = insurance.company
         vehicle.scadenza_assicurazione = insurance_due
+        insurance_saved = True
 
     note = data.note or "Dati tecnici aggiornati da riconoscimento targa."
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
@@ -617,6 +663,32 @@ async def apply_vehicle_recognition(
         vehicle.note,
         f"[{stamp}] {note} Precedente: {previous}. Nuovo: {vehicle.marca} {vehicle.modello}. Operatore: {current_user.email}.",
     ]))
+    db.add(VehicleExternalLookup(
+        provider="gestionale",
+        lookup_type="vehicle_recognition_apply",
+        lookup_key=vehicle.targa,
+        normalized_lookup_key=vehicle.targa.lower(),
+        status="saved" if insurance_saved else "partial_saved",
+        vehicle_id=vehicle.id,
+        trim_id=trim.id,
+        raw_payload={
+            "technical_saved": True,
+            "insurance_saved": insurance_saved,
+            "insurance_provider_status": insurance.status,
+            "insurance_error": insurance.error_message,
+            "vehicle": {
+                "id": vehicle.id,
+                "targa": vehicle.targa,
+                "marca": vehicle.marca,
+                "modello": vehicle.modello,
+                "tipo": vehicle.tipo,
+                "alimentazione": vehicle.alimentazione,
+                "scadenza_assicurazione": str(vehicle.scadenza_assicurazione) if vehicle.scadenza_assicurazione else None,
+                "scadenza_revisione": str(vehicle.scadenza_revisione) if vehicle.scadenza_revisione else None,
+            },
+        },
+        error_message=None if insurance_saved else "Dati tecnici salvati; assicurazione non salvata per assenza compagnia/scadenza dal provider.",
+    ))
     db.commit()
     db.refresh(vehicle)
     return FleetVehicleRecognitionApplyResponse(
@@ -1024,8 +1096,33 @@ async def list_vehicles(
         query = query.filter(Vehicle.vehicle_type_id == vehicle_type_id)
 
     total = query.count()
+    today = date.today()
+    compliance_rank = case(
+        (
+            and_(
+                Vehicle.scadenza_assicurazione.is_not(None),
+                Vehicle.scadenza_assicurazione >= today,
+                Vehicle.scadenza_revisione.is_not(None),
+                Vehicle.scadenza_revisione >= today,
+            ),
+            1,
+        ),
+        (
+            or_(
+                and_(Vehicle.scadenza_assicurazione.is_not(None), Vehicle.scadenza_assicurazione >= today),
+                and_(Vehicle.scadenza_revisione.is_not(None), Vehicle.scadenza_revisione >= today),
+            ),
+            2,
+        ),
+        (
+            or_(Vehicle.scadenza_assicurazione.is_not(None), Vehicle.scadenza_revisione.is_not(None)),
+            3,
+        ),
+        else_=4,
+    )
+
     items = (
-        query.order_by(Vehicle.targa.asc())
+        query.order_by(compliance_rank.asc(), Vehicle.targa.asc())
         .offset((page - 1) * page_size)
         .limit(page_size)
         .all()
@@ -1036,6 +1133,7 @@ async def list_vehicles(
         active_assignment = next((a for a in item.assignments if a.riconsegnato_il is None), None)
         active_usage = next((u for u in item.usage_logs if u.ended_at is None), None)
         open_incidents = sum(1 for incident in item.incidents if incident.data_chiusura is None)
+        compliance_status, compliance_label, insurance_status, revision_status, _rank = vehicle_compliance(item)
         payload.append(
             FleetVehicleListItem(
                 id=item.id,
@@ -1054,6 +1152,10 @@ async def list_vehicles(
                 current_assignee=assignment_display_name(active_assignment) if active_assignment else None,
                 current_assignment_unit=assignment_unit_name(active_assignment) if active_assignment else None,
                 current_user_name=actor_display_name(active_usage.user, active_usage.employee) if active_usage else None,
+                compliance_status=compliance_status,
+                compliance_label=compliance_label,
+                insurance_status=insurance_status,
+                revision_status=revision_status,
                 open_incidents=open_incidents,
             )
         )

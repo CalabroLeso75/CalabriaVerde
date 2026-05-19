@@ -335,7 +335,7 @@ class FleetCatalogService:
                 response_text = response.read().decode("utf-8", errors="replace")
             payload = self._xml_to_dict(ET.fromstring(response_text))
             data = self._extract_vehicle_payload(payload)
-            return InsuranceLookupResult(
+            result = InsuranceLookupResult(
                 provider=provider,
                 lookup_key=plate,
                 status="found" if self._pick_nested_value(data, "Company") else "empty",
@@ -346,10 +346,24 @@ class FleetCatalogService:
                 raw_payload=payload,
                 http_status=200,
             )
+            self._record_external_lookup(ExternalLookupResult(
+                provider=provider,
+                lookup_type="insurance",
+                lookup_key=plate,
+                status=result.status,
+                raw_payload=payload,
+                http_status=200,
+                error_message=result.error_message,
+            ))
+            return result
         except HTTPError as exc:
-            return InsuranceLookupResult(provider=provider, lookup_key=plate, status="error", error_message=str(exc), http_status=exc.code)
+            result = InsuranceLookupResult(provider=provider, lookup_key=plate, status="error", error_message=str(exc), http_status=exc.code)
+            self._record_external_lookup(ExternalLookupResult(provider=provider, lookup_type="insurance", lookup_key=plate, status="error", error_message=str(exc), http_status=exc.code))
+            return result
         except (ET.ParseError, URLError, TimeoutError, ValueError) as exc:
-            return InsuranceLookupResult(provider=provider, lookup_key=plate, status="error", error_message=str(exc))
+            result = InsuranceLookupResult(provider=provider, lookup_key=plate, status="error", error_message=str(exc))
+            self._record_external_lookup(ExternalLookupResult(provider=provider, lookup_type="insurance", lookup_key=plate, status="error", error_message=str(exc)))
+            return result
 
     def get_or_create_trim(self, spec: TrimSpec) -> VehicleTrim:
         brand = self._get_or_create_brand(spec.brand_name)

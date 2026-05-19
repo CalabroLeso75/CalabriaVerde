@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { MetricCard } from '@/components/common/MetricCard';
@@ -33,38 +34,41 @@ type VehicleListItem = {
   localizzazione_corrente?: string | null;
   current_assignee?: string | null;
   open_incidents: number;
+  compliance_status?: string;
+  compliance_label?: string;
+  insurance_status?: string;
+  revision_status?: string;
 };
 
 type VehicleListResponse = {
   items: VehicleListItem[];
 };
 
-const sections = [
-  {
-    title: 'Anagrafica mezzi',
-    description: 'Archivio completo dei mezzi con dati tecnici, stato, coperture e storico operativo.',
-    href: '/fleet/anagrafica',
-    accent: 'var(--cv-primary)',
+const statusTone: Record<string, { label: string; className: string }> = {
+  active: {
+    label: 'Attiva',
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-800',
   },
-  {
-    title: 'Mappa mezzi',
-    description: 'Vista pronta per la localizzazione dei mezzi con API di tracking da attivare successivamente.',
-    href: '/fleet/mappa',
-    accent: 'var(--cv-info)',
+  expiring: {
+    label: 'In scadenza',
+    className: 'border-amber-200 bg-amber-50 text-amber-800',
   },
-  {
-    title: 'Assegnazioni e documenti',
-    description: 'Utilizzatori, verbali di assegnazione e restituzione, documentazione di bordo e scadenze.',
-    href: '/fleet/anagrafica',
-    accent: 'var(--cv-accent)',
+  expired: {
+    label: 'Scaduta',
+    className: 'border-red-200 bg-red-50 text-red-800',
   },
-  {
-    title: 'Sinistri e revisioni',
-    description: 'Storico revisioni, coperture assicurative, verifiche di sicurezza e gestione sinistri.',
-    href: '/fleet/anagrafica',
-    accent: 'var(--cv-danger)',
+  missing: {
+    label: 'Mancante',
+    className: 'border-slate-200 bg-slate-50 text-slate-700',
   },
-];
+};
+
+const complianceTone: Record<string, string> = {
+  completo_attivo: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  parziale_attivo: 'border-amber-200 bg-amber-50 text-amber-800',
+  scaduto: 'border-red-200 bg-red-50 text-red-800',
+  solo_targa: 'border-slate-200 bg-slate-50 text-slate-700',
+};
 
 export default function FleetDashboardClientPage() {
   const [summary, setSummary] = useState<FleetSummary | null>(null);
@@ -81,6 +85,7 @@ export default function FleetDashboardClientPage() {
         if (!alive) return;
         setSummary(summaryPayload);
         setVehicles(vehiclePayload.items || []);
+        setError(null);
       })
       .catch((err) => {
         if (alive) setError(err.message || 'Impossibile caricare il riepilogo mezzi.');
@@ -90,48 +95,22 @@ export default function FleetDashboardClientPage() {
     };
   }, []);
 
-  const today = new Date();
-  const next30Days = useMemo(() => {
-    const value = new Date();
-    value.setDate(value.getDate() + 30);
-    return value;
-  }, []);
-
-  const insuranceAttention = useMemo(
-    () =>
-      vehicles.filter((vehicle) => {
-        if (!vehicle.scadenza_assicurazione) return true;
-        const expiry = new Date(vehicle.scadenza_assicurazione);
-        return expiry <= next30Days;
-      }),
-    [vehicles, next30Days],
-  );
-
-  const revisionAttention = useMemo(
-    () =>
-      vehicles.filter((vehicle) => {
-        if (!vehicle.scadenza_revisione) return true;
-        const expiry = new Date(vehicle.scadenza_revisione);
-        return expiry <= next30Days;
-      }),
-    [vehicles, next30Days],
-  );
-
-  const assignedVehicles = useMemo(() => vehicles.filter((vehicle) => Boolean(vehicle.current_assignee)), [vehicles]);
-  const availableVehicles = useMemo(() => vehicles.filter((vehicle) => !vehicle.current_assignee), [vehicles]);
-
-  const attentionBadge = (value?: string | null) => {
-    if (!value) return 'Da inserire';
-    const dateValue = new Date(value);
-    if (dateValue < today) return 'Scaduta';
-    return `Scade ${formatDate(value)}`;
-  };
+  const groupedTotals = useMemo(() => {
+    return vehicles.reduce(
+      (acc, vehicle) => {
+        const status = vehicle.compliance_status || 'solo_targa';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+  }, [vehicles]);
 
   return (
     <div className="space-y-6">
       <SectionLead
-        description="Modulo multi-sezione per gestire l'intero ciclo di vita del mezzo."
-        detail="Anagrafica, coperture, revisioni, assegnazioni, sinistri e futura localizzazione in mappa."
+        description="Quadro operativo unico del parco macchine."
+        detail="I mezzi sono ordinati per completezza: coperture e revisioni attive in alto, poi situazioni parziali, scadute e targhe ancora da completare."
       />
 
       {error && (
@@ -148,150 +127,166 @@ export default function FleetDashboardClientPage() {
         <MetricCard label="Revisioni in scadenza" value={summary?.revision_expiring_30d ?? '...'} accent="var(--cv-warning)" />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <MetricCard label="Assegnazioni attive" value={summary?.active_assignments ?? '...'} />
-        <MetricCard label="Sinistri aperti" value={summary?.open_incidents ?? '...'} accent="var(--cv-danger)" />
-        <MetricCard label="Tracker attivi" value={summary?.tracked_vehicles ?? '...'} accent="var(--cv-info)" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatusCounter label="Completi" value={groupedTotals.completo_attivo || 0} tone="border-emerald-200 bg-emerald-50 text-emerald-800" />
+        <StatusCounter label="Parziali" value={groupedTotals.parziale_attivo || 0} tone="border-amber-200 bg-amber-50 text-amber-800" />
+        <StatusCounter label="Scaduti" value={groupedTotals.scaduto || 0} tone="border-red-200 bg-red-50 text-red-800" />
+        <StatusCounter label="Solo targa" value={groupedTotals.solo_targa || 0} tone="border-slate-200 bg-slate-50 text-slate-700" />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card padding="md">
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-semibold">Assicurazioni in scadenza o mancanti</h3>
-                <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                  Da qui apri direttamente il fascicolo del mezzo nella sezione coperture.
-                </p>
-              </div>
-              <Link href={withAppBasePath('/fleet/anagrafica')} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
-                Vai all&apos;anagrafica
-              </Link>
-            </div>
-
-            <div className="space-y-3">
-              {insuranceAttention.length === 0 && <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessun mezzo con assicurazione in scadenza.</p>}
-              {insuranceAttention.slice(0, 8).map((vehicle) => (
-                <div key={`insurance-${vehicle.id}`} className="flex items-center justify-between gap-3 rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
-                  <div>
-                    <p className="text-sm font-semibold">{vehicle.targa} · {vehicle.marca} {vehicle.modello}</p>
-                    <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>{attentionBadge(vehicle.scadenza_assicurazione)}</p>
-                  </div>
-                  <Link href={withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}&tab=revisioni`)} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
-                    Aggiorna copertura
-                  </Link>
-                </div>
-              ))}
-            </div>
+      <Card padding="none" className="overflow-hidden">
+        <div className="flex flex-col gap-3 border-b p-4 md:flex-row md:items-center md:justify-between" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+          <div>
+            <h3 className="text-lg font-semibold" style={{ color: 'var(--cv-neutral-900)' }}>
+              Elenco unico mezzi
+            </h3>
+            <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
+              Clicca una riga per aprire dettaglio, assicurazioni, revisioni, assegnazioni e storico.
+            </p>
           </div>
-        </Card>
-
-        <Card padding="md">
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-semibold">Revisioni in scadenza o mancanti</h3>
-                <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                  Qui trovi subito i mezzi senza revisione o con revisione da aggiornare.
-                </p>
-              </div>
-              <Link href={withAppBasePath('/fleet/anagrafica')} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
-                Vai all&apos;anagrafica
-              </Link>
-            </div>
-
-            <div className="space-y-3">
-              {revisionAttention.length === 0 && <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessun mezzo con revisione in scadenza.</p>}
-              {revisionAttention.slice(0, 8).map((vehicle) => (
-                <div key={`revision-${vehicle.id}`} className="flex items-center justify-between gap-3 rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
-                  <div>
-                    <p className="text-sm font-semibold">{vehicle.targa} · {vehicle.marca} {vehicle.modello}</p>
-                    <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>{attentionBadge(vehicle.scadenza_revisione)}</p>
-                  </div>
-                  <Link href={withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}&tab=revisioni`)} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
-                    Aggiorna revisione
-                  </Link>
-                </div>
-              ))}
-            </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={withAppBasePath('/fleet/anagrafica')}
+              className="rounded-[var(--cv-radius-md)] border px-3 py-2 text-sm font-medium"
+              style={{ borderColor: 'var(--cv-border-subtle)', color: 'var(--cv-primary)' }}
+            >
+              Gestione anagrafica
+            </Link>
+            <Link
+              href={withAppBasePath('/fleet/catalogo')}
+              className="rounded-[var(--cv-radius-md)] border px-3 py-2 text-sm font-medium"
+              style={{ borderColor: 'var(--cv-border-subtle)', color: 'var(--cv-primary)' }}
+            >
+              Catalogo modelli
+            </Link>
           </div>
-        </Card>
-      </div>
+        </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card padding="md">
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold">Mezzi da assegnare</h3>
-              <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                Apri il fascicolo direttamente sulla tab assegnazioni.
-              </p>
-            </div>
-            <div className="space-y-3">
-              {availableVehicles.length === 0 && <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Tutti i mezzi risultano gia assegnati o non disponibili.</p>}
-              {availableVehicles.slice(0, 8).map((vehicle) => (
-                <div key={`assign-${vehicle.id}`} className="flex items-center justify-between gap-3 rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
-                  <div>
-                    <p className="text-sm font-semibold">{vehicle.targa} · {vehicle.marca} {vehicle.modello}</p>
-                    <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>{vehicle.stato || 'Stato non definito'}</p>
-                  </div>
-                  <Link href={withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}&tab=assegnazioni`)} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
-                    Assegna mezzo
-                  </Link>
-                </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y text-sm" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+            <thead className="bg-slate-50">
+              <tr>
+                <Column>Mezzo</Column>
+                <Column>Stato dati</Column>
+                <Column>Assicurazione</Column>
+                <Column>Revisione</Column>
+                <Column>Assegnazione</Column>
+                <Column>Operativita</Column>
+              </tr>
+            </thead>
+            <tbody className="divide-y bg-white" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+              {vehicles.map((vehicle) => (
+                <tr
+                  key={vehicle.id}
+                  className="cursor-pointer transition hover:bg-[var(--cv-primary-soft)]"
+                  onClick={() => {
+                    window.location.href = withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}`);
+                  }}
+                >
+                  <Cell>
+                    <div className="font-semibold" style={{ color: 'var(--cv-neutral-900)' }}>{vehicle.targa}</div>
+                    <div className="mt-1 text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
+                      {vehicle.marca || '-'} {vehicle.modello || ''} · {vehicle.tipo || 'Tipo non definito'}
+                    </div>
+                  </Cell>
+                  <Cell>
+                    <Badge
+                      label={vehicle.compliance_label || 'Solo targa'}
+                      className={complianceTone[vehicle.compliance_status || 'solo_targa'] || complianceTone.solo_targa}
+                    />
+                  </Cell>
+                  <Cell>
+                    <DocumentStatus
+                      status={vehicle.insurance_status || 'missing'}
+                      date={vehicle.scadenza_assicurazione}
+                    />
+                  </Cell>
+                  <Cell>
+                    <DocumentStatus
+                      status={vehicle.revision_status || 'missing'}
+                      date={vehicle.scadenza_revisione}
+                    />
+                  </Cell>
+                  <Cell>
+                    <div className="font-medium" style={{ color: 'var(--cv-neutral-800)' }}>
+                      {vehicle.current_assignee || 'Non assegnato'}
+                    </div>
+                    <div className="mt-1 text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
+                      {vehicle.localizzazione_corrente || 'Sede non indicata'}
+                    </div>
+                  </Cell>
+                  <Cell>
+                    <div className="text-xs" style={{ color: 'var(--cv-neutral-700)' }}>
+                      Km {formatNumber(vehicle.km_attuali)}
+                    </div>
+                    <div className="mt-1 text-xs" style={{ color: vehicle.open_incidents > 0 ? 'var(--cv-danger)' : 'var(--cv-neutral-600)' }}>
+                      {vehicle.open_incidents > 0 ? `${vehicle.open_incidents} sinistri aperti` : 'Nessun sinistro aperto'}
+                    </div>
+                  </Cell>
+                </tr>
               ))}
-            </div>
-          </div>
-        </Card>
 
-        <Card padding="md">
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold">Mezzi da restituire o chiudere</h3>
-              <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                Accedi subito alla restituzione del mezzo o alla chiusura dell&apos;assegnazione attiva.
-              </p>
-            </div>
-            <div className="space-y-3">
-              {assignedVehicles.length === 0 && <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>Nessun mezzo assegnato al momento.</p>}
-              {assignedVehicles.slice(0, 8).map((vehicle) => (
-                <div key={`return-${vehicle.id}`} className="flex items-center justify-between gap-3 rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
-                  <div>
-                    <p className="text-sm font-semibold">{vehicle.targa} · {vehicle.marca} {vehicle.modello}</p>
-                    <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>In carico a {vehicle.current_assignee}</p>
-                  </div>
-                  <Link href={withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}&tab=assegnazioni`)} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
-                    Restituisci mezzo
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
-      </div>
+              {vehicles.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
+                    Nessun mezzo disponibile.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {sections.map((section) => (
-          <Link key={section.href + section.title} href={withAppBasePath(section.href)} className="block">
-            <Card padding="md" className="h-full transition-transform hover:-translate-y-0.5">
-              <div className="space-y-3">
-                <div className="h-1 w-10 rounded-full" style={{ background: section.accent }} />
-                <h3 className="text-lg font-semibold" style={{ color: 'var(--cv-neutral-900)' }}>
-                  {section.title}
-                </h3>
-                <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                  {section.description}
-                </p>
-              </div>
-            </Card>
-          </Link>
-        ))}
+function StatusCounter({ label, value, tone }: { label: string; value: number; tone: string }) {
+  return (
+    <div className={`rounded-[var(--cv-radius-lg)] border px-4 py-3 ${tone}`}>
+      <div className="text-xs font-semibold uppercase tracking-wide">{label}</div>
+      <div className="mt-2 text-2xl font-bold">{value}</div>
+    </div>
+  );
+}
+
+function Column({ children }: { children: ReactNode }) {
+  return (
+    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--cv-neutral-600)' }}>
+      {children}
+    </th>
+  );
+}
+
+function Cell({ children }: { children: ReactNode }) {
+  return <td className="px-4 py-4 align-top">{children}</td>;
+}
+
+function DocumentStatus({ status, date }: { status: string; date?: string | null }) {
+  const tone = statusTone[status] || statusTone.missing;
+  return (
+    <div className="space-y-1">
+      <Badge label={tone.label} className={tone.className} />
+      <div className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
+        {date ? formatDate(date) : 'Data assente'}
       </div>
     </div>
   );
 }
 
+function Badge({ label, className }: { label: string; className: string }) {
+  return (
+    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${className}`}>
+      {label}
+    </span>
+  );
+}
+
 function formatDate(value?: string | null) {
-  if (!value) return '—';
+  if (!value) return '-';
   return new Date(value).toLocaleDateString('it-IT');
+}
+
+function formatNumber(value?: number | null) {
+  return new Intl.NumberFormat('it-IT').format(value || 0);
 }

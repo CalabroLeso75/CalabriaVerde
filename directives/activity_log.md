@@ -503,3 +503,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `py_compile` OK, `npm run lint` senza errori bloccanti, `npm run build` OK, backend Test `active`, lista mezzi autenticata OK con campi `compliance_status`, `insurance_status`, `revision_status` e ordinamento corretto.  
 **Note utili:** se il provider non restituisce assicurazione o revisione, la modale lo evidenzia esplicitamente; revisione remota italiana non disponibile nel provider attuale.
+
+## 2026-05-19 11:20:00 - Pagina principale Parco Macchine unificata
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** aggiornata la pagina principale `Parco Macchine` (`/fleet/`) per mostrare una sola lista operativa dei mezzi, ordinata dalla API per priorita': mezzi con assicurazione e revisione attive, mezzi parziali, mezzi con dati ma coperture/revisioni scadute o mancanti, mezzi con soli dati minimi. Ogni riga mostra targa, marca/modello, stato dati, assicurazione, revisione, assegnazione, sede, km e sinistri aperti; il click apre il dettaglio del mezzo con storico e operazioni.  
+**File coinvolti:** `frontend/src/components/fleet/FleetDashboardClientPage.tsx`, hosting `smart-cv.it/test`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `npm run lint` senza errori bloccanti, `npm run build` OK, deploy statico Test OK, `https://smart-cv.it/test/fleet/` `200`, smoke API autenticato `/api/fleet/vehicles?page=1&page_size=5` OK con ordinamento e campi `compliance_status`, `insurance_status`, `revision_status`.  
+**Note utili:** per la vista principale del parco macchine usare sempre `/fleet/`; `/fleet/anagrafica/` resta la pagina di gestione operativa con riconoscimento da tessera e azioni anagrafiche.

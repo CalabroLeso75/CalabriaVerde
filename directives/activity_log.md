@@ -553,3 +553,53 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** consultazione fonti ufficiali Openapi; prova sandbox con stringa API visibile in console: risposta `Wrong Token`, quindi non e' Bearer token; prova OAuth Basic con username non email: `Wrong Auth Data Provided`; `py_compile` OK, `npm run lint` senza errori bloccanti, `npm run build` OK, backend Test `active`, `https://smart-cv.it/test/admin/documentation/` `200`, configurazione integrazioni API OK.  
 **Note utili:** per attivare Openapi serve generare o fornire il Bearer token OAuth dalla console oppure fornire email account Openapi + API key per generarlo via `POST https://oauth.openapi.it/token`. Non usare la API key account direttamente sugli endpoint Automotive.
+
+## 2026-05-19 17:35:00 - Consolidamento metodo Targa.co.it/RegCheck
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine / documentazione sistema  
+**Azione svolta:** letta la documentazione Targa.co.it/RegCheck e bloccato il metodo operativo: `CheckItaly` per dati tecnici, `CheckInsuranceStatusItaly` per assicurazione corrente, username come credenziale, nessuna revisione italiana disponibile dal provider. Corretto il parser cilindrata per valori in litri e fasce cc, aggiunto salvataggio VIN se presente e registrazione esplicita dell'esito revisioni non salvate da provider.  
+**File coinvolti:** `backend/app/services/fleet_catalog.py`, `backend/app/api/fleet/router.py`, `frontend/src/app/(dashboard)/admin/documentation/page.tsx`, `directives/documentation/api-key-provider-targhe.md`, `directives/documentation/parco-macchine.md`, `directives/error_memory.md`.  
+**Esito:** completato in Collaudo locale; da promuovere su Test dopo conferma deploy.  
+**Verifiche eseguite:** saldo RegCheck letto prima/dopo, smoke con targa documentata `BN071VN` su `CheckItaly` e `CheckInsuranceStatusItaly`, `py_compile` backend OK, parser cilindrata OK, build frontend OK.  
+**Note utili:** il saldo e' passato da 92 a 91 dopo gli smoke test, quindi anche la targa campione va trattata come potenzialmente a pagamento; misurare sempre saldo prima/dopo e non chiamare provider da `recognition/apply`.
+
+## 2026-05-19 18:05:00 - Chiarezza salvataggio assicurazione e pulizia codici modello
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** corretto il flusso `recognition/apply` per salvare almeno la compagnia assicurativa sulla scheda mezzo quando il provider la restituisce senza scadenza valida; lo storico copertura viene creato solo con scadenza valida. Aggiunto messaggio di esito al frontend e pulizia dei codici piattaforma RegCheck/Isuzu tra parentesi dal modello operativo del mezzo.  
+**File coinvolti:** `backend/app/services/fleet_catalog.py`, `backend/app/api/fleet/router.py`, `backend/app/schemas/fleet.py`, `frontend/src/components/fleet/FleetRegistryClientPage.tsx`, `directives/documentation/api-key-provider-targhe.md`, `directives/error_memory.md`.  
+**Esito:** completato in Collaudo locale; da promuovere su Test.  
+**Verifiche eseguite:** `py_compile` backend OK, test pulizia modello `D-MAX II (TFR, TFS) -> D-MAX II` OK, build frontend OK dopo correzione duplicato variabile.  
+**Note utili:** `TFR/TFS` sono codici tecnici piattaforma/telaio Isuzu, non trattamento fine rapporto/servizio; non devono comparire come nome modello operativo.
+
+## 2026-05-19 18:25:00 - Gestione HTTP 500 Targa.co.it come esito senza dati
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** aggiornato il provider Targa.co.it/RegCheck: se `CheckItaly` restituisce HTTP 500 viene registrato come esito `empty` cacheabile, con messaggio chiaro su targa non trovata/non coperta/dato remoto non disponibile. La modale senza allestimento ora mostra anche i log API, cosi' l'utente vede cosa e' successo senza rilanciare la chiamata.  
+**File coinvolti:** `backend/app/services/fleet_catalog.py`, `frontend/src/components/fleet/FleetRegistryClientPage.tsx`, `directives/documentation/api-key-provider-targhe.md`, `directives/error_memory.md`.  
+**Esito:** completato in Collaudo locale; da promuovere su Test.  
+**Verifiche eseguite:** `py_compile` backend OK, test helper modello/cilindrata OK, build frontend OK.  
+**Note utili:** non testare ES765CH/ES769CH con chiamate reali senza consenso esplicito, perche' ogni lookup puo' scalare credito.
+
+## 2026-05-19 18:45:00 - Persistenza e visualizzazione completa payload targa
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** sincronizzato `vehicle_trims.raw_payload` anche per allestimenti gia' esistenti, esposto `raw_payload` nelle risposte API e aggiunta visualizzazione dei campi completi recuperati dal provider nella modale riconoscimento e nel dettaglio mezzo. Aggiunta pulizia dei nomi modello gia' presenti in cache.  
+**File coinvolti:** `backend/app/services/fleet_catalog.py`, `backend/app/api/fleet/router.py`, `backend/app/schemas/fleet.py`, `frontend/src/components/fleet/FleetRegistryClientPage.tsx`, `frontend/src/components/fleet/FleetDetailClientPage.tsx`, `directives/documentation/api-key-provider-targhe.md`.  
+**Esito:** completato in Collaudo locale; da promuovere su Test.  
+**Verifiche eseguite:** `py_compile` backend OK, test helper modello/cilindrata OK, build frontend OK.  
+**Note utili:** un credito targa deve alimentare sia campi strutturati sia payload completo consultabile; non perdere dati non ancora mappati in colonne dedicate.
+
+## 2026-05-19 18:06:00 - Promozione Test correzione riconoscimento targa
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** promosso su Test il backend e il frontend del flusso riconoscimento mezzo. Il backend ora salva compagnia assicurativa e storico copertura quando il provider restituisce scadenza valida, espone l'esito del salvataggio, sincronizza `raw_payload` anche per allestimenti gia' esistenti e consente `force_refresh=true` solo da azione esplicita. Il frontend mostra quando il dato arriva da cache, permette "Riesegui dal provider" e visualizza i campi completi recuperati dal provider.  
+**File coinvolti:** `backend/app/services/fleet_catalog.py`, `backend/app/api/fleet/router.py`, `backend/app/schemas/fleet.py`, `frontend/src/components/fleet/FleetRegistryClientPage.tsx`, `frontend/src/components/fleet/FleetDetailClientPage.tsx`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `py_compile` backend locale OK; build frontend con `NEXT_PUBLIC_BASE_PATH=/test` OK; upload backend Test OK; `systemctl restart calabriaverde-test` OK e servizio `active`; upload frontend Test OK; `https://smart-cv.it/api/health` 200; login API Test OK; lista mezzi API Test OK; file pagina dettaglio Test presenti su hosting.  
+**Note utili:** non sono state effettuate nuove chiamate reali al provider targa durante questa verifica, per evitare consumo crediti. Le chiamate online a singole pagine statiche hanno mostrato qualche rifiuto connessione intermittente da hosting, ma `/test/fleet/` e API risultano raggiungibili.

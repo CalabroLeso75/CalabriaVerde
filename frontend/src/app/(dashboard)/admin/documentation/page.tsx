@@ -7,16 +7,16 @@ import { withAppBasePath } from '@/lib/app-path';
 
 const documents = [
   {
-    title: 'API key e provider targhe',
+    title: 'API targhe Targa.co.it',
     slug: 'api-key-provider-targhe',
-    summary: 'Procedura corretta per Openapi Automotive, Targa.co.it/RegCheck, token, cache e verifica crediti.',
+    summary: 'Metodo ufficiale per Targa.co.it/RegCheck, credenziale, cache, assicurazione e limiti revisioni.',
     items: [
-      'Openapi Automotive non usa direttamente la API key account come Bearer: la API key serve con email in Basic Auth per generare un token OAuth.',
-      'Token produzione: POST https://oauth.openapi.it/token con scope Automotive; token sandbox: POST https://test.oauth.openapi.it/token.',
-      'Endpoint veicolo Italia: GET https://automotive.openapi.com/IT-car/{targa}; sandbox: GET https://test.automotive.openapi.com/IT-car/{targa}.',
-      'Endpoint assicurazione Italia: GET https://automotive.openapi.com/IT-insurance/{targa}; sandbox: GET https://test.automotive.openapi.com/IT-insurance/{targa}.',
-      'Nel gestionale il token OAuth va salvato in Amministrazione > Configurazione > API key opzionale scegliendo Openapi Automotive.',
-      'Ogni lookup riuscito viene salvato in vehicle_external_lookups e deve essere riusato prima di chiamare il provider.',
+      'Targa.co.it/RegCheck usa lo username account come credenziale API; la password serve solo per la dashboard.',
+      'Endpoint tecnico auto Italia: GET https://www.targa.co.it/api/reg.asmx/CheckItaly?RegistrationNumber={targa}&username={username}.',
+      'Endpoint assicurazione Italia: GET https://www.targa.co.it/api/bespokeapi.asmx/CheckInsuranceStatusItaly?regNumber={targa}&username={username}.',
+      'La targa campione documentata BN071VN va usata per smoke test senza consumare targhe reali.',
+      'Le revisioni italiane non sono esposte da questo provider: il gestionale mostra e mantiene solo lo storico locale.',
+      'Ogni lookup riuscito viene salvato in vehicle_external_lookups e deve essere riusato prima di chiamare di nuovo il provider.',
     ],
   },
   {

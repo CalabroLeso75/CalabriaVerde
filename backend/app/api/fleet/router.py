@@ -119,9 +119,14 @@ def parse_remote_date(value: str | None) -> date | None:
     if not value:
         return None
     text = value.strip()
+    if "T" in text:
+        text = text.split("T", 1)[0]
     for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
         try:
-            return datetime.strptime(text, fmt).date()
+            parsed = datetime.strptime(text, fmt).date()
+            if parsed.year <= 1901:
+                return None
+            return parsed
         except ValueError:
             continue
     return None
@@ -197,6 +202,20 @@ def latest_logged_insurance(db: Session, plate: str) -> dict[str, str | None]:
         "expiry": _find_payload_value(payload, "Expiry", "Scadenza", "data_scadenza"),
         "error_message": item.error_message if item else "Nessun lookup assicurativo registrato per questa targa.",
     }
+
+
+def latest_logged_vehicle_payload(db: Session, plate: str) -> dict:
+    item = (
+        db.query(VehicleExternalLookup)
+        .filter(
+            VehicleExternalLookup.lookup_type == "plate",
+            VehicleExternalLookup.normalized_lookup_key == normalize_catalog_key(plate),
+            VehicleExternalLookup.status == "found",
+        )
+        .order_by(VehicleExternalLookup.id.desc())
+        .first()
+    )
+    return item.raw_payload if item and isinstance(item.raw_payload, dict) else {}
 
 
 def serialize_group(group: FleetGroup) -> FleetGroupResponse:
@@ -571,6 +590,7 @@ async def lookup_catalog_external_data(
 @router.post("/vehicles/{vehicle_id}/recognition", response_model=FleetVehicleRecognitionResponse)
 async def recognize_vehicle_from_plate(
     vehicle_id: int,
+    force_refresh: bool = Query(default=False),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -585,7 +605,7 @@ async def recognize_vehicle_from_plate(
         raise HTTPException(status_code=404, detail="Mezzo non trovato")
 
     service = FleetCatalogService(db)
-    result = service.lookup_external("plate", vehicle.targa, persist=True)
+    result = service.lookup_external("plate", vehicle.targa, persist=True, force_refresh=force_refresh)
     db.commit()
     trim = None
     if result.trim_id:
@@ -598,7 +618,9 @@ async def recognize_vehicle_from_plate(
             .filter(VehicleTrim.id == result.trim_id)
             .first()
         )
-    insurance = service.lookup_italy_insurance(vehicle.targa)
+        service.clean_cached_trim_model_name(trim)
+        db.commit()
+    insurance = service.lookup_italy_insurance(vehicle.targa, force_refresh=force_refresh)
     db.commit()
     logs = (
         db.query(VehicleExternalLookup)
@@ -670,19 +692,30 @@ async def apply_vehicle_recognition(
     )
     if not trim or not trim.model or not trim.model.brand:
         raise HTTPException(status_code=404, detail="Allestimento riconosciuto non trovato")
+    FleetCatalogService(db).clean_cached_trim_model_name(trim)
 
     previous = f"{vehicle.marca} {vehicle.modello}".strip()
     vehicle.trim_id = trim.id
     vehicle.marca = trim.model.brand.name
-    vehicle.modello = trim.model.name
+    vehicle.modello = FleetCatalogService.clean_regcheck_model_name(trim.model.name)
     vehicle.tipo = trim.model.vehicle_category
     vehicle.immatricolazione_anno = trim.production_year or vehicle.immatricolazione_anno
     vehicle.alimentazione = trim.engine_type or vehicle.alimentazione
     vehicle.euro_classe = trim.euro_class or vehicle.euro_classe
+    vehicle_payload = latest_logged_vehicle_payload(db, vehicle.targa)
+    remote_vin = _find_payload_value(vehicle_payload, "Vin", "VIN", "VehicleIdentificationNumber", "VechileIdentificationNumber")
+    if remote_vin:
+        vehicle.numero_telaio = remote_vin.strip().upper()
 
     insurance = latest_logged_insurance(db, vehicle.targa)
     insurance_due = parse_remote_date(insurance.get("expiry"))
-    insurance_saved = False
+    insurance_company_saved = False
+    insurance_record_saved = False
+    insurance_save_message = "Assicurazione non salvata: il provider non ha restituito compagnia e scadenza valide."
+    if insurance.get("company"):
+        vehicle.assicurazione_compagnia = insurance["company"]
+        insurance_company_saved = True
+        insurance_save_message = "Compagnia assicurativa salvata; copertura corrente non storicizzata per assenza di scadenza valida."
     if insurance.get("company") and insurance_due:
         db.query(VehicleInsuranceRecord).filter(
             VehicleInsuranceRecord.vehicle_id == vehicle_id,
@@ -698,9 +731,9 @@ async def apply_vehicle_recognition(
             created_by_user_id=current_user.id,
             is_current=True,
         ))
-        vehicle.assicurazione_compagnia = insurance["company"]
         vehicle.scadenza_assicurazione = insurance_due
-        insurance_saved = True
+        insurance_record_saved = True
+        insurance_save_message = "Compagnia e scadenza assicurativa salvate nella scheda mezzo e nello storico coperture."
 
     note = data.note or "Dati tecnici aggiornati da riconoscimento targa."
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
@@ -713,26 +746,32 @@ async def apply_vehicle_recognition(
         lookup_type="vehicle_recognition_apply",
         lookup_key=vehicle.targa,
         normalized_lookup_key=vehicle.targa.lower(),
-        status="saved" if insurance_saved else "partial_saved",
+        status="saved" if insurance_record_saved else "partial_saved",
         vehicle_id=vehicle.id,
         trim_id=trim.id,
         raw_payload={
             "technical_saved": True,
-            "insurance_saved": insurance_saved,
+            "insurance_company_saved": insurance_company_saved,
+            "insurance_record_saved": insurance_record_saved,
             "insurance_provider_status": insurance.get("status"),
             "insurance_error": insurance.get("error_message"),
+            "insurance_save_message": insurance_save_message,
+            "vin_saved": bool(remote_vin),
+            "revision_saved": False,
+            "revision_note": "Targa.co.it/RegCheck non espone revisioni italiane nell'endpoint documentato; resta valido solo lo storico locale o un provider dedicato.",
             "vehicle": {
                 "id": vehicle.id,
                 "targa": vehicle.targa,
                 "marca": vehicle.marca,
                 "modello": vehicle.modello,
+                "numero_telaio": vehicle.numero_telaio,
                 "tipo": vehicle.tipo,
                 "alimentazione": vehicle.alimentazione,
                 "scadenza_assicurazione": str(vehicle.scadenza_assicurazione) if vehicle.scadenza_assicurazione else None,
                 "scadenza_revisione": str(vehicle.scadenza_revisione) if vehicle.scadenza_revisione else None,
             },
         },
-        error_message=None if insurance_saved else "Dati tecnici salvati; assicurazione non salvata per assenza compagnia/scadenza nell'ultimo lookup registrato.",
+        error_message=None if insurance_record_saved else insurance_save_message,
     ))
     db.commit()
     db.refresh(vehicle)
@@ -746,6 +785,9 @@ async def apply_vehicle_recognition(
         alimentazione=vehicle.alimentazione,
         immatricolazione_anno=vehicle.immatricolazione_anno,
         euro_classe=vehicle.euro_classe,
+        insurance_company_saved=insurance_company_saved,
+        insurance_record_saved=insurance_record_saved,
+        insurance_save_message=insurance_save_message,
     )
 
 
@@ -1801,6 +1843,8 @@ async def get_vehicle_detail(
         db.query(Vehicle)
         .options(
             joinedload(Vehicle.vehicle_type),
+            joinedload(Vehicle.trim).joinedload(VehicleTrim.model).joinedload(VehicleModel.brand),
+            joinedload(Vehicle.trim).joinedload(VehicleTrim.tire_fitments),
             joinedload(Vehicle.groups).joinedload(FleetGroupMember.group),
             joinedload(Vehicle.insurance_records),
             joinedload(Vehicle.revisions),
@@ -1856,6 +1900,7 @@ async def get_vehicle_detail(
         last_longitude=vehicle.last_longitude,
         last_position_at=vehicle.last_position_at,
         note=vehicle.note,
+        trim=vehicle.trim,
         vehicle_type=vehicle.vehicle_type,
         groups=[serialize_group(item.group) for item in vehicle.groups if item.group],
         insurance_records=[FleetVehicleInsuranceRecordResponse.model_validate(item) for item in vehicle.insurance_records],

@@ -80,6 +80,7 @@ type VehicleTrimResponse = {
   horsepower_hp?: number | null;
   euro_class?: string | null;
   source: string;
+  raw_payload?: Record<string, unknown> | null;
   model?: {
     name: string;
     vehicle_category: string;
@@ -143,6 +144,21 @@ type VehicleRecognitionResponse = {
   }>;
 };
 
+function isCachedProvider(provider?: string | null) {
+  return (provider || '').toLowerCase().includes('_cache');
+}
+
+type VehicleRecognitionApplyResponse = {
+  id: number;
+  targa: string;
+  marca: string;
+  modello: string;
+  tipo: string;
+  insurance_company_saved: boolean;
+  insurance_record_saved: boolean;
+  insurance_save_message?: string | null;
+};
+
 type RecognitionStep = 'confirm' | 'running' | 'result' | 'empty' | 'applying';
 
 function formatDate(value?: string | null) {
@@ -190,6 +206,51 @@ function statusText(value: string) {
   if (value === 'active') return 'Attiva';
   if (value === 'expired') return 'Scaduta';
   return 'Non reperita';
+}
+
+function insuranceRemoteMessage(remote?: VehicleRecognitionResponse['insurance_remote'] | null) {
+  if (!remote) return 'Assicurazione non interrogata.';
+  if (remote.company && remote.expiry) return `${remote.company} - scadenza ${remote.expiry}`;
+  if (remote.company) return `${remote.company} - scadenza non disponibile: verra salvata solo la compagnia.`;
+  if (remote.is_insured === true) return 'Il provider indica assicurazione attiva, ma non restituisce compagnia/scadenza salvabili.';
+  if (remote.is_insured === false) return 'Il provider indica assicurazione non attiva o non disponibile.';
+  return remote.error_message || 'Assicurazione non reperita dal provider.';
+}
+
+function recognitionEmptyTitle(result: VehicleRecognitionResponse | null) {
+  if (result?.lookup.status === 'empty' || result?.lookup.status === 'not_found') {
+    return 'Provider senza dati aggiornabili';
+  }
+  return 'Nessun dato aggiornabile';
+}
+
+function recognitionEmptyMessage(result: VehicleRecognitionResponse | null) {
+  if (!result) return 'Ricerca targa non riuscita.';
+  if (result.lookup.error_message) return result.lookup.error_message;
+  if (result.lookup.status === 'empty' || result.lookup.status === 'not_found') {
+    return 'Il provider non ha restituito dati tecnici salvabili per questa targa. Il risultato e stato registrato per evitare nuove chiamate inutili.';
+  }
+  return `Il provider ha restituito stato ${result.lookup.status || 'non definito'}.`;
+}
+
+function flattenPayload(value: unknown, prefix = '', rows: Array<{ label: string; value: string }> = []) {
+  if (value === null || value === undefined || value === '') return rows;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => flattenPayload(item, `${prefix}[${index}]`, rows));
+    return rows;
+  }
+  if (typeof value === 'object') {
+    Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
+      flattenPayload(item, prefix ? `${prefix}.${key}` : key, rows);
+    });
+    return rows;
+  }
+  rows.push({ label: prefix, value: String(value) });
+  return rows;
+}
+
+function providerFields(payload?: Record<string, unknown> | null) {
+  return flattenPayload(payload).filter((item) => item.label && item.value).slice(0, 100);
 }
 
 function TextareaField({
@@ -449,14 +510,15 @@ export default function FleetRegistryClientPage() {
     await loadMeta();
   };
 
-  const startRecognition = async () => {
+  const startRecognition = async (forceRefresh = false) => {
     if (!recognitionVehicle) return;
     setRecognitionElapsed(0);
     setRecognitionStep('running');
     setRecognitionResult(null);
     setError(null);
     try {
-      const response = await api.post<VehicleRecognitionResponse>(`/fleet/vehicles/${recognitionVehicle.id}/recognition`, {});
+      const qs = forceRefresh ? '?force_refresh=true' : '';
+      const response = await api.post<VehicleRecognitionResponse>(`/fleet/vehicles/${recognitionVehicle.id}/recognition${qs}`, {});
       setRecognitionResult(response);
       setRecognitionStep(response.lookup.status === 'found' && response.lookup.trim ? 'result' : 'empty');
     } catch (err) {
@@ -480,11 +542,11 @@ export default function FleetRegistryClientPage() {
   const applyRecognition = async () => {
     if (!recognitionVehicle || !recognitionResult?.lookup.trim?.id) return;
     setRecognitionStep('applying');
-    await api.post(`/fleet/vehicles/${recognitionVehicle.id}/recognition/apply`, {
+    const applyResponse = await api.post<VehicleRecognitionApplyResponse>(`/fleet/vehicles/${recognitionVehicle.id}/recognition/apply`, {
       trim_id: recognitionResult.lookup.trim.id,
       note: `Riconoscimento targa ${recognitionVehicle.targa} da provider ${recognitionResult.lookup.provider}.`,
     });
-    setActionMessage(`Dati mezzo ${recognitionVehicle.targa} aggiornati da riconoscimento targa.`);
+    setActionMessage(`Dati mezzo ${recognitionVehicle.targa} aggiornati. ${applyResponse.insurance_save_message || ''}`.trim());
     setRecognitionVehicle(null);
     setRecognitionResult(null);
     setRecognitionStep('confirm');
@@ -877,8 +939,13 @@ export default function FleetRegistryClientPage() {
               Chiudi
             </Button>
             {recognitionStep === 'confirm' && (
-              <Button type="button" onClick={() => startRecognition()}>
+              <Button type="button" onClick={() => startRecognition(false)}>
                 Avvia riconoscimento
+              </Button>
+            )}
+            {(recognitionStep === 'result' || recognitionStep === 'empty') && (
+              <Button type="button" variant="outline" onClick={() => startRecognition(true)}>
+                Riesegui dal provider
               </Button>
             )}
             {recognitionStep === 'result' && recognitionResult?.lookup.trim && (
@@ -895,6 +962,9 @@ export default function FleetRegistryClientPage() {
               <div className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
                 <p className="text-sm text-[var(--cv-neutral-700)]">
                   Stai per cercare i dati tecnici della targa <strong>{recognitionVehicle.targa}</strong>. Per targhe reali il provider puo consumare un credito.
+                </p>
+                <p className="mt-2 text-sm text-[var(--cv-neutral-600)]">
+                  Se esiste gia un risultato salvato, il sistema usa la cache per non consumare crediti. Dopo il risultato puoi forzare una nuova chiamata con "Riesegui dal provider".
                 </p>
                 <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                   <span>Attuale: <strong>{recognitionVehicle.marca} {recognitionVehicle.modello}</strong></span>
@@ -916,6 +986,13 @@ export default function FleetRegistryClientPage() {
               <div className="space-y-4">
                 {recognitionResult?.lookup.trim ? (
                   <div className="space-y-4">
+                    {isCachedProvider(recognitionResult.lookup.provider) && (
+                      <NoticeBanner
+                        title="Dati recuperati dalla cache"
+                        message="Non e stata fatta una nuova chiamata a Targa.co.it. Usa Riesegui dal provider solo se vuoi consumare un credito per aggiornare i dati remoti."
+                        tone="success"
+                      />
+                    )}
                     <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
                       <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Marca</p>
@@ -946,9 +1023,7 @@ export default function FleetRegistryClientPage() {
                     <div className="rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
                       <p className="text-sm font-semibold text-[var(--cv-neutral-900)]">Assicurazione recuperata dal provider</p>
                       <p className="mt-1 text-sm text-[var(--cv-neutral-700)]">
-                        {recognitionResult.insurance_remote?.company
-                          ? `${recognitionResult.insurance_remote.company} · scadenza ${recognitionResult.insurance_remote.expiry || 'non indicata'}`
-                          : recognitionResult.insurance_remote?.error_message || 'Assicurazione non reperita dal provider.'}
+                        {insuranceRemoteMessage(recognitionResult.insurance_remote)}
                       </p>
                     </div>
                     <div className="rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
@@ -992,12 +1067,37 @@ export default function FleetRegistryClientPage() {
                         )) : <p className="text-sm text-[var(--cv-neutral-600)]">Nessun log API disponibile.</p>}
                       </div>
                     </div>
+                    <div className="rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                      <p className="text-sm font-semibold text-[var(--cv-neutral-900)]">Dati completi recuperati dal provider</p>
+                      <div className="mt-3 grid max-h-72 gap-2 overflow-y-auto text-xs sm:grid-cols-2">
+                        {providerFields(recognitionResult.lookup.trim.raw_payload).length ? providerFields(recognitionResult.lookup.trim.raw_payload).map((item) => (
+                          <div key={`${item.label}-${item.value}`} className="rounded-[var(--cv-radius-sm)] bg-white px-3 py-2">
+                            <p className="font-semibold text-[var(--cv-neutral-600)]">{item.label}</p>
+                            <p className="mt-1 text-[var(--cv-neutral-900)]">{item.value}</p>
+                          </div>
+                        )) : <p className="text-sm text-[var(--cv-neutral-600)]">Nessun payload esteso disponibile.</p>}
+                      </div>
+                    </div>
                   </div>
                 ) : (
-                  <NoticeBanner
-                    title="Nessun dato aggiornabile"
-                    message={recognitionResult?.lookup.error_message || `Il provider ha restituito stato ${recognitionResult?.lookup.status || 'non definito'}.`}
-                  />
+                  <div className="space-y-3">
+                    <NoticeBanner
+                      title={recognitionEmptyTitle(recognitionResult)}
+                      message={recognitionEmptyMessage(recognitionResult)}
+                    />
+                    <div className="rounded-[var(--cv-radius-md)] border p-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                      <p className="text-sm font-semibold text-[var(--cv-neutral-900)]">Log attivita API</p>
+                      <div className="mt-2 max-h-52 space-y-2 overflow-y-auto">
+                        {recognitionResult?.api_logs.length ? recognitionResult.api_logs.map((item) => (
+                          <div key={item.id} className="rounded-[var(--cv-radius-sm)] bg-white px-3 py-2 text-xs text-[var(--cv-neutral-700)]">
+                            <p><span className="font-semibold">{item.provider}</span> - {item.lookup_type} - {item.status}{item.http_status ? ` - HTTP ${item.http_status}` : ''}</p>
+                            {item.error_message && <p className="mt-1 text-[var(--cv-danger)]">{item.error_message}</p>}
+                            {item.created_at && <p className="mt-1 text-[var(--cv-neutral-500)]">{new Date(item.created_at).toLocaleString('it-IT')}</p>}
+                          </div>
+                        )) : <p className="text-sm text-[var(--cv-neutral-600)]">Nessun log API disponibile.</p>}
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             )}

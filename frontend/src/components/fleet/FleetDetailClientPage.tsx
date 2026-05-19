@@ -80,6 +80,32 @@ type VehicleDetail = {
   scadenza_verifica_sicurezza?: string | null;
   tracker_enabled: boolean;
   note?: string | null;
+  trim?: {
+    id: number;
+    commercial_name?: string | null;
+    production_year?: number | null;
+    engine_type: string;
+    engine_code?: string | null;
+    displacement_cc?: number | null;
+    horsepower_hp?: number | null;
+    torque_nm?: number | null;
+    transmission?: string | null;
+    drive_type?: string | null;
+    body_style?: string | null;
+    doors?: number | null;
+    seats?: number | null;
+    euro_class?: string | null;
+    co2_g_km?: number | null;
+    fuel_consumption_l_100km?: string | number | null;
+    wheelbase_mm?: number | null;
+    length_mm?: number | null;
+    width_mm?: number | null;
+    height_mm?: number | null;
+    gross_weight_kg?: number | null;
+    tow_capacity_kg?: number | null;
+    source: string;
+    raw_payload?: Record<string, unknown> | null;
+  } | null;
   vehicle_type?: {
     id: number;
     name: string;
@@ -197,6 +223,26 @@ function formatDate(value?: string | null) {
 function formatDateTime(value?: string | null) {
   if (!value) return '—';
   return new Date(value).toLocaleString('it-IT');
+}
+
+function flattenPayload(value: unknown, prefix = '', rows: Array<{ label: string; value: string }> = []) {
+  if (value === null || value === undefined || value === '') return rows;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => flattenPayload(item, `${prefix}[${index}]`, rows));
+    return rows;
+  }
+  if (typeof value === 'object') {
+    Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
+      flattenPayload(item, prefix ? `${prefix}.${key}` : key, rows);
+    });
+    return rows;
+  }
+  rows.push({ label: prefix, value: String(value) });
+  return rows;
+}
+
+function providerFields(payload?: Record<string, unknown> | null) {
+  return flattenPayload(payload).filter((item) => item.label && item.value).slice(0, 120);
 }
 
 function TextareaField({
@@ -801,6 +847,32 @@ export default function FleetDetailClientPage() {
                   <Info label="Note" value={vehicle.note || '—'} />
                 </div>
               </Card>
+
+              {vehicle.trim && (
+                <Card padding="md">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Dati tecnici provider</h3>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Info label="Versione" value={vehicle.trim.commercial_name || 'â€”'} />
+                      <Info label="Codice motore" value={vehicle.trim.engine_code || 'â€”'} />
+                      <Info label="Cilindrata" value={vehicle.trim.displacement_cc ? `${vehicle.trim.displacement_cc} cc` : 'â€”'} />
+                      <Info label="Potenza" value={vehicle.trim.horsepower_hp ? `${vehicle.trim.horsepower_hp} CV` : 'â€”'} />
+                      <Info label="Porte" value={vehicle.trim.doors ? String(vehicle.trim.doors) : 'â€”'} />
+                      <Info label="Posti" value={vehicle.trim.seats ? String(vehicle.trim.seats) : 'â€”'} />
+                      <Info label="CO2" value={vehicle.trim.co2_g_km ? `${vehicle.trim.co2_g_km} g/km` : 'â€”'} />
+                      <Info label="Fonte" value={vehicle.trim.source || 'â€”'} />
+                    </div>
+                    <div className="grid max-h-72 gap-2 overflow-y-auto text-xs sm:grid-cols-2">
+                      {providerFields(vehicle.trim.raw_payload).length ? providerFields(vehicle.trim.raw_payload).map((item) => (
+                        <div key={`${item.label}-${item.value}`} className="rounded-[var(--cv-radius-sm)] bg-white px-3 py-2">
+                          <p className="font-semibold text-[var(--cv-neutral-600)]">{item.label}</p>
+                          <p className="mt-1 text-[var(--cv-neutral-900)]">{item.value}</p>
+                        </div>
+                      )) : <p className="text-sm text-[var(--cv-neutral-600)]">Nessun payload esteso disponibile.</p>}
+                    </div>
+                  </div>
+                </Card>
+              )}
 
               <Card padding="md">
                 <div className="space-y-4">

@@ -19,6 +19,7 @@ Il flusso corretto e':
 6. mostra in modale dati tecnici, assicurazione remota, revisioni locali e log;
 7. l'utente conferma;
 8. `recognition/apply` aggiorna il mezzo senza chiamare di nuovo provider esterni.
+9. Con Targa.co.it/RegCheck vengono aggiornati dati tecnici, eventuale telaio e assicurazione corrente se completa; le revisioni italiane non sono fornite dal provider e restano storico locale.
 
 ## Storico mezzo
 
@@ -41,4 +42,3 @@ La lista unica deve ordinare i mezzi cosi':
 2. una tra assicurazione e revisione attiva;
 3. dati tecnici presenti ma assicurazione/revisione scadute o mancanti;
 4. solo targa o dati minimi.
-

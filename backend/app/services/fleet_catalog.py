@@ -291,12 +291,13 @@ class FleetCatalogService:
             errors=errors,
         )
 
-    def lookup_external(self, lookup_type: str, lookup_key: str, persist: bool = True) -> ExternalLookupResult:
+    def lookup_external(self, lookup_type: str, lookup_key: str, persist: bool = True, force_refresh: bool = False) -> ExternalLookupResult:
         normalized_type = normalize_catalog_key(lookup_type).replace(" ", "_")
         key = (lookup_key or "").strip().upper()
-        cached = self._cached_lookup_result(normalized_type, key)
-        if cached:
-            return cached
+        if not force_refresh:
+            cached = self._cached_lookup_result(normalized_type, key)
+            if cached:
+                return cached
         if normalized_type == "plate":
             result = self._lookup_plate_provider(key)
         elif normalized_type == "vin":
@@ -331,7 +332,7 @@ class FleetCatalogService:
     def _cached_lookup_result(self, lookup_type: str, lookup_key: str) -> ExternalLookupResult | None:
         if lookup_type not in {"plate", "vin"}:
             return None
-        item = (
+        found_item = (
             self.db.query(VehicleExternalLookup)
             .options(joinedload(VehicleExternalLookup.trim).joinedload(VehicleTrim.model).joinedload(VehicleModel.brand))
             .filter(
@@ -343,24 +344,45 @@ class FleetCatalogService:
             .order_by(VehicleExternalLookup.id.desc())
             .first()
         )
-        if not item or not item.trim:
-            return None
-        return ExternalLookupResult(
-            provider=f"{item.provider}_cache",
-            lookup_type=lookup_type,
-            lookup_key=lookup_key,
-            status="found",
-            trim=self._trim_spec_from_model(item.trim),
-            trim_id=item.trim_id,
-            raw_payload=item.raw_payload,
-            http_status=item.http_status,
-            source_notes=["Dati recuperati dalla cache locale: nessuna nuova chiamata al provider targa."],
+        if found_item and found_item.trim:
+            return ExternalLookupResult(
+                provider=f"{found_item.provider}_cache",
+                lookup_type=lookup_type,
+                lookup_key=lookup_key,
+                status="found",
+                trim=self._trim_spec_from_model(found_item.trim),
+                trim_id=found_item.trim_id,
+                raw_payload=found_item.raw_payload,
+                http_status=found_item.http_status,
+                source_notes=["Dati recuperati dalla cache locale: nessuna nuova chiamata al provider targa."],
+            )
+        empty_item = (
+            self.db.query(VehicleExternalLookup)
+            .filter(
+                VehicleExternalLookup.lookup_type == lookup_type,
+                VehicleExternalLookup.normalized_lookup_key == normalize_catalog_key(lookup_key),
+                VehicleExternalLookup.status.in_(("empty", "not_found")),
+            )
+            .order_by(VehicleExternalLookup.id.desc())
+            .first()
         )
+        if empty_item:
+            return ExternalLookupResult(
+                provider=f"{empty_item.provider}_cache",
+                lookup_type=lookup_type,
+                lookup_key=lookup_key,
+                status=empty_item.status,
+                raw_payload=empty_item.raw_payload,
+                http_status=empty_item.http_status,
+                error_message=empty_item.error_message,
+                source_notes=["Esito senza dati recuperato dalla cache locale: nessuna nuova chiamata al provider targa."],
+            )
+        return None
 
     def _trim_spec_from_model(self, trim: VehicleTrim) -> TrimSpec:
         return TrimSpec(
             brand_name=trim.model.brand.name,
-            model_name=trim.model.name,
+            model_name=self.clean_regcheck_model_name(trim.model.name),
             vehicle_category=trim.model.vehicle_category,
             commercial_name=trim.commercial_name,
             production_year=trim.production_year,
@@ -387,21 +409,23 @@ class FleetCatalogService:
             raw_payload=trim.raw_payload,
         )
 
-    def lookup_italy_insurance(self, plate: str) -> InsuranceLookupResult:
+    def lookup_italy_insurance(self, plate: str, force_refresh: bool = False) -> InsuranceLookupResult:
         provider_name = settings.FLEET_PLATE_PROVIDER.strip().lower()
         if provider_name in {"openapi", "openapi_automotive", "openapi_sandbox"}:
-            cached = self._cached_insurance_result(plate)
-            if cached:
-                return cached
+            if not force_refresh:
+                cached = self._cached_insurance_result(plate)
+                if cached:
+                    return cached
             return self._lookup_openapi_insurance(plate)
 
         provider = "targa_co_it_insurance"
         username = (settings.FLEET_PLATE_USERNAME or settings.FLEET_PLATE_API_KEY).strip()
         if not settings.FLEET_EXTERNAL_LOOKUP_ENABLED or not username:
             return InsuranceLookupResult(provider=provider, lookup_key=plate, status="not_configured", error_message="Provider assicurazione targa non configurato")
-        cached = self._cached_insurance_result(plate)
-        if cached:
-            return cached
+        if not force_refresh:
+            cached = self._cached_insurance_result(plate)
+            if cached:
+                return cached
         base_url = "https://www.targa.co.it/api/bespokeapi.asmx"
         url = f"{base_url}/CheckInsuranceStatusItaly?{urlencode({'regNumber': self._normalize_license_plate(plate), 'username': username})}"
         request = Request(url, headers={"Accept": "text/xml,application/xml"})
@@ -576,6 +600,7 @@ class FleetCatalogService:
             .first()
         )
         if trim:
+            self._sync_trim_spec(trim, spec)
             self._sync_tire_fitments(trim, spec.tire_fitments)
             return trim
         trim = VehicleTrim(
@@ -609,6 +634,34 @@ class FleetCatalogService:
         self._sync_tire_fitments(trim, spec.tire_fitments)
         self.db.refresh(trim, attribute_names=["model"])
         return trim
+
+    def _sync_trim_spec(self, trim: VehicleTrim, spec: TrimSpec) -> None:
+        updates = {
+            "commercial_name": spec.commercial_name,
+            "engine_code": spec.engine_code,
+            "torque_nm": spec.torque_nm,
+            "transmission": spec.transmission,
+            "drive_type": spec.drive_type,
+            "body_style": spec.body_style,
+            "doors": spec.doors,
+            "seats": spec.seats,
+            "euro_class": spec.euro_class,
+            "co2_g_km": spec.co2_g_km,
+            "fuel_consumption_l_100km": spec.fuel_consumption_l_100km,
+            "wheelbase_mm": spec.wheelbase_mm,
+            "length_mm": spec.length_mm,
+            "width_mm": spec.width_mm,
+            "height_mm": spec.height_mm,
+            "gross_weight_kg": spec.gross_weight_kg,
+            "tow_capacity_kg": spec.tow_capacity_kg,
+        }
+        for field_name, value in updates.items():
+            if value not in (None, ""):
+                setattr(trim, field_name, value)
+        if spec.raw_payload:
+            trim.raw_payload = spec.raw_payload
+        if spec.source and spec.source != "manuale":
+            trim.source = spec.source
 
     def _sync_tire_fitments(self, trim: VehicleTrim, tire_specs: tuple[TireFitmentSpec, ...]) -> None:
         existing = {
@@ -718,7 +771,30 @@ class FleetCatalogService:
                 source_notes=["Fonte Targa.co.it/RegCheck: dati salvati nel catalogo locale per ridurre richieste successive."],
             )
         except HTTPError as exc:
-            return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc), http_status=exc.code)
+            message = str(exc)
+            try:
+                body = exc.read().decode("utf-8", errors="replace")
+                if body:
+                    message = body[:1000]
+            except Exception:
+                pass
+            if exc.code == 500:
+                message = (
+                    "Targa.co.it/RegCheck ha restituito HTTP 500. Per questo provider il 500 puo' indicare "
+                    "targa non trovata, non coperta dal servizio o dato remoto non disponibile; l'esito viene "
+                    "salvato in cache per evitare nuove chiamate inutili."
+                )
+                return ExternalLookupResult(
+                    provider=provider,
+                    lookup_type="plate",
+                    lookup_key=plate,
+                    status="empty",
+                    raw_payload={"provider_message": message},
+                    error_message=message,
+                    http_status=exc.code,
+                    source_notes=["Nessun dato tecnico salvabile restituito dal provider."],
+                )
+            return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=message, http_status=exc.code)
         except (ET.ParseError, URLError, TimeoutError, ValueError) as exc:
             return ExternalLookupResult(provider=provider, lookup_type="plate", lookup_key=plate, status="error", error_message=str(exc))
 
@@ -968,15 +1044,18 @@ class FleetCatalogService:
         model = self._pick_nested_value(data, "ModelDescription", "CarModel", "model")
         if not brand or not model:
             return None
+        model_name = self.clean_regcheck_model_name(str(model))
+        version = self._pick_nested_value(data, "Version", "Variant", "Description")
+        commercial_name = version or (str(model) if model_name != str(model) else None)
         power_kw = self._to_int(self._pick_nested_value(data, "PowerKW", "Power", "KW"))
         power_hp = self._to_int(self._pick_nested_value(data, "PowerCV", "PowerHP", "CV", "horsepower_hp"))
         if not power_hp and power_kw:
             power_hp = round(power_kw * 1.34102)
         return TrimSpec(
             brand_name=str(brand),
-            model_name=str(model),
+            model_name=model_name,
             vehicle_category=self._map_body_class(self._pick_nested_value(data, "BodyStyle", "VehicleType", "vehicle_category")),
-            commercial_name=self._pick_nested_value(data, "Version", "Variant", "Description"),
+            commercial_name=commercial_name,
             production_year=self._to_int(self._pick_nested_value(data, "RegistrationYear", "Year", "ManufactureYearFrom")),
             engine_type=self._map_engine(self._pick_nested_value(data, "FuelType", "Fuel", "engine_type")),
             engine_code=self._pick_nested_value(data, "EngineCode", "EngineNumber"),
@@ -1052,6 +1131,40 @@ class FleetCatalogService:
     @staticmethod
     def _strip_xml_namespace(tag: str) -> str:
         return tag.rsplit("}", 1)[-1] if "}" in tag else tag
+
+    @staticmethod
+    def clean_regcheck_model_name(value: str | None) -> str:
+        """Rimuove codici piattaforma RegCheck dal modello mostrato sul mezzo.
+
+        Esempio: "D-MAX II (TFR, TFS)" resta informazione tecnica utile, ma
+        nella scheda mezzo deve comparire "D-MAX II".
+        """
+        text = (value or "").strip()
+        cleaned = re.sub(r"\s*\(([A-Z0-9]{2,6})(?:\s*,\s*[A-Z0-9]{2,6})+\)\s*$", "", text)
+        return cleaned.strip() or text
+
+    def clean_cached_trim_model_name(self, trim: VehicleTrim | None) -> None:
+        if not trim or not trim.model or not trim.model.brand:
+            return
+        cleaned = self.clean_regcheck_model_name(trim.model.name)
+        if cleaned == trim.model.name:
+            return
+        normalized = normalize_catalog_key(cleaned)
+        existing = (
+            self.db.query(VehicleModel)
+            .filter(
+                VehicleModel.brand_id == trim.model.brand_id,
+                VehicleModel.normalized_name == normalized,
+                VehicleModel.id != trim.model.id,
+            )
+            .first()
+        )
+        if existing:
+            trim.model_id = existing.id
+            trim.model = existing
+            return
+        trim.model.name = cleaned
+        trim.model.normalized_name = normalized
 
     def _extract_vehicle_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
         candidates: list[Any] = [payload]
@@ -1129,7 +1242,15 @@ class FleetCatalogService:
         text = str(value or "")
         matches = re.findall(r"\d{3,5}(?:[,.]\d+)?", text)
         if not matches:
-            return direct
+            decimal_liters = re.search(r"\b\d+[,.]\d+\b", text)
+            if decimal_liters:
+                try:
+                    liters = float(decimal_liters.group(0).replace(",", "."))
+                    if 0 < liters < 20:
+                        return int(round(liters * 1000))
+                except ValueError:
+                    pass
+            return direct if direct and direct >= 100 else None
         try:
             return int(float(matches[0].replace(",", ".")))
         except ValueError:

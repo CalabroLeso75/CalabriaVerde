@@ -92,6 +92,7 @@ class FleetVehicleTrimResponse(BaseModel):
     gross_weight_kg: Optional[int] = None
     tow_capacity_kg: Optional[int] = None
     source: str = "manuale"
+    raw_payload: Optional[dict] = None
     model: Optional[FleetVehicleModelResponse] = None
     tire_fitments: list[FleetVehicleTireFitmentResponse] = Field(default_factory=list)
 
@@ -194,6 +195,9 @@ class FleetVehicleRecognitionApplyResponse(BaseModel):
     alimentazione: Optional[str] = None
     immatricolazione_anno: Optional[int] = None
     euro_classe: Optional[str] = None
+    insurance_company_saved: bool = False
+    insurance_record_saved: bool = False
+    insurance_save_message: Optional[str] = None
 
 
 class FleetVehicleRecognitionInsuranceRemote(BaseModel):
@@ -682,6 +686,7 @@ class FleetVehicleDetailResponse(BaseModel):
     last_longitude: Optional[Decimal] = None
     last_position_at: Optional[datetime] = None
     note: Optional[str] = None
+    trim: Optional[FleetVehicleTrimResponse] = None
     vehicle_type: Optional[FleetVehicleTypeResponse] = None
     groups: list[FleetGroupResponse] = Field(default_factory=list)
     insurance_records: list[FleetVehicleInsuranceRecordResponse] = Field(default_factory=list)

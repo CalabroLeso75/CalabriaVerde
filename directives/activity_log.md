@@ -473,3 +473,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** `py_compile` OK, `npm run lint` senza errori bloccanti, `npm run build` OK, file RSC puntati online `200`, lookup campione `BN071VN` `found`, endpoint `https://www.targa.co.it/api/reg.asmx`, timeout `55`, crediti invariati `110 -> 110`.  
 **Note utili:** se ricompaiono 504 su file `__next...txt`, verificare che lo script `create-rsc-aliases.mjs` sia stato eseguito dopo la build e prima del deploy.
+
+## 2026-05-19 10:20:00 - Riconoscimento mezzo da tessera
+
+**Agente:** Codex orchestrazione principale  
+**Obiettivo collegato:** OBJ-007 - Attivazione Parco Macchine  
+**Azione svolta:** aggiunto pulsante `Riconosci mezzo` dentro ogni tessera dell'anagrafica mezzi. Il flusso apre una modale, chiede conferma, mostra contatore durante l'estrazione dati da targa, espone i dati riconosciuti e aggiorna il mezzo solo dopo conferma. Aggiunto endpoint backend `/fleet/vehicles/{vehicle_id}/recognition/apply` per applicare l'allestimento riconosciuto al mezzo esistente e lasciare nota nello storico testuale del mezzo.  
+**File coinvolti:** `backend/app/api/fleet/router.py`, `backend/app/schemas/fleet.py`, `frontend/src/components/fleet/FleetRegistryClientPage.tsx`.  
+**Esito:** completato e promosso su Test.  
+**Verifiche eseguite:** `py_compile` OK, `npm run lint` senza errori bloccanti, `npm run build` OK, backend Test `active`, pagina `https://smart-cv.it/test/fleet/anagrafica/` `200`, smoke API lista mezzi OK.  
+**Note utili:** il riconoscimento su targa reale consuma credito solo dopo conferma utente nel modale; evitare smoke test con targhe reali non autorizzate.

@@ -179,6 +179,23 @@ class FleetCatalogExternalLookupResponse(BaseModel):
     source_notes: list[str] = Field(default_factory=list)
 
 
+class FleetVehicleRecognitionApplyRequest(BaseModel):
+    trim_id: int
+    note: Optional[str] = None
+
+
+class FleetVehicleRecognitionApplyResponse(BaseModel):
+    id: int
+    trim_id: int
+    targa: str
+    marca: str
+    modello: str
+    tipo: str
+    alimentazione: Optional[str] = None
+    immatricolazione_anno: Optional[int] = None
+    euro_classe: Optional[str] = None
+
+
 class FleetCatalogImportRequest(BaseModel):
     provider: str = "nhtsa"
     import_all_makes: bool = True

@@ -66,6 +66,35 @@ type VehicleListResponse = {
   pages: number;
 };
 
+type VehicleTrimResponse = {
+  id: number;
+  commercial_name?: string | null;
+  production_year?: number | null;
+  engine_type: string;
+  displacement_cc?: number | null;
+  horsepower_hp?: number | null;
+  euro_class?: string | null;
+  source: string;
+  model?: {
+    name: string;
+    vehicle_category: string;
+    brand?: {
+      name: string;
+    } | null;
+  } | null;
+};
+
+type RecognitionResponse = {
+  provider: string;
+  lookup_type: string;
+  lookup_key: string;
+  status: string;
+  error_message?: string | null;
+  trim?: VehicleTrimResponse | null;
+};
+
+type RecognitionStep = 'confirm' | 'running' | 'result' | 'empty' | 'applying';
+
 function formatDate(value?: string | null) {
   if (!value) return '—';
   return new Date(value).toLocaleDateString('it-IT');
@@ -157,6 +186,10 @@ export default function FleetRegistryClientPage() {
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [insuranceModalGroup, setInsuranceModalGroup] = useState<GroupItem | null>(null);
   const [revisionModalGroup, setRevisionModalGroup] = useState<GroupItem | null>(null);
+  const [recognitionVehicle, setRecognitionVehicle] = useState<VehicleItem | null>(null);
+  const [recognitionStep, setRecognitionStep] = useState<RecognitionStep>('confirm');
+  const [recognitionElapsed, setRecognitionElapsed] = useState(0);
+  const [recognitionResult, setRecognitionResult] = useState<RecognitionResponse | null>(null);
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<number[]>([]);
   const [groupVehicleSearch, setGroupVehicleSearch] = useState('');
 
@@ -234,6 +267,14 @@ export default function FleetRegistryClientPage() {
       alive = false;
     };
   }, [debouncedSearch, stato, vehicleTypeId, page]);
+
+  useEffect(() => {
+    if (recognitionStep !== 'running') return undefined;
+    const timer = window.setInterval(() => {
+      setRecognitionElapsed((current) => current + 1);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [recognitionStep]);
 
   const stateOptions = useMemo(() => ([
     { value: '', label: 'Tutti gli stati' },
@@ -350,6 +391,51 @@ export default function FleetRegistryClientPage() {
     });
     setRevisionModalGroup(null);
     await loadMeta();
+  };
+
+  const startRecognition = async () => {
+    if (!recognitionVehicle) return;
+    setRecognitionElapsed(0);
+    setRecognitionStep('running');
+    setRecognitionResult(null);
+    setError(null);
+    try {
+      const response = await api.post<RecognitionResponse>('/fleet/catalog/external-lookup', {
+        lookup_type: 'plate',
+        lookup_key: recognitionVehicle.targa,
+        persist: true,
+      });
+      setRecognitionResult(response);
+      setRecognitionStep(response.status === 'found' && response.trim ? 'result' : 'empty');
+    } catch (err) {
+      setRecognitionStep('empty');
+      setRecognitionResult({
+        provider: 'targa_co_it',
+        lookup_type: 'plate',
+        lookup_key: recognitionVehicle.targa,
+        status: 'error',
+        error_message: err instanceof Error ? err.message : 'Ricerca targa non riuscita.',
+      });
+    }
+  };
+
+  const applyRecognition = async () => {
+    if (!recognitionVehicle || !recognitionResult?.trim?.id) return;
+    setRecognitionStep('applying');
+    await api.post(`/fleet/vehicles/${recognitionVehicle.id}/recognition/apply`, {
+      trim_id: recognitionResult.trim.id,
+      note: `Riconoscimento targa ${recognitionVehicle.targa} da provider ${recognitionResult.provider}.`,
+    });
+    setActionMessage(`Dati mezzo ${recognitionVehicle.targa} aggiornati da riconoscimento targa.`);
+    setRecognitionVehicle(null);
+    setRecognitionResult(null);
+    setRecognitionStep('confirm');
+    const params = new URLSearchParams({ page: String(page), page_size: '12' });
+    if (debouncedSearch) params.set('search', debouncedSearch);
+    if (stato) params.set('stato', stato);
+    if (vehicleTypeId) params.set('vehicle_type_id', vehicleTypeId);
+    const response = await api.get<VehicleListResponse>(`/fleet/vehicles?${params.toString()}`);
+    setPayload(response);
   };
 
   return (
@@ -602,8 +688,8 @@ export default function FleetRegistryClientPage() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         {(payload?.items || []).map((vehicle) => (
-          <Link key={vehicle.id} href={`/fleet/dettaglio?id=${vehicle.id}`} className="block">
-            <Card padding="md" className="h-full transition-transform hover:-translate-y-0.5">
+          <Card key={vehicle.id} padding="md" className="h-full transition-transform hover:-translate-y-0.5">
+            <Link href={`/fleet/dettaglio?id=${vehicle.id}`} className="block">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>
@@ -660,8 +746,26 @@ export default function FleetRegistryClientPage() {
                 <span>{vehicle.localizzazione_corrente || 'Localizzazione non registrata'}</span>
                 <span>{vehicle.open_incidents} sinistri aperti</span>
               </div>
-            </Card>
-          </Link>
+            </Link>
+            <div className="mt-4 flex flex-wrap justify-end gap-2 border-t pt-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setRecognitionVehicle(vehicle);
+                  setRecognitionStep('confirm');
+                  setRecognitionResult(null);
+                  setRecognitionElapsed(0);
+                }}
+              >
+                Riconosci mezzo
+              </Button>
+              <Link href={`/fleet/dettaglio?id=${vehicle.id}`} className="inline-flex">
+                <Button type="button" size="sm">Dettaglio</Button>
+              </Link>
+            </div>
+          </Card>
         ))}
       </div>
 
@@ -682,6 +786,112 @@ export default function FleetRegistryClientPage() {
           onNext={() => setPage((current) => Math.min(payload.pages, current + 1))}
         />
       )}
+
+      <Modal
+        isOpen={Boolean(recognitionVehicle)}
+        onClose={() => {
+          if (recognitionStep === 'running' || recognitionStep === 'applying') return;
+          setRecognitionVehicle(null);
+          setRecognitionResult(null);
+          setRecognitionStep('confirm');
+        }}
+        title={`Riconoscimento mezzo${recognitionVehicle ? ` - ${recognitionVehicle.targa}` : ''}`}
+        description="Il sistema interroga il provider targa, salva l'allestimento nel catalogo e aggiorna il mezzo solo dopo conferma."
+        size="lg"
+        footer={(
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={recognitionStep === 'running' || recognitionStep === 'applying'}
+              onClick={() => {
+                setRecognitionVehicle(null);
+                setRecognitionResult(null);
+                setRecognitionStep('confirm');
+              }}
+            >
+              Chiudi
+            </Button>
+            {recognitionStep === 'confirm' && (
+              <Button type="button" onClick={() => startRecognition()}>
+                Avvia riconoscimento
+              </Button>
+            )}
+            {recognitionStep === 'result' && recognitionResult?.trim && (
+              <Button type="button" onClick={() => applyRecognition().catch((err) => setError(err.message || 'Aggiornamento mezzo non riuscito.'))}>
+                Aggiorna dati mezzo
+              </Button>
+            )}
+          </>
+        )}
+      >
+        {recognitionVehicle && (
+          <div className="space-y-4">
+            {recognitionStep === 'confirm' && (
+              <div className="rounded-[var(--cv-radius-md)] border p-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                <p className="text-sm text-[var(--cv-neutral-700)]">
+                  Stai per cercare i dati tecnici della targa <strong>{recognitionVehicle.targa}</strong>. Per targhe reali il provider puo consumare un credito.
+                </p>
+                <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                  <span>Attuale: <strong>{recognitionVehicle.marca} {recognitionVehicle.modello}</strong></span>
+                  <span>Tipo: <strong>{recognitionVehicle.vehicle_type_name || recognitionVehicle.tipo}</strong></span>
+                </div>
+              </div>
+            )}
+
+            {recognitionStep === 'running' && (
+              <div className="rounded-[var(--cv-radius-md)] border p-5 text-center" style={{ borderColor: 'var(--cv-border-subtle)' }}>
+                <div className="mx-auto mb-3 h-9 w-9 animate-spin rounded-full border-4 border-[var(--cv-primary-lighter)] border-t-[var(--cv-primary)]" />
+                <p className="font-semibold text-[var(--cv-neutral-900)]">Estrazione dati in corso</p>
+                <p className="mt-1 text-sm text-[var(--cv-neutral-600)]">Attendere, il provider puo richiedere fino a 55 secondi.</p>
+                <p className="mt-3 text-2xl font-bold text-[var(--cv-primary)]">{recognitionElapsed}s</p>
+              </div>
+            )}
+
+            {(recognitionStep === 'result' || recognitionStep === 'empty') && (
+              <div className="space-y-4">
+                {recognitionResult?.trim ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
+                      <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Marca</p>
+                      <p className="font-semibold">{recognitionResult.trim.model?.brand?.name || '-'}</p>
+                    </div>
+                    <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
+                      <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Modello</p>
+                      <p className="font-semibold">{recognitionResult.trim.model?.name || '-'}</p>
+                    </div>
+                    <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
+                      <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Versione</p>
+                      <p className="font-semibold">{recognitionResult.trim.commercial_name || '-'}</p>
+                    </div>
+                    <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
+                      <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Anno</p>
+                      <p className="font-semibold">{recognitionResult.trim.production_year || '-'}</p>
+                    </div>
+                    <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
+                      <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Alimentazione</p>
+                      <p className="font-semibold">{recognitionResult.trim.engine_type}</p>
+                    </div>
+                    <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
+                      <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Cilindrata / CV</p>
+                      <p className="font-semibold">{recognitionResult.trim.displacement_cc || '-'} cc · {recognitionResult.trim.horsepower_hp || '-'} CV</p>
+                    </div>
+                  </div>
+                ) : (
+                  <NoticeBanner
+                    title="Nessun dato aggiornabile"
+                    message={recognitionResult?.error_message || `Il provider ha restituito stato ${recognitionResult?.status || 'non definito'}.`}
+                  />
+                )}
+              </div>
+            )}
+
+            {recognitionStep === 'applying' && (
+              <NoticeBanner title="Aggiornamento in corso" message="Sto applicando i dati riconosciuti al mezzo." tone="success" />
+            )}
+          </div>
+        )}
+      </Modal>
 
       <Modal
         isOpen={groupModalOpen}

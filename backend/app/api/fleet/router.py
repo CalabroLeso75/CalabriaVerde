@@ -64,6 +64,8 @@ from app.schemas.fleet import (
     FleetVehicleListItem,
     FleetVehicleListResponse,
     FleetVehicleModelResponse,
+    FleetVehicleRecognitionApplyRequest,
+    FleetVehicleRecognitionApplyResponse,
     FleetVehicleRevisionCreate,
     FleetVehicleRevisionResponse,
     FleetVehicleTrimCreate,
@@ -467,6 +469,53 @@ async def lookup_catalog_external_data(
         http_status=result.http_status,
         trim=trim,
         source_notes=result.source_notes,
+    )
+
+
+@router.post("/vehicles/{vehicle_id}/recognition/apply", response_model=FleetVehicleRecognitionApplyResponse)
+async def apply_vehicle_recognition(
+    vehicle_id: int,
+    data: FleetVehicleRecognitionApplyRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    vehicle = load_vehicle_or_404(db, vehicle_id)
+    trim = (
+        db.query(VehicleTrim)
+        .options(joinedload(VehicleTrim.model).joinedload(VehicleModel.brand))
+        .filter(VehicleTrim.id == data.trim_id)
+        .first()
+    )
+    if not trim or not trim.model or not trim.model.brand:
+        raise HTTPException(status_code=404, detail="Allestimento riconosciuto non trovato")
+
+    previous = f"{vehicle.marca} {vehicle.modello}".strip()
+    vehicle.trim_id = trim.id
+    vehicle.marca = trim.model.brand.name
+    vehicle.modello = trim.model.name
+    vehicle.tipo = trim.model.vehicle_category
+    vehicle.immatricolazione_anno = trim.production_year or vehicle.immatricolazione_anno
+    vehicle.alimentazione = trim.engine_type or vehicle.alimentazione
+    vehicle.euro_classe = trim.euro_class or vehicle.euro_classe
+
+    note = data.note or "Dati tecnici aggiornati da riconoscimento targa."
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    vehicle.note = "\n".join(filter(None, [
+        vehicle.note,
+        f"[{stamp}] {note} Precedente: {previous}. Nuovo: {vehicle.marca} {vehicle.modello}. Operatore: {current_user.email}.",
+    ]))
+    db.commit()
+    db.refresh(vehicle)
+    return FleetVehicleRecognitionApplyResponse(
+        id=vehicle.id,
+        trim_id=vehicle.trim_id,
+        targa=vehicle.targa,
+        marca=vehicle.marca,
+        modello=vehicle.modello,
+        tipo=vehicle.tipo,
+        alimentazione=vehicle.alimentazione,
+        immatricolazione_anno=vehicle.immatricolazione_anno,
+        euro_classe=vehicle.euro_classe,
     )
 
 

@@ -1,8 +1,8 @@
 {
   "name": "Gestionale Calabria Verde",
   "short_name": "CV Gestionale",
-  "description": "Sistema gestionale aziendale di Calabria Verde — Regione Calabria",
-  "start_url": "/dashboard",
+  "description": "Sistema gestionale aziendale di Calabria Verde - Regione Calabria",
+  "start_url": "/test/dashboard/",
   "display": "standalone",
   "background_color": "#1A5C3A",
   "theme_color": "#1A5C3A",
@@ -20,24 +20,24 @@
   ],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "short_name": "Dashboard",
+      "name": "Cruscotto",
+      "short_name": "Cruscotto",
       "description": "Panoramica operativa",
-      "url": "/dashboard",
+      "url": "/test/dashboard/",
       "icons": [{ "src": "/test/assets/logo-calabriaverde.png", "sizes": "any" }]
     },
     {
       "name": "Antincendio AIB",
       "short_name": "AIB",
       "description": "Gestione eventi antincendio",
-      "url": "/aib",
+      "url": "/test/aib/",
       "icons": [{ "src": "/test/assets/logo-calabriaverde.png", "sizes": "any" }]
     },
     {
-      "name": "Risorse Umane",
-      "short_name": "HR",
+      "name": "Persone",
+      "short_name": "Persone",
       "description": "Gestione personale",
-      "url": "/hr",
+      "url": "/test/hr/",
       "icons": [{ "src": "/test/assets/logo-calabriaverde.png", "sizes": "any" }]
     }
   ],

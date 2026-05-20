@@ -6,7 +6,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "/test";
 export const metadata: Metadata = {
   title: "Gestionale Calabria Verde",
   description:
-    "Sistema gestionale aziendale per Calabria Verde — Ente per la gestione del patrimonio boschivo della Regione Calabria",
+    "Sistema gestionale aziendale per Calabria Verde - Ente per la gestione del patrimonio boschivo della Regione Calabria",
   keywords: "Calabria Verde, gestionale, patrimonio boschivo, antincendio, risorse umane",
   authors: [{ name: "Calabria Verde" }],
 };
@@ -37,6 +37,12 @@ export default function RootLayout({
                       registrations.forEach(function(registration) {
                         registration.unregister();
                       });
+                      return caches.keys();
+                    })
+                    .then(function(keys) {
+                      return Promise.all(keys.map(function(key) {
+                        return caches.delete(key);
+                      }));
                     })
                     .catch(function(err) {
                       console.warn('[SW] Cleanup fallito:', err);

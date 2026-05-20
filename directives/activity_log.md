@@ -703,3 +703,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato in collaudo locale e promosso su Test.
 **Verifiche eseguite:** build frontend OK; build frontend Test OK con `NEXT_PUBLIC_BASE_PATH=/test`; upload frontend Test OK; API health 200; pagina `fleet` 200; verifica SSH hosting su `dashboard/index.html`, `hr/interna/index.html`, `fleet/index.html`, `admin/index.html`.
 **Note utili:** mantenuta invariata la logica dati; intervento limitato a navigazione, microcopy, leggibilita e accessibilita.
+
+## 2026-05-20 16:20:00 - Dismissione service worker cache-first
+
+**Agente:** Codex orchestrazione principale
+**Obiettivo collegato:** UX-002 - Visibilita modifiche grafiche e pulizia cache
+**Azione svolta:** individuato che il vecchio service worker PWA usava una strategia cache-first con cache `cv-gestionale-v1`, quindi poteva mostrare pagine e chunk obsoleti dopo il deploy. Sostituito `sw.js` con un service worker di dismissione che svuota tutte le cache, prende controllo dei client e si disregistra. Aggiornato anche lo script globale in layout per cancellare cache e registrazioni, e corretto il manifest con percorsi `/test/...` e nuove etichette.
+**File coinvolti:** `frontend/public/sw.js`, `frontend/public/manifest.json`, `frontend/src/app/layout.tsx`.
+**Esito:** completato e promosso su Test.
+**Verifiche eseguite:** build frontend Test OK; upload frontend Test OK; verifica SSH hosting su `Gestionale/public/test/sw.js` e `manifest.json` con service worker di dismissione, `start_url=/test/dashboard/`, shortcut `Cruscotto` e `Persone`.
+**Note utili:** se un browser aveva gia installato il vecchio service worker, puo servire un refresh completo o una riapertura della pagina per far partire la pulizia; dopo l'attivazione non deve piu intercettare richieste.

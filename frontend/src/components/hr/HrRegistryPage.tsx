@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -10,6 +9,7 @@ import { Select } from '@/components/ui/Select';
 import { api } from '@/lib/api';
 import { MetricCard } from '@/components/common/MetricCard';
 import { NoticeBanner } from '@/components/common/NoticeBanner';
+import { ObjectCard } from '@/components/common/ObjectCard';
 import { PaginationBar } from '@/components/common/PaginationBar';
 import { SectionLead } from '@/components/common/SectionLead';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -80,6 +80,16 @@ function avatarColor(id: number): string {
     '#16A08522', '#E67E2222', '#2980B922', '#C0392B22',
   ];
   return colors[id % colors.length];
+}
+
+function objectStatusTone(stato: string): 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'neutral' {
+  const badge = STATO_BADGE[stato];
+  if (!badge) return 'neutral';
+  if (badge.variant === 'success') return 'success';
+  if (badge.variant === 'warning') return 'warning';
+  if (badge.variant === 'danger') return 'danger';
+  if (badge.variant === 'info') return 'info';
+  return 'neutral';
 }
 
 interface HrRegistryPageProps {
@@ -235,103 +245,69 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
 
       {error && <NoticeBanner title="Errore caricamento" message={error} tone="error" />}
 
-      <Card padding="none">
-        <div className="overflow-x-auto">
-          <table className="w-full" aria-label="Tabella anagrafica personale">
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--cv-neutral-200)', background: 'var(--cv-neutral-50)' }}>
-                {['Dipendente', 'Codice Fiscale', 'Mansione', 'Contratto', 'Tipo', 'Stato', 'Flag', ''].map((h) => (
-                  <th key={h} className="text-left text-xs font-bold uppercase tracking-wider px-4 py-3" style={{ color: 'var(--cv-neutral-500)' }}>
-                    {h}
-                  </th>
+      {loading ? (
+        <div className="grid gap-4 xl:grid-cols-2">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <Card key={index} padding="md" className="animate-pulse">
+              <div className="h-5 w-1/3 rounded bg-[var(--cv-neutral-200)]" />
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {Array.from({ length: 4 }).map((__, itemIndex) => (
+                  <div key={itemIndex} className="h-4 rounded bg-[var(--cv-neutral-200)]" />
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    {Array.from({ length: 8 }).map((__, j) => (
-                      <td key={j} className="px-4 py-3">
-                        <div className="h-4 rounded" style={{ background: 'var(--cv-neutral-200)', width: j === 0 ? '80%' : '60%' }} />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : employees.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center" style={{ color: 'var(--cv-neutral-500)' }}>
-                    <p className="font-semibold">Nessun record trovato</p>
-                    <p className="text-sm mt-1">Prova a modificare i filtri di ricerca</p>
-                  </td>
-                </tr>
-              ) : employees.map((emp) => {
-                const stato = STATO_BADGE[emp.stato] || { variant: 'neutral' as const, label: emp.stato };
-                return (
-                  <tr key={emp.id} style={{ borderBottom: '1px solid var(--cv-neutral-200)' }} className="transition-colors hover:bg-neutral-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: avatarColor(emp.id), color: 'var(--cv-primary)' }}>
-                          {getInitials(emp.nome, emp.cognome)}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-sm" style={{ color: 'var(--cv-neutral-900)' }}>
-                            {emp.cognome} {emp.nome}
-                          </p>
-                          <p className="text-xs" style={{ color: 'var(--cv-neutral-500)' }}>
-                            {emp.email_istituzionale || emp.email_personale || '-'}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-xs" style={{ color: 'var(--cv-neutral-700)' }}>{emp.codice_fiscale}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm" style={{ color: 'var(--cv-neutral-700)' }}>{emp.mansione || '-'}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
-                        {TIPO_CONTRATTO_LABEL[emp.tipo_contratto || ''] || emp.tipo_contratto || '-'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={emp.tipo === 'interno' ? 'primary' : 'info'} size="sm">
-                        {emp.tipo === 'interno' ? 'Interno' : 'Esterno'}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={stato.variant} size="sm" dot>{stato.label}</Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        {emp.is_aib_qualificato && <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: '#CC840018', color: '#CC8400' }}>AIB</span>}
-                        {emp.is_dos && <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: '#9B59B618', color: '#9B59B6' }}>DOS</span>}
-                        {emp.is_driver && <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: '#2980B918', color: '#2980B9' }}>AUT</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link href={withAppBasePath(`/hr/dettaglio?id=${emp.id}`)}>
-                        <Button variant="ghost" size="sm">Fascicolo</Button>
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+              </div>
+            </Card>
+          ))}
         </div>
+      ) : employees.length === 0 ? (
+        <Card padding="md">
+          <div className="py-8 text-center" style={{ color: 'var(--cv-neutral-500)' }}>
+            <p className="font-semibold">Nessun record trovato</p>
+            <p className="mt-1 text-sm">Prova a modificare i filtri di ricerca</p>
+          </div>
+        </Card>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-2">
+          {employees.map((emp) => {
+            const stato = STATO_BADGE[emp.stato] || { variant: 'neutral' as const, label: emp.stato };
+            const email = emp.email_istituzionale || emp.email_personale || '-';
+            return (
+              <ObjectCard
+                key={emp.id}
+                objectType={emp.tipo === 'interno' ? 'Persona interna' : 'Persona esterna'}
+                objectKey={emp.codice_fiscale}
+                title={`${emp.cognome} ${emp.nome}`}
+                subtitle={email}
+                status={stato.label}
+                statusTone={objectStatusTone(emp.stato)}
+                avatar={<span style={{ background: avatarColor(emp.id) }} className="flex h-full w-full items-center justify-center rounded-[var(--cv-radius-md)]">{getInitials(emp.nome, emp.cognome)}</span>}
+                draggable
+                properties={[
+                  { label: 'Mansione', value: emp.mansione || '-' },
+                  { label: 'Contratto', value: TIPO_CONTRATTO_LABEL[emp.tipo_contratto || ''] || emp.tipo_contratto || '-' },
+                  { label: 'Tipo', value: emp.tipo === 'interno' ? 'Interno' : 'Esterno', tone: emp.tipo === 'interno' ? 'primary' : 'info' },
+                  { label: 'Email', value: email },
+                ]}
+                relations={[
+                  ...(emp.is_aib_qualificato ? [{ label: 'Qualifica', value: 'AIB', tone: 'warning' as const }] : []),
+                  ...(emp.is_dos ? [{ label: 'Ruolo', value: 'DOS', tone: 'info' as const }] : []),
+                  ...(emp.is_driver ? [{ label: 'Abilitazione', value: 'Autista', tone: 'primary' as const }] : []),
+                ]}
+                actions={[{ label: 'Fascicolo', href: withAppBasePath(`/hr/dettaglio?id=${emp.id}`), variant: 'primary' }]}
+              />
+            );
+          })}
+        </div>
+      )}
 
-        {!loading && employees.length > 0 && (
-          <PaginationBar
-            label={`Mostrando ${((page - 1) * PAGE_SIZE) + 1}-${Math.min(page * PAGE_SIZE, total)} di ${total.toLocaleString('it-IT')} record`}
-            page={page}
-            pages={totalPages}
-            onPrev={() => setPage((p) => Math.max(1, p - 1))}
-            onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
-          />
-        )}
-      </Card>
+      {!loading && employees.length > 0 && (
+        <PaginationBar
+          label={`Mostrando ${((page - 1) * PAGE_SIZE) + 1}-${Math.min(page * PAGE_SIZE, total)} di ${total.toLocaleString('it-IT')} record`}
+          page={page}
+          pages={totalPages}
+          onPrev={() => setPage((p) => Math.max(1, p - 1))}
+          onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+        />
+      )}
     </div>
   );
 }

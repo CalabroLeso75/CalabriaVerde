@@ -683,3 +683,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato e promosso su Test.  
 **Verifiche eseguite:** build frontend Test OK; upload frontend Test OK; API health 200; verifica SSH hosting: `fleet/catalogo/index.html` e `fleet/dettaglio/index.html` aggiornati alle 23:28 del server.  
 **Note utili:** nessuna chiamata al provider targa e nessun consumo token API. I campi come kW, porte, posti, immagini, classe Euro, cambio, colore, polizza o revisione vengono esposti se presenti nel payload salvato; Targa.co.it/RegCheck finora ha restituito dati tecnici e assicurazione, mentre la revisione resta normalmente da storico locale/provider dedicato.
+
+## 2026-05-20 09:10:00 - Avvio design a oggetti e tessere
+
+**Agente:** Codex orchestrazione principale
+**Obiettivo collegato:** UX-001 - Rimodulazione grafica a oggetti collegabili
+**Azione svolta:** creato il componente comune `ObjectCard` per rappresentare ogni elemento primario come oggetto con chiave, tipo, stato, proprieta, relazioni, azioni e nota permessi. Applicato il pattern ad anagrafica mezzi e anagrafica personale interna/esterna, sostituendo la resa tabellare HR con tessere coerenti e predisposte al drag and drop. Documentato il modello grafico in `directives/documentation/object-card-design.md`.
+**File coinvolti:** `frontend/src/components/common/ObjectCard.tsx`, `frontend/src/components/fleet/FleetRegistryClientPage.tsx`, `frontend/src/components/hr/HrRegistryPage.tsx`, `directives/documentation/object-card-design.md`.
+**Esito:** completato in collaudo locale e promosso su Test.
+**Verifiche eseguite:** build frontend OK (`npm.cmd run build`); build frontend Test OK con `NEXT_PUBLIC_BASE_PATH=/test`; upload frontend Test OK; API health 200; verifica SSH hosting su `fleet/index.html`, `fleet/anagrafica/index.html`, `hr/interna/index.html`, `hr/esterna/index.html`.
+**Note utili:** la tessera mostra la visibilita come concetto UX, ma la sicurezza reale deve restare lato backend con filtro per ruoli, ambito organizzativo, modulo e privilegi puntuali.

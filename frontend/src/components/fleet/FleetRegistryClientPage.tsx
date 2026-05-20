@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
 import { NoticeBanner } from '@/components/common/NoticeBanner';
+import { ObjectCard } from '@/components/common/ObjectCard';
 import { PaginationBar } from '@/components/common/PaginationBar';
 import { SectionLead } from '@/components/common/SectionLead';
 import { Button } from '@/components/ui/Button';
@@ -167,40 +168,11 @@ function formatDate(value?: string | null) {
   return new Date(value).toLocaleDateString('it-IT');
 }
 
-function statusTone(status?: string | null) {
+function objectStatusTone(status?: string | null): 'primary' | 'warning' | 'danger' {
   const normalized = (status || '').toLowerCase();
-  if (normalized.includes('manca') || normalized.includes('fermo')) return 'var(--cv-danger)';
-  if (normalized.includes('manut')) return 'var(--cv-warning)';
-  return 'var(--cv-primary-dark)';
-}
-
-function expiryMeta(value?: string | null) {
-  if (!value) return { label: 'Mancante', color: 'var(--cv-danger)' };
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const expiry = new Date(value);
-  expiry.setHours(0, 0, 0, 0);
-  const days = Math.ceil((expiry.getTime() - today.getTime()) / 86400000);
-  if (days < 0) return { label: `${formatDate(value)} - scaduta`, color: 'var(--cv-danger)' };
-  if (days <= 30) return { label: `${formatDate(value)} - entro 30 gg`, color: 'var(--cv-warning)' };
-  return { label: formatDate(value), color: 'var(--cv-primary-dark)' };
-}
-
-function ExpiryBadge({ label, value }: { label: string; value?: string | null }) {
-  const meta = expiryMeta(value);
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>
-        {label}
-      </p>
-      <span
-        className="mt-1 inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-        style={{ background: `${meta.color}14`, color: meta.color }}
-      >
-        {meta.label}
-      </span>
-    </div>
-  );
+  if (normalized.includes('manca') || normalized.includes('fermo') || normalized.includes('scad')) return 'danger';
+  if (normalized.includes('manut') || normalized.includes('scaden')) return 'warning';
+  return 'primary';
 }
 
 function statusText(value: string) {
@@ -789,93 +761,43 @@ export default function FleetRegistryClientPage() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         {(payload?.items || []).map((vehicle) => (
-          <Card key={vehicle.id} padding="md" className="h-full transition-transform hover:-translate-y-0.5">
-            <Link href={withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}`)} className="block">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>
-                    {vehicle.targa}
-                  </p>
-                  <h3 className="mt-1 text-lg font-semibold" style={{ color: 'var(--cv-neutral-900)' }}>
-                    {vehicle.marca} {vehicle.modello}
-                  </h3>
-                  <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                    {vehicle.vehicle_type_name || vehicle.tipo}
-                  </p>
-                </div>
-                <span
-                  className="rounded-full px-3 py-1 text-xs font-semibold"
-                  style={{
-                    background: `${statusTone(vehicle.stato)}14`,
-                    color: statusTone(vehicle.stato),
-                  }}
-                >
-                  {vehicle.stato || 'Non definito'}
-                </span>
-              </div>
-              <div className="mt-3 rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] px-3 py-2 text-sm">
-                <p className="font-semibold text-[var(--cv-neutral-900)]">{vehicle.compliance_label}</p>
-                <p className="mt-1 text-xs text-[var(--cv-neutral-600)]">
-                  Assicurazione: {statusText(vehicle.insurance_status)} · Revisione: {statusText(vehicle.revision_status)}
-                </p>
-              </div>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <ExpiryBadge label="Assicurazione" value={vehicle.scadenza_assicurazione} />
-                <ExpiryBadge label="Revisione" value={vehicle.scadenza_revisione} />
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>
-                    Assegnato a
-                  </p>
-                  <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-700)' }}>
-                    {vehicle.current_assignment_unit || vehicle.current_assignee || 'Non assegnato'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>
-                    Utilizzatore corrente
-                  </p>
-                  <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-700)' }}>
-                    {vehicle.current_user_name || vehicle.current_assignee || 'Nessun utilizzo attivo'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--cv-neutral-500)' }}>
-                    Km attuali
-                  </p>
-                  <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-700)' }}>
-                    {vehicle.km_attuali.toLocaleString('it-IT')}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                <span>{vehicle.localizzazione_corrente || 'Localizzazione non registrata'}</span>
-                <span>{vehicle.open_incidents} sinistri aperti</span>
-              </div>
-            </Link>
-            <div className="mt-4 flex flex-wrap justify-end gap-2 border-t pt-4" style={{ borderColor: 'var(--cv-border-subtle)' }}>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => {
+          <ObjectCard
+            key={vehicle.id}
+            objectType="Mezzo"
+            objectKey={vehicle.targa}
+            title={`${vehicle.marca} ${vehicle.modello}`}
+            subtitle={vehicle.vehicle_type_name || vehicle.tipo}
+            status={vehicle.stato || 'Non definito'}
+            statusTone={objectStatusTone(vehicle.stato || vehicle.compliance_status)}
+            avatar={vehicle.targa.slice(0, 2)}
+            draggable
+            properties={[
+              { label: 'Compliance', value: vehicle.compliance_label, tone: objectStatusTone(vehicle.compliance_status) },
+              { label: 'Assicurazione', value: `${statusText(vehicle.insurance_status)} - ${formatDate(vehicle.scadenza_assicurazione)}`, tone: objectStatusTone(vehicle.insurance_status) },
+              { label: 'Revisione', value: `${statusText(vehicle.revision_status)} - ${formatDate(vehicle.scadenza_revisione)}`, tone: objectStatusTone(vehicle.revision_status) },
+              { label: 'Km attuali', value: vehicle.km_attuali.toLocaleString('it-IT') },
+              { label: 'Localizzazione', value: vehicle.localizzazione_corrente || 'Non registrata' },
+              { label: 'Sinistri aperti', value: vehicle.open_incidents },
+            ]}
+            relations={[
+              { label: 'Assegnato a', value: vehicle.current_assignment_unit || vehicle.current_assignee || 'Non assegnato', tone: vehicle.current_assignment_unit || vehicle.current_assignee ? 'primary' : 'neutral' },
+              { label: 'Utilizzatore', value: vehicle.current_user_name || vehicle.current_assignee || 'Nessun utilizzo attivo', tone: vehicle.current_user_name || vehicle.current_assignee ? 'info' : 'neutral' },
+            ]}
+            actions={[
+              {
+                label: 'Riconosci mezzo',
+                onClick: () => {
                   setRecognitionVehicle(vehicle);
                   setRecognitionStep('confirm');
                   setRecognitionResult(null);
                   setRecognitionElapsed(0);
-                }}
-              >
-                Riconosci mezzo
-              </Button>
-              <Link href={withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}`)} className="inline-flex">
-                <Button type="button" size="sm">Dettaglio</Button>
-              </Link>
-            </div>
-          </Card>
+                },
+              },
+              { label: 'Fascicolo', href: withAppBasePath(`/fleet/dettaglio?id=${vehicle.id}`), variant: 'primary' },
+            ]}
+          />
         ))}
       </div>
-
       {!error && payload && payload.items.length === 0 && (
         <Card padding="md">
           <p className="text-sm" style={{ color: 'var(--cv-neutral-600)' }}>

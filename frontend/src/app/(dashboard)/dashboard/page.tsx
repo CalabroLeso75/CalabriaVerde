@@ -73,10 +73,10 @@ const toneMap = {
 } as const;
 
 const quickLinks = [
-  { label: 'Nuovo Dipendente', href: '/hr/new', color: 'var(--cv-primary)' },
-  { label: 'Registrazioni Pending', href: '/admin/pending', color: 'var(--cv-warning)', badge: 7 },
-  { label: 'Mappa Squadre AIB', href: '/aib/map', color: 'var(--cv-danger)' },
-  { label: 'Report Magazzino', href: '/warehouse/report', color: 'var(--cv-info)' },
+  { label: 'Nuova persona', href: '/hr/new', color: 'var(--cv-primary)' },
+  { label: 'Accessi in attesa', href: '/admin/pending', color: 'var(--cv-warning)', badge: 7 },
+  { label: 'Mappa squadre AIB', href: '/aib/map', color: 'var(--cv-danger)' },
+  { label: 'Report magazzino', href: '/warehouse/report', color: 'var(--cv-info)' },
 ];
 
 export default function DashboardPage() {
@@ -90,7 +90,7 @@ export default function DashboardPage() {
             </p>
             <h2 className="mt-1 text-2xl font-bold">Benvenuto</h2>
             <p className="mt-2 max-w-3xl text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-              Vista sintetica delle attivita piu rilevanti del gestionale, con attenzione a personale,
+              Vista sintetica delle attività più rilevanti del gestionale, con attenzione a personale,
               mezzi, antincendio e punti operativi che richiedono un intervento rapido.
             </p>
           </div>

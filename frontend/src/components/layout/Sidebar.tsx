@@ -16,122 +16,117 @@ interface NavItem {
   children?: NavItem[];
 }
 
-const navigationItems: NavItem[] = [
+const dotIcon = <span className="inline-block h-2 w-2 rounded-full bg-current" />;
+
+const navigationSections: { title: string; items: NavItem[] }[] = [
   {
-    label: 'Dashboard',
-    href: '/dashboard',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Risorse Umane',
-    href: '/hr',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-    ),
-    children: [
+    title: 'Operatività',
+    items: [
       {
-        label: 'Anagrafica interna',
-        href: '/hr/interna',
-        icon: <span className="w-2 h-2 rounded-full bg-current inline-block" />,
+        label: 'Cruscotto',
+        href: '/dashboard',
+        icon: (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 13h8V3H3v10zm10 8h8v-8h-8v8zM3 21h8v-6H3v6zm10-10h8V3h-8v8z" />
+          </svg>
+        ),
       },
       {
-        label: 'Anagrafica esterna',
-        href: '/hr/esterna',
-        icon: <span className="w-2 h-2 rounded-full bg-current inline-block" />,
-      },
-    ],
-  },
-  {
-    label: 'Parco Macchine',
-    href: '/fleet',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-      </svg>
-    ),
-    children: [
-      {
-        label: 'Anagrafica mezzi',
-        href: '/fleet/anagrafica',
-        icon: <span className="w-2 h-2 rounded-full bg-current inline-block" />,
+        label: 'Persone',
+        href: '/hr',
+        icon: (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16 11c1.657 0 3-1.567 3-3.5S17.657 4 16 4s-3 1.567-3 3.5 1.343 3.5 3 3.5zM8 11c1.657 0 3-1.567 3-3.5S9.657 4 8 4 5 5.567 5 7.5 6.343 11 8 11zm0 2c-2.761 0-5 1.79-5 4v1h10v-1c0-2.21-2.239-4-5-4zm8 0c-.693 0-1.354.112-1.953.315A4.602 4.602 0 0116 17v1h5v-1c0-2.21-2.239-4-5-4z" />
+          </svg>
+        ),
+        children: [
+          { label: 'Personale interno', href: '/hr/interna', icon: dotIcon },
+          { label: 'Personale esterno', href: '/hr/esterna', icon: dotIcon },
+        ],
       },
       {
-        label: 'Catalogo tecnico',
-        href: '/fleet/catalogo',
-        icon: <span className="w-2 h-2 rounded-full bg-current inline-block" />,
+        label: 'Mezzi',
+        href: '/fleet',
+        icon: (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l1.5-5.25A3 3 0 018.38 8.5h7.24a3 3 0 012.88 2.25L20 16M5 16h14M7 16v2m10-2v2M8 18h.01M16 18h.01" />
+          </svg>
+        ),
+        children: [
+          { label: 'Tutti i mezzi', href: '/fleet/anagrafica', icon: dotIcon },
+          { label: 'Catalogo tecnico', href: '/fleet/catalogo', icon: dotIcon },
+          { label: 'Mappa mezzi', href: '/fleet/mappa', icon: dotIcon },
+        ],
       },
       {
-        label: 'Mappa mezzi',
-        href: '/fleet/mappa',
-        icon: <span className="w-2 h-2 rounded-full bg-current inline-block" />,
-      },
-    ],
-  },
-  {
-    label: 'Magazzino',
-    href: '/warehouse',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Antincendio (AIB)',
-    href: '/aib',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Sale Operative',
-    href: '/operations',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Strumenti',
-    href: '/tools',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 010 1.4l-1.6 1.6a2 2 0 102.8 2.8l1.6-1.6a1 1 0 011.4 1.4l-1.6 1.6a4 4 0 11-5.6-5.6l1.6-1.6a1 1 0 011.4 0z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.3 17.7a1 1 0 010-1.4l1.6-1.6a2 2 0 10-2.8-2.8l-1.6 1.6a1 1 0 01-1.4-1.4l1.6-1.6a4 4 0 115.6 5.6l-1.6 1.6a1 1 0 01-1.4 0z" />
-      </svg>
-    ),
-    children: [
-      {
-        label: 'Geografia',
-        href: '/tools/geography',
-        icon: <span className="w-2 h-2 rounded-full bg-current inline-block" />,
+        label: 'Magazzino',
+        href: '/warehouse',
+        icon: (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+        ),
       },
       {
-        label: 'Codice Fiscale',
-        href: '/tools/codice-fiscale',
-        icon: <span className="w-2 h-2 rounded-full bg-current inline-block" />,
+        label: 'AIB',
+        href: '/aib',
+        icon: (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Sale operative',
+        href: '/operations',
+        icon: (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 19V9m5 10V5m5 14v-7m5 7V8" />
+          </svg>
+        ),
       },
     ],
   },
   {
-    label: 'Amministrazione',
-    href: '/admin',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
+    title: 'Supporto',
+    items: [
+      {
+        label: 'Strumenti',
+        href: '/tools',
+        icon: (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 010 1.4l-1.6 1.6a2 2 0 102.8 2.8l1.6-1.6a1 1 0 011.4 1.4l-1.6 1.6a4 4 0 11-5.6-5.6l1.6-1.6a1 1 0 011.4 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.3 17.7a1 1 0 010-1.4l1.6-1.6a2 2 0 10-2.8-2.8l-1.6 1.6a1 1 0 01-1.4-1.4l1.6-1.6a4 4 0 115.6 5.6l-1.6 1.6a1 1 0 01-1.4 0z" />
+          </svg>
+        ),
+        children: [
+          { label: 'Geografia', href: '/tools/geography', icon: dotIcon },
+          { label: 'Codice fiscale', href: '/tools/codice-fiscale', icon: dotIcon },
+        ],
+      },
+    ],
+  },
+  {
+    title: 'Sistema',
+    items: [
+      {
+        label: 'Amministrazione',
+        href: '/admin',
+        icon: (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          </svg>
+        ),
+        children: [
+          { label: 'Utenti', href: '/admin/users', icon: dotIcon },
+          { label: 'Ruoli e permessi', href: '/admin/roles', icon: dotIcon },
+          { label: 'Contratti', href: '/admin/contracts', icon: dotIcon },
+          { label: 'Sedi e strutture', href: '/admin/organizations', icon: dotIcon },
+          { label: 'Impostazioni', href: '/admin/settings', icon: dotIcon },
+          { label: 'Documentazione', href: '/admin/documentation', icon: dotIcon },
+        ],
+      },
+    ],
   },
 ];
 
@@ -179,8 +174,16 @@ export function Sidebar() {
 
         {/* Navigazione */}
         <nav className="flex-1 overflow-y-auto px-2 py-4" role="navigation" aria-label="Navigazione principale">
-          <ul className="space-y-1">
-            {navigationItems.map((item) => {
+          <div className="space-y-5">
+            {navigationSections.map((section) => (
+              <div key={section.title}>
+                {!collapsed && (
+                  <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/42">
+                    {section.title}
+                  </p>
+                )}
+                <ul className="space-y-1">
+            {section.items.map((item) => {
               const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
               return (
                 <li key={item.href}>
@@ -242,7 +245,10 @@ export function Sidebar() {
                 </li>
               );
             })}
-          </ul>
+                </ul>
+              </div>
+            ))}
+          </div>
         </nav>
 
         {/* Toggle collapse */}

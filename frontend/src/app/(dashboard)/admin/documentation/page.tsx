@@ -25,7 +25,7 @@ const documents = [
     summary: 'Flusso mezzi, riconoscimento targa, assicurazioni, revisioni, assegnazioni e storico.',
     items: [
       'La pagina /fleet/ mostra la lista unica ordinata per completezza dati: completi, parziali, scaduti, solo targa.',
-      'La pagina /fleet/anagrafica/ contiene le tessere operative e il pulsante Riconosci mezzo.',
+      'La pagina /fleet/anagrafica/ contiene le tessere operative e il pulsante Aggiorna da targa.',
       'Il dettaglio mezzo /fleet/dettaglio/?id=... contiene assicurazioni, revisioni, assegnazioni, alert, sinistri e storico operazioni.',
       'Il riconoscimento deve prima consultare la cache locale, poi eventualmente chiamare il provider configurato.',
       'Il salvataggio dell’aggiornamento non deve chiamare provider esterni: applica dati gia registrati o selezionati.',
@@ -56,7 +56,7 @@ const documents = [
   {
     title: 'Risorse Umane',
     slug: 'risorse-umane',
-    summary: 'Anagrafica interna, esterna, fascicolo personale, documenti, qualifiche e abilitazioni.',
+    summary: 'Personale interno, personale esterno, fascicolo personale, documenti, qualifiche e abilitazioni.',
     items: [
       'Risorse Umane distingue anagrafica interna e anagrafica esterna.',
       'L’anagrafica esterna non usa sezioni contrattuali interne: usa collaborazione, allegati e riferimenti.',

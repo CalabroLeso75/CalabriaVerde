@@ -71,6 +71,24 @@ Prima applicazione completata:
 
 - anagrafica mezzi;
 - anagrafica persone interne/esterne.
+- menu principale organizzato in Operatività, Supporto e Sistema;
+- etichette principali semplificate: Persone, Mezzi, Strumenti, Amministrazione;
+- azioni rese piu esplicite: Nuova persona, Nuovo gruppo mezzi, Aggiorna da targa, Pulisci filtri, Fascicolo.
+
+## Regole di microcopy
+
+Le etichette devono essere brevi, concrete e orientate all'azione.
+
+Preferire:
+
+- Persone invece di Risorse Umane quando si parla dell'oggetto gestito;
+- Personale interno/personale esterno invece di Anagrafica interna/esterna;
+- Mezzi invece di Parco Macchine quando il menu porta all'elenco operativo;
+- Tutti i mezzi invece di Anagrafica mezzi;
+- Aggiorna da targa invece di Riconosci mezzo;
+- Pulisci filtri invece di Reset.
+
+Evitare intestazioni doppie nella stessa vista. Il titolo pagina resta nell'header; il contenuto deve partire con una breve descrizione operativa o direttamente con gli strumenti di lavoro.
 
 Prossimi passi consigliati:
 

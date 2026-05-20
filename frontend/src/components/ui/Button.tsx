@@ -18,7 +18,7 @@ const variantStyles: Record<string, string> = {
 };
 
 const sizeStyles: Record<string, string> = {
-  sm: 'min-h-9 px-3 py-1.5 text-sm rounded-[var(--cv-radius-sm)]',
+  sm: 'min-h-9 px-3.5 py-1.5 text-sm rounded-[var(--cv-radius-sm)]',
   md: 'min-h-10 px-4 py-2 text-sm rounded-[var(--cv-radius-md)]',
   lg: 'min-h-11 px-5 py-2.5 text-base rounded-[var(--cv-radius-md)]',
 };
@@ -41,7 +41,6 @@ export function Button({
         transition-all duration-200
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cv-primary)] focus-visible:ring-offset-2
         disabled:opacity-50 disabled:cursor-not-allowed
-        hover:-translate-y-[1px] active:translate-y-0
         ${variantStyles[variant]}
         ${sizeStyles[size]}
         ${className}

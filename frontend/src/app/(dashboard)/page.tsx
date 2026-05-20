@@ -149,13 +149,13 @@ export default function DashboardPage() {
         {/* Moduli rapidi */}
         <div>
           <Card>
-            <CardHeader title="Accesso Rapido" />
+            <CardHeader title="Azioni rapide" />
             <div className="space-y-2">
               {[
-                { label: 'Nuovo Dipendente', href: '/hr/new', color: 'var(--cv-primary)' },
-                { label: 'Registrazioni Pending', href: '/admin/pending', color: 'var(--cv-warning)' },
-                { label: 'Mappa Squadre', href: '/aib/map', color: 'var(--cv-danger)' },
-                { label: 'Report Magazzino', href: '/warehouse/report', color: 'var(--cv-info)' },
+                { label: 'Nuova persona', href: '/hr/new', color: 'var(--cv-primary)' },
+                { label: 'Accessi in attesa', href: '/admin/pending', color: 'var(--cv-warning)' },
+                { label: 'Mappa squadre', href: '/aib/map', color: 'var(--cv-danger)' },
+                { label: 'Report magazzino', href: '/warehouse/report', color: 'var(--cv-info)' },
               ].map((link) => (
                 <Link
                   key={link.label}

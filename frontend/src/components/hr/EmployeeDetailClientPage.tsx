@@ -185,11 +185,11 @@ function getInitials(nome: string, cognome: string): string {
 type Tab = 'anagrafica' | 'contratto' | 'operativo' | 'qualifiche' | 'documenti';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'anagrafica', label: 'Anagrafica',  icon: '👤' },
-  { id: 'contratto',  label: 'Contratto',   icon: '📋' },
-  { id: 'operativo',  label: 'Operativo',   icon: '🔥' },
-  { id: 'qualifiche', label: 'Qualifiche',  icon: '🎖️' },
-  { id: 'documenti',  label: 'Documenti',   icon: '📁' },
+  { id: 'anagrafica', label: 'Scheda persona', icon: 'SP' },
+  { id: 'contratto',  label: 'Contratto',      icon: 'CT' },
+  { id: 'operativo',  label: 'Operatività',    icon: 'OP' },
+  { id: 'qualifiche', label: 'Qualifiche',     icon: 'QA' },
+  { id: 'documenti',  label: 'Documenti',      icon: 'DO' },
 ];
 
 function getTabsForEmployee(tipo: 'interno' | 'esterno') {
@@ -211,7 +211,7 @@ const STATO_OPTIONS = [
   { value: 'malattia', label: 'Malattia' },
   { value: 'infortunio', label: 'Infortunio' },
   { value: 'aspettativa', label: 'Aspettativa' },
-  { value: 'maternita', label: 'Maternita' },
+  { value: 'maternita', label: 'Maternità' },
   { value: 'distaccato', label: 'Distaccato' },
   { value: 'sospeso', label: 'Sospeso' },
   { value: 'cessato', label: 'Cessato' },

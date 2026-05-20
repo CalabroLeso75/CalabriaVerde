@@ -693,3 +693,13 @@ Agente: Codex orchestrazione principale. Obiettivo collegato: OBJ-006 - Consolid
 **Esito:** completato in collaudo locale e promosso su Test.
 **Verifiche eseguite:** build frontend OK (`npm.cmd run build`); build frontend Test OK con `NEXT_PUBLIC_BASE_PATH=/test`; upload frontend Test OK; API health 200; verifica SSH hosting su `fleet/index.html`, `fleet/anagrafica/index.html`, `hr/interna/index.html`, `hr/esterna/index.html`.
 **Note utili:** la tessera mostra la visibilita come concetto UX, ma la sicurezza reale deve restare lato backend con filtro per ruoli, ambito organizzativo, modulo e privilegi puntuali.
+
+## 2026-05-20 15:45:00 - Pulizia grafica, menu ed etichette
+
+**Agente:** Codex orchestrazione principale
+**Obiettivo collegato:** UX-002 - Semplificazione interfaccia e accessibilita operativa
+**Azione svolta:** riorganizzato il menu laterale in Operatività, Supporto e Sistema; rinominate le voci principali in Persone, Mezzi, Strumenti e Amministrazione; semplificate le etichette operative in HR e Parco Macchine; migliorati `ObjectCard`, `Button`, `MetricCard`, `SectionLead` e layout dashboard per tessere piu leggibili e azioni piu accessibili.
+**File coinvolti:** `frontend/src/components/layout/Sidebar.tsx`, `frontend/src/components/layout/Header.tsx`, `frontend/src/components/common/ObjectCard.tsx`, `frontend/src/components/common/MetricCard.tsx`, `frontend/src/components/common/SectionLead.tsx`, `frontend/src/components/ui/Button.tsx`, pagine HR/Fleet/Admin.
+**Esito:** completato in collaudo locale e promosso su Test.
+**Verifiche eseguite:** build frontend OK; build frontend Test OK con `NEXT_PUBLIC_BASE_PATH=/test`; upload frontend Test OK; API health 200; pagina `fleet` 200; verifica SSH hosting su `dashboard/index.html`, `hr/interna/index.html`, `fleet/index.html`, `admin/index.html`.
+**Note utili:** mantenuta invariata la logica dati; intervento limitato a navigazione, microcopy, leggibilita e accessibilita.

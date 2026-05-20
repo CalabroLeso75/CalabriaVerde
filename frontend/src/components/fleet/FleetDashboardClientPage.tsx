@@ -109,8 +109,8 @@ export default function FleetDashboardClientPage() {
   return (
     <div className="space-y-6">
       <SectionLead
-        description="Quadro operativo unico del parco macchine."
-        detail="I mezzi sono ordinati per completezza: coperture e revisioni attive in alto, poi situazioni parziali, scadute e targhe ancora da completare."
+        description="Quadro unico dei mezzi aziendali."
+        detail="Apri una tessera o una riga per lavorare su fascicolo, coperture, revisioni, assegnazioni, km e storico operativo."
       />
 
       {error && (
@@ -121,10 +121,10 @@ export default function FleetDashboardClientPage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Mezzi censiti" value={summary?.total_vehicles ?? '...'} />
+        <MetricCard label="Mezzi totali" value={summary?.total_vehicles ?? '...'} />
         <MetricCard label="Operativi" value={summary?.operational_vehicles ?? '...'} accent="var(--cv-primary-dark)" />
-        <MetricCard label="Assicurazioni in scadenza" value={summary?.insurance_expiring_30d ?? '...'} accent="var(--cv-danger)" />
-        <MetricCard label="Revisioni in scadenza" value={summary?.revision_expiring_30d ?? '...'} accent="var(--cv-warning)" />
+        <MetricCard label="Assicurazioni entro 30 giorni" value={summary?.insurance_expiring_30d ?? '...'} accent="var(--cv-danger)" />
+        <MetricCard label="Revisioni entro 30 giorni" value={summary?.revision_expiring_30d ?? '...'} accent="var(--cv-warning)" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -138,10 +138,10 @@ export default function FleetDashboardClientPage() {
         <div className="flex flex-col gap-3 border-b p-4 md:flex-row md:items-center md:justify-between" style={{ borderColor: 'var(--cv-border-subtle)' }}>
           <div>
             <h3 className="text-lg font-semibold" style={{ color: 'var(--cv-neutral-900)' }}>
-              Elenco unico mezzi
+              Mezzi in ordine operativo
             </h3>
             <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-              Clicca una riga per aprire dettaglio, assicurazioni, revisioni, assegnazioni e storico.
+              Le situazioni complete sono in alto; seguono mezzi parziali, scaduti e targhe da completare.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -150,7 +150,7 @@ export default function FleetDashboardClientPage() {
               className="rounded-[var(--cv-radius-md)] border px-3 py-2 text-sm font-medium"
               style={{ borderColor: 'var(--cv-border-subtle)', color: 'var(--cv-primary)' }}
             >
-              Gestione anagrafica
+              Tutti i mezzi
             </Link>
             <Link
               href={withAppBasePath('/fleet/catalogo')}
@@ -167,11 +167,11 @@ export default function FleetDashboardClientPage() {
             <thead className="bg-slate-50">
               <tr>
                 <Column>Mezzo</Column>
-                <Column>Stato dati</Column>
+                <Column>Completezza</Column>
                 <Column>Assicurazione</Column>
                 <Column>Revisione</Column>
                 <Column>Assegnazione</Column>
-                <Column>Operativita</Column>
+                <Column>Operatività</Column>
               </tr>
             </thead>
             <tbody className="divide-y bg-white" style={{ borderColor: 'var(--cv-border-subtle)' }}>
@@ -186,7 +186,7 @@ export default function FleetDashboardClientPage() {
                   <Cell>
                     <div className="font-semibold" style={{ color: 'var(--cv-neutral-900)' }}>{vehicle.targa}</div>
                     <div className="mt-1 text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
-                      {vehicle.marca || '-'} {vehicle.modello || ''} · {vehicle.tipo || 'Tipo non definito'}
+                      {vehicle.marca || '-'} {vehicle.modello || ''} - {vehicle.tipo || 'Tipo non definito'}
                     </div>
                   </Cell>
                   <Cell>

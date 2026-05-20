@@ -71,10 +71,9 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-[var(--cv-neutral-900)]">Configurazione</h2>
-        <p className="mt-1 text-sm text-[var(--cv-neutral-600)]">Integrazioni API e servizi esterni del gestionale</p>
-      </div>
+      <p className="max-w-3xl text-sm text-[var(--cv-neutral-600)]">
+        Configura integrazioni API e servizi esterni del gestionale. Le credenziali salvate vengono usate dal backend.
+      </p>
 
       {error && (
         <div className="rounded-[var(--cv-radius-md)] border border-[var(--cv-danger)] bg-red-50 px-4 py-3 text-sm font-medium text-[var(--cv-danger)]">

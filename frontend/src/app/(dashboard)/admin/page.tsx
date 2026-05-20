@@ -8,8 +8,8 @@ import { withAppBasePath } from '@/lib/app-path';
 
 const adminSections = [
   {
-    title: 'Registrazioni Pending',
-    description: 'Approva o rifiuta le richieste di accesso al gestionale',
+    title: 'Accessi in attesa',
+    description: 'Verifica, approva o rifiuta le nuove richieste di accesso.',
     href: '/admin/pending',
     badge: { count: 5, variant: 'warning' as const },
     icon: (
@@ -19,8 +19,8 @@ const adminSections = [
     ),
   },
   {
-    title: 'Gestione Utenti',
-    description: 'Modifica ruoli, stati e permessi degli utenti attivi',
+    title: 'Utenti',
+    description: 'Gestisci account, stato utente e permessi assegnati.',
     href: '/admin/users',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -29,8 +29,8 @@ const adminSections = [
     ),
   },
   {
-    title: 'Ruoli e Permessi',
-    description: 'Configura i ruoli di sistema e i permessi associati',
+    title: 'Ruoli e permessi',
+    description: 'Configura profili di accesso e privilegi per modulo.',
     href: '/admin/roles',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -39,8 +39,8 @@ const adminSections = [
     ),
   },
   {
-    title: 'Organizzazioni',
-    description: 'Gestione distretti, distaccamenti e strutture organizzative',
+    title: 'Sedi e strutture',
+    description: 'Gestisci distretti, distaccamenti, reparti e strutture operative.',
     href: '/admin/organizations',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -49,8 +49,8 @@ const adminSections = [
     ),
   },
   {
-    title: 'Tipi di Contratto',
-    description: 'Configura i contratti gestiti dal sistema e allega CCNL e integrativi',
+    title: 'Contratti',
+    description: 'Configura contratti, CCNL, integrativi e allegati.',
     href: '/admin/contracts',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -59,8 +59,8 @@ const adminSections = [
     ),
   },
   {
-    title: 'Log di Sistema',
-    description: 'Audit trail delle operazioni eseguite sul gestionale',
+    title: 'Log di sistema',
+    description: 'Consulta il registro delle operazioni e degli eventi.',
     href: '/admin/logs',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -69,8 +69,8 @@ const adminSections = [
     ),
   },
   {
-    title: 'Configurazione',
-    description: 'Impostazioni generali del sistema e integrazioni esterne',
+    title: 'Impostazioni',
+    description: 'Configura sistema, integrazioni esterne e API.',
     href: '/admin/settings',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -94,14 +94,9 @@ const adminSections = [
 export default function AdminPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold" style={{ color: 'var(--cv-neutral-900)' }}>
-          Amministrazione
-        </h2>
-        <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-          Gestione sistema, utenti e configurazioni
-        </p>
-      </div>
+      <p className="max-w-3xl text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
+        Scegli l'area da configurare. Le funzioni amministrative sono ordinate per frequenza d'uso: accessi, utenti, ruoli, strutture, contratti, log e integrazioni.
+      </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {adminSections.map((section) => (

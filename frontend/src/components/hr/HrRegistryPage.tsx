@@ -54,7 +54,7 @@ const STATO_BADGE: Record<string, { variant: 'success'|'warning'|'danger'|'neutr
   malattia: { variant: 'warning', label: 'Malattia' },
   infortunio: { variant: 'warning', label: 'Infortunio' },
   aspettativa: { variant: 'info', label: 'Aspettativa' },
-  maternita: { variant: 'info', label: 'Maternita' },
+  maternita: { variant: 'info', label: 'Maternità' },
   distaccato: { variant: 'neutral', label: 'Distaccato' },
   sospeso: { variant: 'warning', label: 'Sospeso' },
   cessato: { variant: 'danger', label: 'Cessato' },
@@ -171,9 +171,9 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
           detail={total > 0 ? `${total.toLocaleString('it-IT')} record in elenco` : 'Caricamento anagrafica in corso...'}
         />
         <div className="flex flex-wrap gap-2">
-          <Link href={withAppBasePath('/hr/interna')}><Button variant={scope === 'interno' ? 'primary' : 'outline'} size="sm">Anagrafica interna</Button></Link>
-          <Link href={withAppBasePath('/hr/esterna')}><Button variant={scope === 'esterno' ? 'primary' : 'outline'} size="sm">Anagrafica esterna</Button></Link>
-          <Button>+ Nuovo dipendente</Button>
+          <Link href={withAppBasePath('/hr/interna')}><Button variant={scope === 'interno' ? 'primary' : 'outline'} size="sm">Personale interno</Button></Link>
+          <Link href={withAppBasePath('/hr/esterna')}><Button variant={scope === 'esterno' ? 'primary' : 'outline'} size="sm">Personale esterno</Button></Link>
+          <Link href={withAppBasePath('/hr/new')}><Button size="sm">Nuova persona</Button></Link>
         </div>
       </div>
 
@@ -185,7 +185,7 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
         <MetricCard label="Esterni" value={statsLoading ? '...' : (stats?.esterni ?? 0)} accent="var(--cv-info)" />
         <MetricCard label="In servizio" value={statsLoading ? '...' : (stats?.in_servizio ?? 0)} accent="var(--cv-success)" />
         <MetricCard label="Cessati" value={statsLoading ? '...' : (stats?.cessati ?? 0)} accent="var(--cv-danger)" />
-        <MetricCard label="AIB qual." value={statsLoading ? '...' : (stats?.aib_qualificati ?? 0)} accent="#CC8400" />
+        <MetricCard label="Qualifiche AIB" value={statsLoading ? '...' : (stats?.aib_qualificati ?? 0)} accent="#CC8400" />
         <MetricCard label="DOS" value={statsLoading ? '...' : (stats?.dos ?? 0)} accent="#9B59B6" />
       </div>
 
@@ -195,7 +195,7 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
             <Input
               id="hr-search"
               label=""
-              placeholder="Cerca per nome, cognome, CF, email, matricola..."
+              placeholder="Cerca persona, codice fiscale, email o matricola"
               value={searchInput}
               onChange={(e) => {
                 setPage(1);
@@ -225,7 +225,7 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
             label=""
             value={filterContratto}
             onChange={(e) => { setPage(1); setFilterContratto(e.target.value); }}
-            placeholder="Contratto"
+            placeholder="Tipo contratto"
             options={[
               { value: 'indeterminato', label: 'Indeterminato' },
               { value: 'determinato', label: 'Determinato' },
@@ -237,7 +237,7 @@ export default function HrRegistryPage({ scope, subtitle }: HrRegistryPageProps)
           />
           {(filterStato || filterContratto || searchInput) && (
             <Button variant="ghost" onClick={resetFilters}>
-              Reset
+              Pulisci filtri
             </Button>
           )}
         </div>

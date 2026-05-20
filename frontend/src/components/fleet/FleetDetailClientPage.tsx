@@ -744,12 +744,12 @@ export default function FleetDetailClientPage() {
   }, [communications, vehicle]);
 
   const tabs = useMemo(() => ([
-    { id: 'anagrafica', label: 'Anagrafica' },
+    { id: 'anagrafica', label: 'Scheda mezzo' },
     { id: 'revisioni', label: 'Coperture e revisioni' },
-    { id: 'assegnazioni', label: 'Assegnazioni e utilizzi' },
+    { id: 'assegnazioni', label: 'Assegnazioni' },
     { id: 'documenti', label: 'Documenti' },
-    { id: 'sinistri', label: 'SOS, alert e sinistri' },
-    { id: 'comunicazioni', label: 'Comunicazioni ufficiali' },
+    { id: 'sinistri', label: 'Alert e sinistri' },
+    { id: 'comunicazioni', label: 'Comunicazioni' },
   ]), []);
 
   if (!vehicleId) {
@@ -760,7 +760,7 @@ export default function FleetDetailClientPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-end gap-3">
         <Link href={withAppBasePath('/fleet/anagrafica')} className="text-sm font-medium" style={{ color: 'var(--cv-primary)' }}>
-          Torna all&apos;anagrafica
+          Torna ai mezzi
         </Link>
       </div>
 

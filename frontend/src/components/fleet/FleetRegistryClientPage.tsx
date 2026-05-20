@@ -514,8 +514,8 @@ export default function FleetRegistryClientPage() {
   return (
     <div className="space-y-6">
       <SectionLead
-        description="Archivio unico dei mezzi con gestione operativa di gruppi, rinnovi, assegnazioni e comunicazioni."
-        detail="Da qui prepariamo i gruppi come AIB, i rinnovi massivi e la rete dei destinatari per gli alert ufficiali."
+        description="Archivio operativo dei mezzi."
+        detail="Consulta i fascicoli, crea gruppi, aggiorna coperture e revisioni, avvia il riconoscimento da targa."
       />
 
       {actionMessage && <NoticeBanner title="Operazione completata" message={actionMessage} tone="success" />}
@@ -524,18 +524,18 @@ export default function FleetRegistryClientPage() {
       <Card padding="md">
         <div className="mb-4 flex flex-wrap gap-2">
           <Button type="button" onClick={() => setGroupModalOpen(true)}>
-            Crea gruppo da selezione
+            Nuovo gruppo mezzi
           </Button>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <Input
-            label="Ricerca"
+            label="Cerca mezzo"
             value={search}
             onChange={(event) => {
               setPage(1);
               setSearch(event.target.value);
             }}
-            placeholder="Targa, marca, modello o tipo..."
+            placeholder="Targa, marca, modello o tipologia"
           />
           <Select
             label="Stato"
@@ -570,7 +570,7 @@ export default function FleetRegistryClientPage() {
                 setVehicleTypeId('');
               }}
             >
-              Reset filtri
+              Pulisci filtri
             </button>
           </div>
         </div>
@@ -580,9 +580,9 @@ export default function FleetRegistryClientPage() {
         <Card padding="md">
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold">Gruppi mezzi</h3>
+              <h3 className="text-lg font-semibold">Gruppi operativi</h3>
               <p className="mt-1 text-sm" style={{ color: 'var(--cv-neutral-600)' }}>
-                Crea gruppi operativi come AIB o altri comparti. L&apos;aggiornamento massivo parte da qui.
+                Raggruppa i mezzi per attività, sede o campagna di rinnovo.
               </p>
             </div>
 
@@ -593,7 +593,7 @@ export default function FleetRegistryClientPage() {
                     <div>
                       <p className="text-sm font-semibold">{group.name}</p>
                       <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
-                        {group.code} · {group.scope} · {group.vehicle_count} mezzi
+                        {group.code} - {group.scope} - {group.vehicle_count} mezzi
                       </p>
                     </div>
                     {group.province_code ? (
@@ -665,7 +665,7 @@ export default function FleetRegistryClientPage() {
                 <div key={target.id} className="rounded-[var(--cv-radius-md)] border px-3 py-3" style={{ borderColor: 'var(--cv-border-subtle)' }}>
                   <p className="text-sm font-semibold">{target.display_name}</p>
                   <p className="text-xs" style={{ color: 'var(--cv-neutral-600)' }}>
-                    {target.role_label}{target.province_code ? ` · ${target.province_code}` : ''} · {target.preferred_channels.join(', ')}
+                    {target.role_label}{target.province_code ? ` - ${target.province_code}` : ''} - {target.preferred_channels.join(', ')}
                   </p>
                 </div>
               ))}
@@ -772,7 +772,7 @@ export default function FleetRegistryClientPage() {
             avatar={vehicle.targa.slice(0, 2)}
             draggable
             properties={[
-              { label: 'Compliance', value: vehicle.compliance_label, tone: objectStatusTone(vehicle.compliance_status) },
+              { label: 'Completezza', value: vehicle.compliance_label, tone: objectStatusTone(vehicle.compliance_status) },
               { label: 'Assicurazione', value: `${statusText(vehicle.insurance_status)} - ${formatDate(vehicle.scadenza_assicurazione)}`, tone: objectStatusTone(vehicle.insurance_status) },
               { label: 'Revisione', value: `${statusText(vehicle.revision_status)} - ${formatDate(vehicle.scadenza_revisione)}`, tone: objectStatusTone(vehicle.revision_status) },
               { label: 'Km attuali', value: vehicle.km_attuali.toLocaleString('it-IT') },
@@ -785,7 +785,7 @@ export default function FleetRegistryClientPage() {
             ]}
             actions={[
               {
-                label: 'Riconosci mezzo',
+                label: 'Aggiorna da targa',
                 onClick: () => {
                   setRecognitionVehicle(vehicle);
                   setRecognitionStep('confirm');
@@ -919,7 +919,7 @@ export default function FleetRegistryClientPage() {
                     </div>
                     <div className="rounded-[var(--cv-radius-md)] bg-[var(--cv-neutral-100)] p-3">
                       <p className="text-xs font-semibold uppercase text-[var(--cv-neutral-500)]">Cilindrata / CV</p>
-                      <p className="font-semibold">{recognitionResult.lookup.trim.displacement_cc || '-'} cc · {recognitionResult.lookup.trim.horsepower_hp || '-'} CV</p>
+                      <p className="font-semibold">{recognitionResult.lookup.trim.displacement_cc || '-'} cc - {recognitionResult.lookup.trim.horsepower_hp || '-'} CV</p>
                     </div>
                     </div>
 
@@ -942,7 +942,7 @@ export default function FleetRegistryClientPage() {
                         <div className="mt-2 space-y-2">
                           {recognitionResult.insurance_records.length ? recognitionResult.insurance_records.map((item) => (
                             <div key={item.id} className="text-sm text-[var(--cv-neutral-700)]">
-                              <span className="font-semibold">{item.compagnia}</span> · {formatDate(item.data_scadenza)}{item.is_current ? ' · attuale' : ''}
+                              <span className="font-semibold">{item.compagnia}</span> - {formatDate(item.data_scadenza)}{item.is_current ? ' - corrente' : ''}
                             </div>
                           )) : <p className="text-sm text-[var(--cv-neutral-600)]">Nessuna assicurazione storicizzata.</p>}
                         </div>
@@ -952,7 +952,7 @@ export default function FleetRegistryClientPage() {
                         <div className="mt-2 space-y-2">
                           {recognitionResult.revision_records.length ? recognitionResult.revision_records.map((item) => (
                             <div key={item.id} className="text-sm text-[var(--cv-neutral-700)]">
-                              <span className="font-semibold">{formatDate(item.data_revisione)}</span> · {item.esito}{item.km_rilevati ? ` · ${item.km_rilevati.toLocaleString('it-IT')} km` : ''}
+                              <span className="font-semibold">{formatDate(item.data_revisione)}</span> - {item.esito}{item.km_rilevati ? ` - ${item.km_rilevati.toLocaleString('it-IT')} km` : ''}
                             </div>
                           )) : <p className="text-sm text-[var(--cv-neutral-600)]">Nessuna revisione storicizzata.</p>}
                         </div>
@@ -963,7 +963,7 @@ export default function FleetRegistryClientPage() {
                       <div className="mt-2 max-h-52 space-y-2 overflow-y-auto">
                         {recognitionResult.api_logs.length ? recognitionResult.api_logs.map((item) => (
                           <div key={item.id} className="rounded-[var(--cv-radius-sm)] bg-white px-3 py-2 text-xs text-[var(--cv-neutral-700)]">
-                            <p><span className="font-semibold">{item.provider}</span> · {item.lookup_type} · {item.status}</p>
+                            <p><span className="font-semibold">{item.provider}</span> - {item.lookup_type} - {item.status}</p>
                             {item.error_message && <p className="mt-1 text-[var(--cv-danger)]">{item.error_message}</p>}
                             {item.created_at && <p className="mt-1 text-[var(--cv-neutral-500)]">{new Date(item.created_at).toLocaleString('it-IT')}</p>}
                           </div>
